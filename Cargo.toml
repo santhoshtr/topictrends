@@ -1,0 +1,38 @@
+[package]
+name = "topictrend"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name="get-categories"
+path="src/categories.rs"
+
+[[bin]]
+name="get-articles"
+path="src/articles.rs"
+
+[[bin]]
+name="get-categorygraph"
+path="src/categorygraph.rs"
+
+[[bin]]
+name="get-article_category"
+path="src/article_category.rs"
+
+[[bin]]
+name="wikigraph"
+path="src/main.rs"
+
+[dependencies]
+mysql = "26.0"
+parquet = "57"
+parquet_derive = "57.0"
+dotenv = "0.15"
+# Polars for fast Parquet loading
+polars = { version = "0.51", features=["lazy","parquet", "dtype-full"]  }
+# Roaring for high-performance bitmaps
+roaring = { version = "0.11", features=[]}
+# Anyhow for error handling
+anyhow = "1.0"
+# AHash for faster HashMaps
+ahash = "0.8"
