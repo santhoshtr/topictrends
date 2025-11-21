@@ -6,9 +6,6 @@ use std::collections::VecDeque;
 use std::path::Path;
 use std::time::Instant;
 
-// --- 1. The Optimized Data Structure ---
-//
-
 /// The core high-performance graph structure.
 /// All internal logic uses "Dense IDs" (0..N), not the raw Wikipedia Page IDs.
 pub struct WikiGraph {
@@ -75,6 +72,79 @@ impl WikiGraph {
         result
     }
 
+    /// Get immediate subcategories (Depth 1)
+    /// Returns a vector of tuples: (Original_Wiki_ID, Category_Name)
+    pub fn get_child_categories(&self, wiki_cat_id: u32) -> Vec<(u32, String)> {
+        // 1. Convert External ID -> Internal Dense ID
+        let dense_id = match self.cat_original_to_dense.get(&wiki_cat_id) {
+            Some(&id) => id,
+            None => return Vec::new(), // Category not found
+        };
+
+        // 2. Lookup children in the Adjacency List
+        if let Some(children_dense) = self.children.get(dense_id as usize) {
+            // 3. Map back to (WikiID, Name)
+            children_dense
+                .iter()
+                .map(|&child_dense| {
+                    let idx = child_dense as usize;
+                    (self.cat_dense_to_original[idx], self.cat_names[idx].clone())
+                })
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+    /// Get all subcategories up to a specific depth `n`.
+    /// Returns a vector of tuples: (Original_Wiki_ID, Category_Name, Depth)
+    pub fn get_descendant_categories(
+        &self,
+        wiki_cat_id: u32,
+        max_depth: u8,
+    ) -> Vec<(u32, String, u8)> {
+        let start_node = match self.cat_original_to_dense.get(&wiki_cat_id) {
+            Some(&id) => id,
+            None => return Vec::new(),
+        };
+
+        let mut results = Vec::new();
+        let mut queue = VecDeque::new();
+        // Use a lightweight bitset for visited check to handle cycles
+        let mut visited = RoaringBitmap::new();
+
+        queue.push_back((start_node, 0));
+        visited.insert(start_node);
+
+        while let Some((curr, depth)) = queue.pop_front() {
+            // If it's not the start node, add it to results
+            if curr != start_node {
+                let idx = curr as usize;
+                results.push((
+                    self.cat_dense_to_original[idx],
+                    self.cat_names[idx].clone(),
+                    depth,
+                ));
+            }
+
+            // Stop if we reached max depth
+            if depth >= max_depth {
+                continue;
+            }
+
+            // Enqueue children
+            if let Some(children) = self.children.get(curr as usize) {
+                for &child in children {
+                    if !visited.contains(child) {
+                        visited.insert(child);
+                        queue.push_back((child, depth + 1));
+                    }
+                }
+            }
+        }
+
+        results
+    }
+
     /// Find parent categories (Navigate Up)
     pub fn get_parent_categories(&self, wiki_cat_id: u32) -> Vec<u32> {
         let dense_id = match self.cat_original_to_dense.get(&wiki_cat_id) {
@@ -97,9 +167,31 @@ impl WikiGraph {
     pub fn get_article_name(&self, dense_id: u32) -> Option<&String> {
         self.art_names.get(dense_id as usize)
     }
-}
 
-// --- 2. The Loader Logic ---
+    /// Get all parent categories for a specific article.
+    /// Returns a vector of tuples: (Category_Wiki_ID, Category_Name)
+    pub fn get_categories_for_article(&self, wiki_article_id: u32) -> Vec<(u32, String)> {
+        // 1. Convert Article External ID -> Article Internal Dense ID
+        let dense_art_id = match self.art_original_to_dense.get(&wiki_article_id) {
+            Some(&id) => id,
+            None => return Vec::new(), // Article not found
+        };
+
+        // 2. Lookup the list of Category Dense IDs for this article
+        if let Some(cat_dense_ids) = self.article_cats.get(dense_art_id as usize) {
+            // 3. Map Category Dense IDs back to (WikiID, Name)
+            cat_dense_ids
+                .iter()
+                .map(|&cat_dense| {
+                    let idx = cat_dense as usize;
+                    (self.cat_dense_to_original[idx], self.cat_names[idx].clone())
+                })
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+}
 
 pub struct GraphBuilder;
 
@@ -121,7 +213,7 @@ impl GraphBuilder {
         let (art_dense_to_original, art_names, art_original_to_dense) =
             Self::load_nodes(format!("{}/articles.parquet", data_dir))?;
 
-        let num_arts = art_dense_to_original.len();
+        let num_arts: usize = art_dense_to_original.len();
         println!("Loaded {} articles.", num_arts);
 
         // C. Initialize Structure Containers
@@ -136,7 +228,7 @@ impl GraphBuilder {
         let path: PlPath = PlPath::Local(Arc::from(Path::new(
             format!("{}/cat_parents.parquet", data_dir).as_str(),
         )));
-        let df_rel = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
+        let df_rel: DataFrame = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
 
         let p_col = df_rel.column("parent")?.u32()?;
         let c_col = df_rel.column("child")?.u32()?;
@@ -162,10 +254,10 @@ impl GraphBuilder {
         let path: PlPath = PlPath::Local(Arc::from(Path::new(
             format!("{}/cat_children.parquet", data_dir).as_str(),
         )));
-        let df_rev = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
+        let df_rev: DataFrame = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
 
-        let c_col_rev = df_rev.column("child")?.u32()?;
-        let p_col_rev = df_rev.column("parent")?.u32()?;
+        let c_col_rev: &ChunkedArray<UInt32Type> = df_rev.column("child")?.u32()?;
+        let p_col_rev: &ChunkedArray<UInt32Type> = df_rev.column("parent")?.u32()?;
 
         for (opt_c, opt_p) in c_col_rev.into_iter().zip(p_col_rev.into_iter()) {
             if let (Some(c_raw), Some(p_raw)) = (opt_c, opt_p) {
