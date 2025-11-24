@@ -5,7 +5,7 @@ use polars::{
     prelude::{LazyFrame, PlPath},
 };
 use roaring::RoaringBitmap;
-use std::{collections::HashMap, error::Error, path::Path, sync::Arc};
+use std::{collections::HashMap, error::Error, fs::File, path::Path, sync::Arc};
 
 use crate::wikigraph::WikiGraph;
 

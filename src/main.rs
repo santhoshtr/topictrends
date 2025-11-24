@@ -2,6 +2,7 @@ use crate::wikigraph::GraphBuilder;
 use clap::{Arg, ArgMatches, Command};
 use std::error::Error;
 
+mod graphbuilder;
 mod pageviews;
 mod wikigraph;
 
