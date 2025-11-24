@@ -1,17 +1,12 @@
 use clap::{Arg, ArgMatches, Command};
 use std::error::Error;
+use topictrend::{graphbuilder::GraphBuilder, wikigraph};
 
-use crate::graphbuilder::GraphBuilder;
-
-mod graphbuilder;
 mod pageviews;
-mod wikigraph;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Define the CLI structure
     let matches = Command::new("WikiGraph CLI")
-        .version("0.1.0")
-        .author("Santhosh Thottingal <santhosh.thottingal@gmail.com>")
         .about("Command-line interface for WikiGraph operations")
         .arg(
             Arg::new("wiki")

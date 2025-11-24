@@ -1,55 +1,20 @@
-[package]
-name = "topictrend"
-version = "0.1.0"
-edition = "2024"
-default-run = "wikigraph"
+[workspace]
+resolver = "3"
+members = [
+  "topictrend_core",
+  "topictrend_cli"
+]
 
-[[bin]]
-name="get-categories"
-path="src/scripts/categories.rs"
-
-[[bin]]
-name="get-articles"
-path="src/scripts/articles.rs"
-
-[[bin]]
-name="get-categorygraph"
-path="src/scripts/category_graph.rs"
-
-[[bin]]
-name="get-article_category"
-path="src/scripts/article_category.rs"
-
-[[bin]]
-name="get-pageviews"
-path="src/scripts/pageviews.rs"
-
-[[bin]]
-name="get-per_day_wiki_stats"
-path="src/scripts/per_day_wiki_stats.rs"
-
-[[bin]]
-name="wikigraph"
-path="src/main.rs"
-
-[dependencies]
+[workspace.dependencies]
 parquet = "57"
 parquet_derive = "57.0"
 dotenv = "0.15"
-# Polars for fast Parquet loading
-polars = { version = "0.51", features=["lazy","parquet", "dtype-full", "strings"]  }
-# Roaring for high-performance bitmaps
-roaring = { version = "0.11", features=[]}
-# Anyhow for error handling
+polars = { version = "0.51", features=["lazy","parquet", "dtype-full", "strings"] }
+roaring = { version = "0.11", features=[] }
 anyhow = "1.0"
-# AHash for faster HashMaps
 ahash = "0.8"
 clap = "4.5.53"
 chrono = "0.4.42"
 rayon = "1.11"
 byteorder = "1.5"
 
-
-[profile.release]
-codegen-units = 1
-lto = false

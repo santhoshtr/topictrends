@@ -63,15 +63,14 @@ impl GraphBuilder {
         // Iterate and populate adjacency lists
         // We use the HashMaps to convert Raw ID -> Dense ID on the fly
         for (opt_p, opt_c) in p_col.into_iter().zip(c_col.into_iter()) {
-            if let (Some(p_raw), Some(c_raw)) = (opt_p, opt_c) {
-                if let (Some(&p_dense), Some(&c_dense)) = (
+            if let (Some(p_raw), Some(c_raw)) = (opt_p, opt_c)
+                && let (Some(&p_dense), Some(&c_dense)) = (
                     cat_original_to_dense.get(&p_raw),
                     cat_original_to_dense.get(&c_raw),
                 ) {
                     children[p_dense as usize].push(c_dense);
                     parents[c_dense as usize].push(p_dense);
                 }
-            }
         }
 
         // F. Load Article -> Category
@@ -85,8 +84,8 @@ impl GraphBuilder {
         let c_col_ac = df_art_cat.column("category_id")?.u32()?;
 
         for (opt_a, opt_c) in a_col.into_iter().zip(c_col_ac.into_iter()) {
-            if let (Some(a_raw), Some(c_raw)) = (opt_a, opt_c) {
-                if let (Some(&a_dense), Some(&c_dense)) = (
+            if let (Some(a_raw), Some(c_raw)) = (opt_a, opt_c)
+                && let (Some(&a_dense), Some(&c_dense)) = (
                     art_original_to_dense.get(&a_raw),
                     cat_original_to_dense.get(&c_raw),
                 ) {
@@ -96,7 +95,6 @@ impl GraphBuilder {
                     // Populate Article metadata
                     article_cats[a_dense as usize].push(c_dense);
                 }
-            }
         }
 
         println!("Graph build completed in {:.2?}s", start.elapsed());

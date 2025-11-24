@@ -1,0 +1,26 @@
+[package]
+name = "topictrend_core"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "topictrend"
+
+
+[dependencies]
+parquet = {workspace=true}
+parquet_derive = {workspace=true}
+dotenv = {workspace=true}
+polars =  {workspace=true}
+roaring =  {workspace=true}
+anyhow = {workspace=true}
+ahash = {workspace=true}
+clap =  {workspace=true}
+chrono =  {workspace=true}
+rayon =  {workspace=true}
+byteorder = {workspace=true}
+
+
+[profile.release]
+codegen-units = 1
+lto = false

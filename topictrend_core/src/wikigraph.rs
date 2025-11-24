@@ -1,9 +1,7 @@
-use anyhow::Result;
 use polars::prelude::*;
 use roaring::RoaringBitmap;
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use std::time::Instant;
 
 /// The core high-performance graph structure.
 /// All internal logic uses "Dense IDs" (0..N), not the raw Wikipedia Page IDs.
@@ -51,8 +49,8 @@ impl WikiGraph {
             }
 
             // B. Traverse deeper if allowed
-            if depth < max_depth {
-                if let Some(children) = self.children.get(curr as usize) {
+            if depth < max_depth
+                && let Some(children) = self.children.get(curr as usize) {
                     for &child in children {
                         if !visited.contains(child) {
                             visited.insert(child);
@@ -60,7 +58,6 @@ impl WikiGraph {
                         }
                     }
                 }
-            }
         }
         result
     }

@@ -1,0 +1,51 @@
+[package]
+name = "topictrend_cli"
+version = "0.1.0"
+edition = "2024"
+default-run = "wikigraph"
+
+[[bin]]
+name="get-categories"
+path="src/categories.rs"
+
+[[bin]]
+name="get-articles"
+path="src/articles.rs"
+
+[[bin]]
+name="get-categorygraph"
+path="src/category_graph.rs"
+
+[[bin]]
+name="get-article_category"
+path="src/article_category.rs"
+
+[[bin]]
+name="get-pageviews"
+path="src/pageviews.rs"
+
+[[bin]]
+name="get-per_day_wiki_stats"
+path="src/per_day_wiki_stats.rs"
+
+[[bin]]
+name="wikigraph"
+path="src/main.rs"
+
+[dependencies]
+topictrend_core = {path="../topictrend_core"}
+parquet = {workspace=true}
+parquet_derive =  {workspace=true}
+dotenv = {workspace=true}
+polars =  {workspace=true}
+roaring =  {workspace=true}
+anyhow = {workspace=true}
+ahash = {workspace=true}
+clap =  {workspace=true}
+chrono =  {workspace=true}
+rayon =  {workspace=true}
+byteorder = {workspace=true}
+
+[profile.release]
+codegen-units = 1
+lto = false

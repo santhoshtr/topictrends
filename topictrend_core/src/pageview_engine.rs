@@ -1,3 +1,4 @@
+use crate::wikigraph::WikiGraph;
 use chrono::NaiveDate;
 use dotenv::dotenv;
 use polars::{
@@ -5,9 +6,8 @@ use polars::{
     prelude::{LazyFrame, PlPath},
 };
 use roaring::RoaringBitmap;
+use std::io::Read;
 use std::{collections::HashMap, error::Error, fs::File, path::Path, sync::Arc};
-
-use crate::wikigraph::WikiGraph;
 
 pub struct PageViewEngine {
     // Map Date -> Vector of pageviews (Index is Dense Article ID)
@@ -15,7 +15,7 @@ pub struct PageViewEngine {
     daily_views: HashMap<NaiveDate, Vec<u32>>,
 }
 
-pub fn load_bin_file(path: &str, expected_size: usize) -> Result<Vec<u32>> {
+pub fn load_bin_file(path: &str, expected_size: usize) -> Result<Vec<u32>, Box<dyn Error>> {
     let mut file = File::open(path)?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)?;

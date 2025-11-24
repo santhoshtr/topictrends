@@ -1,11 +1,9 @@
-use byteorder::{LittleEndian, WriteBytesExt};
 use polars::prelude::*;
 use rayon::prelude::*;
 use std::fs::File;
-use std::io::Write;
-use std::io::{BufRead, BufReader, BufWriter};
+use std::io::{BufRead, BufReader};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::{path::Path, sync::Arc};
 
 #[derive(Debug, Clone)]
 struct PageView {
@@ -14,6 +12,31 @@ struct PageView {
     page_id: i64,
     access_method: String,
     daily_views: i64,
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = std::env::args().collect();
+
+    let (output_file, chunk_size) = if args.len() >= 2 {
+        let output = &args[1];
+        let chunk = if args.len() >= 3 {
+            args[2].parse().unwrap_or(100_000)
+        } else {
+            100_000
+        };
+        (output.as_str(), chunk)
+    } else {
+        eprintln!("Usage: <program> <output_file> [chunk_size]");
+        std::process::exit(1);
+    };
+
+    println!("=== Wikipedia Pageviews to Parquet Converter ===");
+    println!("Output: {}", output_file);
+    println!("Chunk size: {}\n", chunk_size);
+
+    convert_pageviews_to_parquet(output_file, chunk_size)?;
+
+    Ok(())
 }
 
 fn parse_line(line: &str) -> Result<PageView, Box<dyn std::error::Error>> {
@@ -57,11 +80,7 @@ fn process_chunk(records: Vec<PageView>) -> Result<DataFrame, PolarsError> {
     ])
 }
 
-fn get_file_size<P: AsRef<Path>>(path: P) -> std::io::Result<u64> {
-    Ok(std::fs::metadata(path)?.len())
-}
-
-pub fn convert_pageviews_to_parquet(
+fn convert_pageviews_to_parquet(
     output_path: &str,
     chunk_size: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -110,17 +129,11 @@ pub fn convert_pageviews_to_parquet(
 
     println!("\nProcessing {} chunks in parallel...", chunks.len());
 
-    let chunk_counter = Arc::new(AtomicUsize::new(0));
-
     // Process chunks in parallel
     let dataframes: Vec<DataFrame> = chunks
         .into_par_iter()
         .filter_map(|chunk| {
             let result = process_chunk(chunk);
-
-            // Update progress
-            let count = chunk_counter.fetch_add(1, Ordering::Relaxed);
-
             result.ok()
         })
         .collect();
@@ -142,31 +155,6 @@ pub fn convert_pageviews_to_parquet(
         .finish(&mut dataframe)?; // Pass the DataFrame
     println!("\n✓ Conversion complete!");
     println!("  Lines processed: {}", lines_processed);
-
-    Ok(())
-}
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = std::env::args().collect();
-
-    let (output_file, chunk_size) = if args.len() >= 2 {
-        let output = &args[1];
-        let chunk = if args.len() >= 3 {
-            args[2].parse().unwrap_or(100_000)
-        } else {
-            100_000
-        };
-        (output.as_str(), chunk)
-    } else {
-        eprintln!("Usage: <program> <output_file> [chunk_size]");
-        std::process::exit(1);
-    };
-
-    println!("=== Wikipedia Pageviews to Parquet Converter ===");
-    println!("Output: {}", output_file);
-    println!("Chunk size: {}\n", chunk_size);
-
-    convert_pageviews_to_parquet(output_file, chunk_size)?;
 
     Ok(())
 }
