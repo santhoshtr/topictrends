@@ -8,12 +8,10 @@ run: init data
 init: wikipedia.list
 	mkdir -p data
 
-
-data: $(addprefix data/articles.,$(addsuffix .parquet,$(WIKIS))) \
+data: init $(addprefix data/articles.,$(addsuffix .parquet,$(WIKIS))) \
 	$(addprefix data/categories.,$(addsuffix .parquet,$(WIKIS))) \
-	data/cat_children.parquet \
-	data/cat_parents.parquet \
-	data/article_category.parquet
+	$(addprefix data/category_graph.,$(addsuffix .parquet,$(WIKIS))) \
+	$(addprefix data/article_category.,$(addsuffix .parquet,$(WIKIS)))
 
 data/articles.%.parquet:
 	cat queries/articles.sql | analytics-mysql $* | cargo run --release --bin get-articles $@
@@ -22,10 +20,10 @@ data/categories.%.parquet:
 	cat queries/categories.sql | analytics-mysql $* | cargo run --release --bin get-categories $@
 
 data/category_graph.%.parquet:
-	cat queries/category-graph.sql | analytics-mysql $* | cargo run --release --bin get-categorygrap $@
+	cat queries/category-graph.sql | analytics-mysql $* | cargo run --release --bin get-categorygraph $@
 
 data/article_category.%.parquet:
-	cat queries/article_category.sql | analytics-mysql $* cargo run --release --bin get-article_category $@
+	cat queries/article-category.sql | analytics-mysql $* | cargo run --release --bin get-article_category $@
 
 data/pageviews-2025-11-20.parquet:
 	curl https://dumps.wikimedia.org/other/pageview_complete/2025/2025-11/pageviews-20251120-user.bz2 \
