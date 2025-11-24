@@ -2,23 +2,27 @@
 name = "topictrend"
 version = "0.1.0"
 edition = "2024"
-default-run = "wikigraph" # This binary will be run by default
+default-run = "wikigraph"
 
 [[bin]]
 name="get-categories"
-path="src/categories.rs"
+path="src/scripts/categories.rs"
 
 [[bin]]
 name="get-articles"
-path="src/articles.rs"
+path="src/scripts/articles.rs"
 
 [[bin]]
 name="get-categorygraph"
-path="src/categorygraph.rs"
+path="src/scripts/categorygraph.rs"
 
 [[bin]]
 name="get-article_category"
-path="src/article_category.rs"
+path="src/scripts/article_category.rs"
+
+[[bin]]
+name="get-pageviews"
+path="src/scripts/pageviews.rs"
 
 [[bin]]
 name="wikigraph"
@@ -30,7 +34,7 @@ parquet = "57"
 parquet_derive = "57.0"
 dotenv = "0.15"
 # Polars for fast Parquet loading
-polars = { version = "0.51", features=["lazy","parquet", "dtype-full"]  }
+polars = { version = "0.51", features=["lazy","parquet", "dtype-full", "strings"]  }
 # Roaring for high-performance bitmaps
 roaring = { version = "0.11", features=[]}
 # Anyhow for error handling
@@ -38,3 +42,11 @@ anyhow = "1.0"
 # AHash for faster HashMaps
 ahash = "0.8"
 clap = "4.5.53"
+chrono = "0.4.42"
+rayon = "1.11"
+byteorder = "1.5"
+
+
+[profile.release]
+codegen-units = 1
+lto = false

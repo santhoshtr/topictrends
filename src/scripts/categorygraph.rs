@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db_password = std::env::var("DB_PASSWORD").expect("DB_PASSWORD not set in .env");
     let db_host = std::env::var("DB_HOST").unwrap_or_else(|_| "localhost".to_string());
     let db_port = std::env::var("DB_PORT").unwrap_or_else(|_| "3306".to_string());
-    let db_name = "mlwiki_p";
+    let db_name = std::env::var("DB_NAME").unwrap_or_else(|_| "enwiki".to_string());
     let opts = OptsBuilder::new()
         .user(Some(db_user))
         .pass(Some(db_password))

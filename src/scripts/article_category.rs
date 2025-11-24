@@ -9,9 +9,9 @@ use std::fs::File;
 use std::sync::Arc;
 
 #[derive(Debug, ParquetRecordWriter)]
-struct PageRecord {
-    page_id: u32,
-    page_title: String,
+struct ArticleCategory {
+    article_id: u32,
+    category_id: u32,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db_password = std::env::var("DB_PASSWORD").expect("DB_PASSWORD not set in .env");
     let db_host = std::env::var("DB_HOST").unwrap_or_else(|_| "localhost".to_string());
     let db_port = std::env::var("DB_PORT").unwrap_or_else(|_| "3306".to_string());
-    let db_name = "mlwiki_p";
+    let db_name = std::env::var("DB_NAME").unwrap_or_else(|_| "enwiki".to_string());
     let opts = OptsBuilder::new()
         .user(Some(db_user))
         .pass(Some(db_password))
@@ -32,18 +32,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pool = Pool::new(opts)?;
     let mut conn = pool.get_conn().expect("Connection failed");
 
-    // Execute the query
-    let query = "SELECT page_id, page_title FROM page WHERE page_namespace = 14 ";
-    let results: Vec<PageRecord> = conn.query_map(query, |(page_id, page_title)| PageRecord {
-        page_id,
-        page_title,
-    })?;
+    let query = "
+    SELECT 
+    cl.cl_from AS article_id,
+    p.page_id as category_id
+    FROM categorylinks cl
+    JOIN page p ON cl.cl_to = p.page_title
+    WHERE page_namespace=14
+    ORDER BY cl_from    
+    ";
+    let results: Vec<ArticleCategory> =
+        conn.query_map(query, |(article_id, category_id)| ArticleCategory {
+            article_id,
+            category_id,
+        })?;
 
     println!("Retrieved {} records", results.len());
 
     let schema = results.as_slice().schema().unwrap();
     let props = Arc::new(WriterProperties::builder().build());
-    let file = File::create("data/categories.parquet").unwrap();
+    let file = File::create("data/article_category.parquet").unwrap();
     let mut writer = SerializedFileWriter::new(file, schema, props).unwrap();
     let mut row_group = writer.next_row_group().unwrap();
     results
@@ -51,9 +59,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .write_to_row_group(&mut row_group)
         .unwrap();
     row_group.close().unwrap();
-
     writer.close().unwrap();
-    println!("Successfully wrote data to categories.parquet");
+
+    println!("Successfully wrote article_category and cat_parents to Parquet files.");
 
     Ok(())
 }
