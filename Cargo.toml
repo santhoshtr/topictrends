@@ -29,7 +29,6 @@ name="wikigraph"
 path="src/main.rs"
 
 [dependencies]
-mysql = "26.0"
 parquet = "57"
 parquet_derive = "57.0"
 dotenv = "0.15"
