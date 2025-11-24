@@ -61,50 +61,6 @@ fn get_file_size<P: AsRef<Path>>(path: P) -> std::io::Result<u64> {
     Ok(std::fs::metadata(path)?.len())
 }
 
-fn process_dump(input_path: &str, output_path: &str, graph: &WikiGraph, size: usize) -> Result<()> {
-    // A. Prepare Memory Vector (All zeros)
-    // Size = 7 Million * 4 bytes ~= 28MB (Very cheap)
-    let mut views = vec![0u32; size];
-
-    // C. Key Step: Map Title -> Dense ID
-    // The graph contains titles (ensure they are formatted same as dump, usually underscores)
-    // Note: Graph lookup by title might be slow if not optimized.
-    // Faster approach: Create a temporary HashMap<String, u32> just for this job
-    // or rely on WikiGraph if it has a Title->ID map.
-
-    // Assuming WikiGraph has a helper or we use the raw map:
-    // (In the previous answer, we built `art_names`. We need a reverse lookup here)
-    // For performance, building a temporary Title->DenseID HashMap is best.
-
-    // PSEUDOCODE for lookup:
-    // if let Some(dense_id) = title_to_dense_map.get(title) {
-    //     views[*dense_id as usize] += count;
-    //     match_count += 1;
-    // }
-
-    println!(
-        "Processed {} lines. Matched {} articles.",
-        lines_processed, match_count
-    );
-
-    // D. Write Binary File
-    let out_file = File::create(output_path)?;
-    let mut writer = BufWriter::new(out_file);
-
-    // Header: Magic (4) + Version (4) + Size (8)
-    writer.write_all(b"VIEW")?;
-    writer.write_u32::<LittleEndian>(1)?;
-    writer.write_u64::<LittleEndian>(size as u64)?;
-
-    // Body: The raw array
-    for count in views {
-        writer.write_u32::<LittleEndian>(count)?;
-    }
-
-    writer.flush()?;
-    Ok(())
-}
-
 pub fn convert_pageviews_to_parquet(
     output_path: &str,
     chunk_size: usize,

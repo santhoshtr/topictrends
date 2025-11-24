@@ -1,4 +1,5 @@
 use anyhow::Result;
+use dotenv::dotenv;
 use polars::prelude::*;
 use roaring::RoaringBitmap;
 use std::collections::HashMap;
@@ -7,17 +8,29 @@ use std::time::Instant;
 
 use crate::wikigraph::WikiGraph;
 
-pub struct GraphBuilder;
+pub struct GraphBuilder {
+    pub wiki: String,
+}
 
 impl GraphBuilder {
-    pub fn build(data_dir: &str) -> Result<WikiGraph> {
+    pub fn new(wiki: &str) -> Self {
+        Self {
+            wiki: wiki.to_string(),
+        }
+    }
+
+    pub fn build(&self) -> Result<WikiGraph> {
+        dotenv().ok();
+
+        let data_dir = std::env::var("DATA_DIR").expect("DATA_DIR not set in .env");
+
         println!("Starting Graph Build...");
         let start = Instant::now();
 
         // A. Load Categories & Create Mapping
         println!("Loading Categories...");
         let (cat_dense_to_original, cat_names, cat_original_to_dense) =
-            Self::load_nodes(format!("{}/categories.parquet", data_dir))?;
+            Self::load_nodes(format!("{}/categories.{}.parquet", data_dir, self.wiki))?;
 
         let num_cats = cat_dense_to_original.len();
         println!("Loaded {} categories.", num_cats);
@@ -25,7 +38,7 @@ impl GraphBuilder {
         // B. Load Articles & Create Mapping
         println!("Loading Articles...");
         let (art_dense_to_original, art_names, art_original_to_dense) =
-            Self::load_nodes(format!("{}/articles.parquet", data_dir))?;
+            Self::load_nodes(format!("{}/articles.{}.parquet", data_dir, self.wiki))?;
 
         let num_arts: usize = art_dense_to_original.len();
         println!("Loaded {} articles.", num_arts);
@@ -40,7 +53,7 @@ impl GraphBuilder {
         // Note: User provided 'cat_parents.parquet' (parent, child)
         println!("Loading Category Hierarchy...");
         let path: PlPath = PlPath::Local(Arc::from(Path::new(
-            format!("{}/cat_parents.parquet", data_dir).as_str(),
+            format!("{}/categorygraph.{}.parquet", data_dir, self.wiki).as_str(),
         )));
         let df_rel: DataFrame = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
 
@@ -56,29 +69,6 @@ impl GraphBuilder {
                     cat_original_to_dense.get(&c_raw),
                 ) {
                     children[p_dense as usize].push(c_dense);
-                    // If 'cat_children.parquet' didn't exist, we could populate 'parents' here too:
-                    // parents[c_dense as usize].push(p_dense);
-                }
-            }
-        }
-
-        // E. Load Relations: Category Child -> Parent (Reverse Graph)
-        // Note: User provided 'cat_children.parquet' (child, parent)
-        println!("Loading Reverse Hierarchy...");
-        let path: PlPath = PlPath::Local(Arc::from(Path::new(
-            format!("{}/cat_children.parquet", data_dir).as_str(),
-        )));
-        let df_rev: DataFrame = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
-
-        let c_col_rev: &ChunkedArray<UInt32Type> = df_rev.column("child")?.u32()?;
-        let p_col_rev: &ChunkedArray<UInt32Type> = df_rev.column("parent")?.u32()?;
-
-        for (opt_c, opt_p) in c_col_rev.into_iter().zip(p_col_rev.into_iter()) {
-            if let (Some(c_raw), Some(p_raw)) = (opt_c, opt_p) {
-                if let (Some(&c_dense), Some(&p_dense)) = (
-                    cat_original_to_dense.get(&c_raw),
-                    cat_original_to_dense.get(&p_raw),
-                ) {
                     parents[c_dense as usize].push(p_dense);
                 }
             }

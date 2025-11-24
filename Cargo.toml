@@ -14,7 +14,7 @@ path="src/scripts/articles.rs"
 
 [[bin]]
 name="get-categorygraph"
-path="src/scripts/categorygraph.rs"
+path="src/scripts/category_graph.rs"
 
 [[bin]]
 name="get-article_category"
@@ -23,6 +23,10 @@ path="src/scripts/article_category.rs"
 [[bin]]
 name="get-pageviews"
 path="src/scripts/pageviews.rs"
+
+[[bin]]
+name="get-per_day_wiki_stats"
+path="src/scripts/per_day_wiki_stats.rs"
 
 [[bin]]
 name="wikigraph"

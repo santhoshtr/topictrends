@@ -1,6 +1,7 @@
-use crate::wikigraph::GraphBuilder;
 use clap::{Arg, ArgMatches, Command};
 use std::error::Error;
+
+use crate::graphbuilder::GraphBuilder;
 
 mod graphbuilder;
 mod pageviews;
@@ -13,11 +14,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         .author("Santhosh Thottingal <santhosh.thottingal@gmail.com>")
         .about("Command-line interface for WikiGraph operations")
         .arg(
-            Arg::new("data-dir")
-                .long("data-dir")
-                .short('d')
-                .default_value("data")
-                .help("Path to the directory containing Parquet files"),
+            Arg::new("wiki")
+                .long("wiki")
+                .short('w')
+                .default_value("enwiki")
+                .help("Wikipedia code. Example enwiki, eswiki, hiwiki etc"),
         )
         .subcommand(
             Command::new("list-articles")
@@ -96,9 +97,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         )
         .get_matches();
 
-    // Load the graph
-    let data_dir = matches.get_one::<String>("data-dir").unwrap();
-    let graph = GraphBuilder::build(data_dir)?;
+    let wiki_id: &str = matches.get_one::<String>("wiki").unwrap();
+    let graph_builder = GraphBuilder::new(wiki_id);
+    let graph = graph_builder.build().expect("Error while building graph");
 
     // Dispatch subcommands
     match matches.subcommand() {
