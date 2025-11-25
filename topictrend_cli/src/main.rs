@@ -1,6 +1,6 @@
 use clap::{Arg, ArgMatches, Command};
 use std::error::Error;
-use topictrend::{graphbuilder::GraphBuilder, wikigraph};
+use topictrend::{graphbuilder::GraphBuilder, pageview_engine::PageViewEngine, wikigraph};
 
 mod pageviews;
 
@@ -90,6 +90,40 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .help("The Wiki ID of the article"),
                 ),
         )
+        .subcommand(
+            Command::new("category-trend")
+                .about("Retrieve category trends for a specific wiki and category")
+                .arg(
+                    Arg::new("category-id")
+                        .long("category-id")
+                        .short('c')
+                        .required(true)
+                        .value_parser(clap::value_parser!(u32))
+                        .help("The ID of the category in the wiki"),
+                )
+                .arg(
+                    Arg::new("depth")
+                        .long("depth")
+                        .short('d')
+                        .default_value("0")
+                        .value_parser(clap::value_parser!(u8))
+                        .help("Depth for recursive queries"),
+                )
+                .arg(
+                    Arg::new("start-date")
+                        .long("start-date")
+                        .short('s')
+                        .required(false)
+                        .help("Start date in YYYY-MM-DD format"),
+                )
+                .arg(
+                    Arg::new("end-date")
+                        .long("end-date")
+                        .short('e')
+                        .required(false)
+                        .help("End date in YYYY-MM-DD format"),
+                ),
+        )
         .get_matches();
 
     let wiki_id: &str = matches.get_one::<String>("wiki").unwrap();
@@ -105,6 +139,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         Some(("list-parent-categories", sub_m)) => handle_get_parent_categories(&graph, sub_m),
         Some(("list-article-categories", sub_m)) => handle_get_article_categories(&graph, sub_m),
+        Some(("category-trend", sub_m)) => handle_category_trend(wiki_id, sub_m),
         _ => println!("No valid subcommand provided. Use --help for usage."),
     }
 
@@ -189,5 +224,29 @@ fn handle_get_article_categories(graph: &wikigraph::WikiGraph, matches: &ArgMatc
 
     for (id, name) in categories {
         println!(" - {}: {}", id, name);
+    }
+}
+fn handle_category_trend(wiki_id: &str, matches: &ArgMatches) {
+    let category_id: &u32 = matches.get_one::<u32>("category-id").unwrap();
+    let depth: &u8 = matches.get_one::<u8>("depth").unwrap();
+    let start_date = matches
+        .get_one::<String>("start-date")
+        .and_then(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
+        .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
+    let end_date = matches
+        .get_one::<String>("end-date")
+        .and_then(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
+        .unwrap_or_else(|| chrono::Local::now().date_naive());
+
+    let mut engine = PageViewEngine::new(wiki_id);
+    let raw_data = engine.get_category_trend(*category_id, *depth, start_date, end_date);
+
+    println!(
+        "Category trend for category {} (depth {}, start: {}, end: {}):",
+        category_id, depth, start_date, end_date
+    );
+
+    for trend in raw_data {
+        println!(" - {}: {} views", trend.0, trend.1);
     }
 }

@@ -56,12 +56,15 @@ fn parse_line(line: &str) -> Result<PageView, Box<dyn std::error::Error>> {
 }
 
 fn process_chunk(records: Vec<PageView>) -> Result<DataFrame, PolarsError> {
+    // We consistantly use projects as enwiki, tawiki etc, however pageview dumps has en.wikipedia,
+    // ta.wikipedia. Normalize.
     let project: Vec<String> = records
         .iter()
-        .map(|r| r.project.replace("pedia", ""))
+        .map(|r| r.project.replace(".wikipedia", "wiki"))
         .collect();
     let page_title: Vec<String> = records.iter().map(|r| r.page_title.clone()).collect();
     let page_id: Vec<u32> = records.iter().map(|r| r.page_id).collect();
+    // Save some space by mapping the access methods to numbers
     let access_method: Vec<i8> = records
         .iter()
         .map(|r| match r.access_method.as_str() {

@@ -1,9 +1,9 @@
 use crate::{graphbuilder::GraphBuilder, wikigraph::WikiGraph};
 use chrono::{Datelike, NaiveDate};
-use roaring::RoaringBitmap;
 use std::io::Read;
 use std::{collections::HashMap, error::Error, fs::File};
 
+#[derive(Clone, Debug)]
 pub struct PageViewEngine {
     // Map Date -> Vector of pageviews (Index is Dense Article ID)
     // We use Arc to make it cheap to clone/share across web threads
@@ -27,7 +27,14 @@ pub fn load_bin_file(path: &str, expected_size: usize) -> Result<Vec<u32>, Box<d
     let (_head, body, _tail) = unsafe { buffer[16..].align_to::<u32>() };
 
     if body.len() != expected_size {
-        panic!("Graph/View Mismatch! Re-run the pipeline.");
+        eprintln!(
+            "Graph/View Mismatch! Re-run the pipeline.Expected {} Got:{}",
+            expected_size,
+            body.len()
+        );
+    }
+    if body.len() > 3100 {
+        dbg!(body[4381]);
     }
 
     Ok(body.to_vec())
@@ -54,16 +61,19 @@ impl PageViewEngine {
     ) -> Vec<(NaiveDate, u64)> {
         let mut results = Vec::new();
 
-        // 2. PREPARE THE MASK
-        // This is the key step. We query the topology first.
         // The graph returns the RoaringBitmap of all relevant article IDs.
         let article_mask = self.wikigraph.get_articles_in_category(wiki_cat_id, depth);
 
         // Optimization: If mask is empty, return early
         if article_mask.is_empty() {
+            eprintln!("Could not find articles in category: {}", self.wiki);
             return vec![];
         }
-
+        println!(
+            "Found {} articles in category {}",
+            article_mask.len(),
+            wiki_cat_id
+        );
         let mut curr = start_date;
 
         self.load_history_for_date_range(start_date, end_date)
@@ -83,8 +93,10 @@ impl PageViewEngine {
                         daily_total += views as u64;
                     }
                 }
+                dbg!(daily_total);
                 results.push((curr, daily_total));
             } else {
+                eprintln!("Daily views for {} is not available", curr);
                 results.push((curr, 0));
             }
             curr = curr.succ_opt().unwrap();
@@ -115,9 +127,9 @@ impl PageViewEngine {
     fn load_daily_view(&self, date: NaiveDate) -> Result<Option<Vec<u32>>, Box<dyn Error>> {
         let num_articles = self.wikigraph.art_dense_to_original.len();
 
-        let data_dir = std::env::var("DATA_DIR").expect("DATA_DIR not set in .env");
+        let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "data".to_string());
         let bin_filename = format!(
-            "{}/{}/{}/{}/{}.bin",
+            "{}/{}/pageviews/{}/{}/{}.bin",
             data_dir,
             self.wiki,
             date.year(),
@@ -126,13 +138,20 @@ impl PageViewEngine {
         );
 
         if !std::path::Path::new(&bin_filename).exists() {
-            eprintln!("Could not find page view data for {}", date);
+            eprintln!(
+                "Could not find page view data for {} at {}",
+                date, bin_filename
+            );
             return Ok(None);
         }
 
         let day_vec = load_bin_file(&bin_filename, num_articles)
             .expect("Error reading the pageview bin file");
-        println!("Loaded views for {}", date);
+        println!(
+            "Loaded views for {}, found {} articles",
+            date,
+            day_vec.len()
+        );
 
         Ok(Some(day_vec))
     }

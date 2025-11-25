@@ -4,6 +4,7 @@ use std::collections::VecDeque;
 
 /// The core high-performance graph structure.
 /// All internal logic uses "Dense IDs" (0..N), not the raw Wikipedia Page IDs.
+#[derive(Clone, Debug)]
 pub struct WikiGraph {
     pub(crate) children: Vec<Vec<u32>>,
 

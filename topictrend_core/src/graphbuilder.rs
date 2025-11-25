@@ -19,7 +19,7 @@ impl GraphBuilder {
     }
 
     pub fn build(&self) -> Result<WikiGraph> {
-        let data_dir = std::env::var("DATA_DIR").expect("DATA_DIR not set in .env");
+        let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "data".to_string());
 
         println!("Starting Graph Build...");
         let start = Instant::now();
