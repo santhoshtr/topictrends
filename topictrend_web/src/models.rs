@@ -1,13 +1,23 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
 
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use topictrend::pageview_engine::PageViewEngine;
 
-// --- Application State ---
-// Shared across all web threads
+#[derive(Clone)]
 pub struct AppState {
-    pub engines: HashMap<String, PageViewEngine>,
+    pub engines: Arc<RwLock<HashMap<String, PageViewEngine>>>,
+}
+
+impl AppState {
+    pub fn new() -> Self {
+        Self {
+            engines: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
 }
 
 // --- Request DTO ---

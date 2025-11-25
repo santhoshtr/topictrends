@@ -107,6 +107,10 @@ clean:
 	@rm -rf $(DATA_DIR)
 	@echo "Done!"
 
+
+web: init
+	 $(CARGO_RELEASE)/topictrend_web
+
 # Prevent deletion of intermediate files
 .PRECIOUS: $(DATA_DIR)/%/articles.parquet \
            $(DATA_DIR)/%/categories.parquet \

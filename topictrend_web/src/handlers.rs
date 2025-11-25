@@ -10,7 +10,6 @@ use crate::models::TrendParams;
 use crate::models::TrendResponse;
 use crate::models::AppState;
 
-// Route: GET /api/trend/:wiki/:category_id
 pub async fn get_category_trend_handler(
     Path((wiki, category_id)): Path<(String, u32)>,
     Query(params): Query<TrendParams>,
@@ -23,10 +22,12 @@ pub async fn get_category_trend_handler(
     let end = params.end_date.unwrap_or_else(|| 
         chrono::Local::now().date_naive()
     );
-    let engine: PageViewEngine = state.engines.get(&wiki).unwrap_or_else(||
-        &PageViewEngine::new(wiki.as_str())
-    );
-
+   // Get the pageview_engine for the given wiki from state.engines. If not present, create
+   // new PageViewEngine, add to app state.
+    let mut engine:  PageViewEngine = {
+        let mut engines = state.engines.write().unwrap(); // Acquire a write lock
+        engines.entry(wiki.clone()).or_insert_with(|| PageViewEngine::new(wiki.as_str())).clone()
+    };
     // We pass a reference (&) to the mask. 
     // The engine uses it to filter the huge daily vectors.
     let raw_data = engine.get_category_trend(category_id,depth, start, end);
