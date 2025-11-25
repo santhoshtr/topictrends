@@ -1,86 +1,115 @@
-# =========================================================
-# NOTE: This Makefile is optimized for parallel execution.
-# Run with `make -j` to use all CPU cores.
-# This makefile is designed to run on WMF analystics servers (stat machines)
-# It assumes the presence of analytics-mysql tool to query production databases
-#
-# Example usage:
-#
-# make eswiki
-# make data/eswiki/pageviews/2025/10/20.bin
-# =========================================================
+SHELL := /bin/bash
+.ONESHELL:
 
+WIKIS := $(shell cat data/wikipedia.list 2>/dev/null)
+YEAR := $(shell date -d "yesterday" +%Y)
+MONTH := $(shell date -d "yesterday" +%m)
+DAY := $(shell date -d "yesterday" +%d)
 
-WIKIS := $(shell cat wikipedia.list)
-TODAY := $(shell date +%Y-%m-%d)
-YEAR := $(shell date +%Y)
-MONTH := $(shell date +%m)
-DAY := $(shell date +%d)
+CARGO := cargo
+CARGO_RELEASE := target/release
 
-.PHONY: run
+DATA_DIR := data
+QUERIES_DIR := queries
+PAGEVIEWS_DIR := $(DATA_DIR)/pageviews
 
+.DEFAULT_GOAL := run
+
+.PHONY: run init clean help $(WIKIS)
+
+# Help target
+help:
+	@echo "Available targets:"
+	@echo "  run     - Process all wikis and run wikigraph"
+	@echo "  init    - Initialize data directory and wikipedia list"
+	@echo "  clean   - Remove generated data files"
+	@echo "  help    - Show this help message"
+
+# Main run target
 run: init $(WIKIS)
-	cargo run --release --bin wikigraph
+	$(CARGO_RELEASE)/wikigraph
 
-init: wikipedia.list
-	mkdir -p data
+# Initialize directory structure
+init: $(DATA_DIR)/wikipedia.list
+	cargo build --release
+	@mkdir -p $(DATA_DIR)
 
-.PHONY: $(WIKIS)
+# Per-wiki targets
 $(WIKIS): %:
 	$(MAKE) data/$*/articles.parquet
 	$(MAKE) data/$*/categories.parquet
 	$(MAKE) data/$*/article_category.parquet
 	$(MAKE) data/$*/category_graph.parquet
+	$(MAKE) data/$*/pageviews/${YEAR}/${MONTH}/${DAY}.bin
 
-data/%/articles.parquet:
-	@mkdir -p data/$*
-	cat queries/articles.sql | analytics-mysql $* | cargo run --release --bin get-articles $@
+# Article data
+$(DATA_DIR)/%/articles.parquet: $(QUERIES_DIR)/articles.sql
+	@mkdir -p $(dir $@)
+	@echo "Fetching articles for $*..."
+	@cat $< | analytics-mysql $* | $(CARGO_RELEASE)/get-articles $@
 
-data/%/categories.parquet:
-	@mkdir -p data/$*
-	cat queries/categories.sql | analytics-mysql $* | cargo run --release --bin get-categories $@
+# Category data
+$(DATA_DIR)/%/categories.parquet: $(QUERIES_DIR)/categories.sql
+	@mkdir -p $(dir $@)
+	@echo "Fetching categories for $*..."
+	@cat $< | analytics-mysql $* | $(CARGO_RELEASE)/get-categories $@
 
-data/%/category_graph.parquet:
-	@mkdir -p data/$*
+# Category graph
+$(DATA_DIR)/%/category_graph.parquet: $(QUERIES_DIR)/category-graph.sql
+	@mkdir -p $(dir $@)
+	@echo "Fetching category graph for $*..."
+	@cat $< | analytics-mysql $* | $(CARGO_RELEASE)/get-categorygraph $@
 
-	cat queries/category-graph.sql | analytics-mysql $* | cargo run --release --bin get-categorygraph $@
+# Article-category mapping
+$(DATA_DIR)/%/article_category.parquet: $(QUERIES_DIR)/article-category.sql
+	@mkdir -p $(dir $@)
+	@echo "Fetching article-category mapping for $*..."
+	@cat $< | analytics-mysql $* | $(CARGO_RELEASE)/get-article_category $@
 
-data/%/article_category.parquet:
-	@mkdir -p data/$*
-
-	cat queries/article-category.sql | analytics-mysql $* | cargo run --release --bin get-article_category $@
-
+# Daily pageviews for specific wiki
 # Expands to data/enwiki/pageviews/2025/12/30.bin (example)
-data/%/pageviews/%/%/%.bin:
+$(DATA_DIR)/%.bin:
 	@WIKI=$$(echo $@ | cut -d'/' -f2); \
 	YEAR=$$(echo $@ | cut -d'/' -f4); \
 	MONTH=$$(echo $@ | cut -d'/' -f5); \
-	DAY=$$(echo $@ | cut -d'/' -f6);
+	DAY=$$(basename $@ .bin); \
+	echo "Processing pageviews for $$WIKI on $$YEAR-$$MONTH-$$DAY..."; \
+	mkdir -p $$(dirname $@); \
+	$(MAKE) $(DATA_DIR)/pageviews/$$YEAR/$$MONTH/$$DAY.parquet; \
+	$(CARGO_RELEASE)/get-per_day_wiki_stats --wiki $$WIKI --year $$YEAR --month $$MONTH --day $$DAY -o $@
 
-	@mkdir -p data/$$WIKI/pageviews/$$YEAR/$$MONTH
-
-	$(MAKE) data/pageviews/$$YEAR/$$MONTH/$$DAY.parquet
-	cargo run --release --bin get-daily-pageviews $$WIKI $$YEAR $$MONTH $$DAY $@
-
-# Expands to data/pageviews/2025/12/30 (example)
-data/pageviews/%/%/%.parquet:
-	@YEAR=$$(echo $@ | cut -d'/' -f3); \
+# Raw pageview data from Wikimedia
+# Expands to data/pageviews/2025/12/30.parquet (example)
+$(DATA_DIR)/pageviews/%.parquet:
+	YEAR=$$(echo $@ | cut -d'/' -f3); \
 	MONTH=$$(echo $@ | cut -d'/' -f4); \
-	DAY=$$(echo $@ | cut -d'/' -f5)
+	DAY=$$(basename $@ .parquet); \
+	mkdir -p $$(dirname $@); \
+	URL="https://dumps.wikimedia.org/other/pageview_complete/$$YEAR/$$YEAR-$$MONTH/pageviews-$$YEAR$$MONTH$$DAY-user.bz2"; \
+	echo "Downloading pageviews for $$YEAR-$$MONTH-$$DAY From $$URL"; \
+	curl -fsSL "$$URL" | bzip2 -dc | $(CARGO_RELEASE)/get-pageviews $@ || { echo "Error downloading pageviews"; exit 1; }
 
-	@mkdir -p data/pageviews/$$YEAR/$$MONTH
-	curl https://dumps.wikimedia.org/other/pageview_complete/$$YEAR/$$YEAR-$$MONTH-$$DAY/pageviews-$$YEAR$$MONTH$$DAY-user.bz2 \
-    | bzip2 -dc \
-	| cargo run --release --bin get-pageviews $@
+# Wikipedia list
+$(DATA_DIR)/wikipedia.list:
+	@echo "Fetching Wikipedia list..."
+	@mkdir -p $(DATA_DIR)
+	@curl -fsSL https://noc.wikimedia.org/conf/dblists/closed.dblist > closed.dblist
+	@curl -fsSL https://noc.wikimedia.org/conf/dblists/wikipedia.dblist \
+		| grep -E 'wiki$$' \
+		| grep -v '^#' \
+		| grep -v -f closed.dblist > $@
+	@sed -i '/^arbcom/d; /^sysop/d; /^wg_en/d; /^cebwiki/d; /^warwiki/d; /^be_x_old/d' $@
+	@rm -f closed.dblist
 
-wikipedia.list:
-	curl -s https://noc.wikimedia.org/conf/dblists/closed.dblist > closed.dblist
-	curl -s https://noc.wikimedia.org/conf/dblists/wikipedia.dblist | grep -E 'wiki$$' | grep -v '^#' | grep -v -f closed.dblist > $@
-	sed -i '/^arbcom/d' $@
-	sed -i '/^sysop/d' $@
-	sed -i '/^wg_en/d' $@
-	sed -i '/^cebwiki/d' $@
-	sed -i '/^warwiki/d' $@
-	sed -i '/^be_x_old/d' $@
-	rm closed.dblist
+# Clean target
+clean:
+	@echo "Cleaning generated data..."
+	@rm -rf $(DATA_DIR)
+	@echo "Done!"
 
+# Prevent deletion of intermediate files
+.PRECIOUS: $(DATA_DIR)/%/articles.parquet \
+           $(DATA_DIR)/%/categories.parquet \
+           $(DATA_DIR)/%/category_graph.parquet \
+           $(DATA_DIR)/%/article_category.parquet \
+           $(DATA_DIR)/pageviews/%.parquet

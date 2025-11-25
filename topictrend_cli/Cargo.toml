@@ -36,7 +36,6 @@ path="src/main.rs"
 topictrend_core = {path="../topictrend_core"}
 parquet = {workspace=true}
 parquet_derive =  {workspace=true}
-dotenv = {workspace=true}
 polars =  {workspace=true}
 roaring =  {workspace=true}
 anyhow = {workspace=true}
@@ -46,6 +45,4 @@ chrono =  {workspace=true}
 rayon =  {workspace=true}
 byteorder = {workspace=true}
 
-[profile.release]
-codegen-units = 1
-lto = false
+

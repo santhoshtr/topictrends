@@ -1,5 +1,4 @@
 use anyhow::Result;
-use dotenv::dotenv;
 use polars::prelude::*;
 use roaring::RoaringBitmap;
 use std::collections::HashMap;
@@ -20,8 +19,6 @@ impl GraphBuilder {
     }
 
     pub fn build(&self) -> Result<WikiGraph> {
-        dotenv().ok();
-
         let data_dir = std::env::var("DATA_DIR").expect("DATA_DIR not set in .env");
 
         println!("Starting Graph Build...");
@@ -30,7 +27,7 @@ impl GraphBuilder {
         // A. Load Categories & Create Mapping
         println!("Loading Categories...");
         let (cat_dense_to_original, cat_names, cat_original_to_dense) =
-            Self::load_nodes(format!("{}/categories.{}.parquet", data_dir, self.wiki))?;
+            Self::load_nodes(format!("{}/{}/categories.parquet", data_dir, self.wiki))?;
 
         let num_cats = cat_dense_to_original.len();
         println!("Loaded {} categories.", num_cats);
@@ -38,7 +35,7 @@ impl GraphBuilder {
         // B. Load Articles & Create Mapping
         println!("Loading Articles...");
         let (art_dense_to_original, art_names, art_original_to_dense) =
-            Self::load_nodes(format!("{}/articles.{}.parquet", data_dir, self.wiki))?;
+            Self::load_nodes(format!("{}/{}/articles.parquet", data_dir, self.wiki))?;
 
         let num_arts: usize = art_dense_to_original.len();
         println!("Loaded {} articles.", num_arts);
@@ -53,7 +50,7 @@ impl GraphBuilder {
         // Note: User provided 'cat_parents.parquet' (parent, child)
         println!("Loading Category Hierarchy...");
         let path: PlPath = PlPath::Local(Arc::from(Path::new(
-            format!("{}/categorygraph.{}.parquet", data_dir, self.wiki).as_str(),
+            format!("{}/{}/category_graph.parquet", data_dir, self.wiki).as_str(),
         )));
         let df_rel: DataFrame = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
 
@@ -67,16 +64,17 @@ impl GraphBuilder {
                 && let (Some(&p_dense), Some(&c_dense)) = (
                     cat_original_to_dense.get(&p_raw),
                     cat_original_to_dense.get(&c_raw),
-                ) {
-                    children[p_dense as usize].push(c_dense);
-                    parents[c_dense as usize].push(p_dense);
-                }
+                )
+            {
+                children[p_dense as usize].push(c_dense);
+                parents[c_dense as usize].push(p_dense);
+            }
         }
 
         // F. Load Article -> Category
         println!("Loading Article-Category definitions...");
         let path: PlPath = PlPath::Local(Arc::from(Path::new(
-            format!("{}/article_category.parquet", data_dir).as_str(),
+            format!("{}/{}/article_category.parquet", data_dir, self.wiki).as_str(),
         )));
         let df_art_cat = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
 
@@ -88,13 +86,14 @@ impl GraphBuilder {
                 && let (Some(&a_dense), Some(&c_dense)) = (
                     art_original_to_dense.get(&a_raw),
                     cat_original_to_dense.get(&c_raw),
-                ) {
-                    // Populate RoaringBitmap for Category
-                    cat_articles[c_dense as usize].insert(a_dense);
+                )
+            {
+                // Populate RoaringBitmap for Category
+                cat_articles[c_dense as usize].insert(a_dense);
 
-                    // Populate Article metadata
-                    article_cats[a_dense as usize].push(c_dense);
-                }
+                // Populate Article metadata
+                article_cats[a_dense as usize].push(c_dense);
+            }
         }
 
         println!("Graph build completed in {:.2?}s", start.elapsed());

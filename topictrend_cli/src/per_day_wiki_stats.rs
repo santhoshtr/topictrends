@@ -3,7 +3,8 @@ use polars::frame::DataFrame;
 use polars::prelude::*;
 use std::{
     error::Error,
-    io::{self, Write},
+    fs::File,
+    io::{BufWriter, Write},
     path::Path,
     sync::Arc,
 };
@@ -11,40 +12,36 @@ use topictrend::{graphbuilder::GraphBuilder, wikigraph::WikiGraph};
 
 use byteorder::{LittleEndian, WriteBytesExt};
 
-fn generate_bin_dump(views: Vec<u32>) -> Result<(), Box<dyn Error>> {
+fn generate_bin_dump(views: Vec<u32>, output_path: &String) -> Result<(), Box<dyn Error>> {
+    dbg!(views.len());
+
     //  Write Binary File
-    let mut stdout = io::stdout();
+    let out_file = File::create(output_path).expect("Error opening output file");
+    let mut writer = BufWriter::new(out_file);
 
     // Header: Magic (4) + Version (4) + Size (8)
-    stdout.write_all(b"VIEW")?;
-    stdout.write_u32::<LittleEndian>(1)?;
-    stdout.write_u64::<LittleEndian>(views.len() as u64)?;
+    writer.write_all(b"VIEW")?;
+    writer.write_u32::<LittleEndian>(1)?;
+    writer.write_u64::<LittleEndian>(views.len() as u64)?;
 
     // Body: The raw array
     for count in views {
-        stdout.write_u32::<LittleEndian>(count)?;
+        writer
+            .write_u32::<LittleEndian>(count)
+            .expect("Error writing the pageviews");
     }
 
-    stdout.flush()?;
+    writer.flush()?;
     Ok(())
 }
 
-#[derive(Debug, Clone)]
-struct PageView {
-    project: String,
-    page_title: String,
-    page_id: i64,
-    access_method: String,
-    daily_views: i64,
-}
-
-fn get_daily_pageviews(wiki: &str, year: &i8, month: &i8, day: &i8) -> Vec<u32> {
+fn get_daily_pageviews(wiki: &str, year: &i16, month: &i8, day: &i8) -> Vec<u32> {
     let graph_builder = GraphBuilder::new(wiki);
     let graph: WikiGraph = graph_builder.build().expect("Error while building graph");
 
     // 1. Read data_dir/pageviews-{year}-{month}-{day}.parquet
     let data_dir = std::env::var("DATA_DIR").expect("DATA_DIR not set in .env");
-    let file_path = format!("{}/pageviews-{}-{}-{}.parquet", data_dir, year, month, day);
+    let file_path = format!("{}/pageviews/{}/{}/{}.parquet", data_dir, year, month, day);
 
     if !std::path::Path::new(&file_path).exists() {
         eprintln!("Pageview file not found: {}", file_path);
@@ -94,7 +91,6 @@ fn get_daily_pageviews(wiki: &str, year: &i8, month: &i8, day: &i8) -> Vec<u32> 
             dense_vector[dense_id as usize] = views;
         }
     }
-
     dense_vector
 }
 
@@ -115,7 +111,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .short('y')
                 .help("The year (e.g., 2025)")
                 .required(true)
-                .value_parser(clap::value_parser!(i8)),
+                .value_parser(clap::value_parser!(i16)),
         )
         .arg(
             Arg::new("month")
@@ -133,17 +129,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .required(true)
                 .value_parser(clap::value_parser!(i8)),
         )
+        .arg(
+            Arg::new("output-file")
+                .long("output-file")
+                .short('o')
+                .help("Output file name for the binary pageviews dump")
+                .required(true)
+                .value_parser(clap::value_parser!(String)),
+        )
         .get_matches();
 
     let wiki = matches.get_one::<String>("wiki").unwrap();
-    let year: &i8 = matches.get_one::<i8>("year").unwrap();
+    let year: &i16 = matches.get_one::<i16>("year").unwrap();
     let month: &i8 = matches.get_one::<i8>("month").unwrap();
     let day: &i8 = matches.get_one::<i8>("day").unwrap();
+    let output_path = matches.get_one::<String>("output-file").unwrap();
 
     println!(
         "Processing stats for wiki: {}, date: {}-{}-{}",
         wiki, year, month, day
     );
     let page_views_dense_vector = get_daily_pageviews(wiki, year, month, day);
-    generate_bin_dump(page_views_dense_vector)
+    generate_bin_dump(page_views_dense_vector, output_path)
 }

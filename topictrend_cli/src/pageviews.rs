@@ -9,9 +9,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 struct PageView {
     project: String,
     page_title: String,
-    page_id: i64,
+    page_id: u32,
     access_method: String,
-    daily_views: i64,
+    daily_views: u32,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -61,8 +61,8 @@ fn process_chunk(records: Vec<PageView>) -> Result<DataFrame, PolarsError> {
         .map(|r| r.project.replace("pedia", ""))
         .collect();
     let page_title: Vec<String> = records.iter().map(|r| r.page_title.clone()).collect();
-    let page_id: Vec<i64> = records.iter().map(|r| r.page_id).collect();
-    let access_method: Vec<i64> = records
+    let page_id: Vec<u32> = records.iter().map(|r| r.page_id).collect();
+    let access_method: Vec<i8> = records
         .iter()
         .map(|r| match r.access_method.as_str() {
             "mobile-web" => 1,
@@ -70,7 +70,7 @@ fn process_chunk(records: Vec<PageView>) -> Result<DataFrame, PolarsError> {
             _ => -1, // Default value for unexpected cases
         })
         .collect();
-    let daily_views: Vec<i64> = records.iter().map(|r| r.daily_views).collect();
+    let daily_views: Vec<u32> = records.iter().map(|r| r.daily_views).collect();
 
     DataFrame::new(vec![
         Column::new("project".into(), project),

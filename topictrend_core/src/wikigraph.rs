@@ -1,4 +1,3 @@
-use polars::prelude::*;
 use roaring::RoaringBitmap;
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -50,14 +49,15 @@ impl WikiGraph {
 
             // B. Traverse deeper if allowed
             if depth < max_depth
-                && let Some(children) = self.children.get(curr as usize) {
-                    for &child in children {
-                        if !visited.contains(child) {
-                            visited.insert(child);
-                            queue.push_back((child, depth + 1));
-                        }
+                && let Some(children) = self.children.get(curr as usize)
+            {
+                for &child in children {
+                    if !visited.contains(child) {
+                        visited.insert(child);
+                        queue.push_back((child, depth + 1));
                     }
                 }
+            }
         }
         result
     }

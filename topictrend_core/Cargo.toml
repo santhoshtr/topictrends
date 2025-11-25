@@ -10,7 +10,6 @@ name = "topictrend"
 [dependencies]
 parquet = {workspace=true}
 parquet_derive = {workspace=true}
-dotenv = {workspace=true}
 polars =  {workspace=true}
 roaring =  {workspace=true}
 anyhow = {workspace=true}
@@ -21,6 +20,3 @@ rayon =  {workspace=true}
 byteorder = {workspace=true}
 
 
-[profile.release]
-codegen-units = 1
-lto = false
