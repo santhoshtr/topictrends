@@ -86,9 +86,6 @@ pub fn get_daily_pageviews(wiki: &str, year: &i16, month: &i8, day: &i8) -> Vec<
             if let Some(&dense_id) = graph.art_original_to_dense.get(&page_id) {
                 //  With dense_id as vector index, create a u32 dense vector with daily_views value
                 dense_vector[dense_id as usize] = views;
-                if views > 0 {
-                    println!("{} views for article id {}", views, page_id);
-                }
             }
         }
     }
