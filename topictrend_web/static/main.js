@@ -1,48 +1,58 @@
-document
-  .getElementById("trend-form")
-  .addEventListener("submit", async (event) => {
-    event.preventDefault();
+document.addEventListener("DOMContentLoaded", function () {
+  initializeChart();
 
-    const type = document.getElementById("type").value;
-    const wiki = document.getElementById("wiki").value;
-    const startDate = document.getElementById("start_date").value;
-    const endDate = document.getElementById("end_date").value;
-    const category = document.getElementById("category").value;
-    const article = document.getElementById("article").value;
+  document
+    .getElementById("trend-form")
+    .addEventListener("submit", async (event) => {
+      event.preventDefault();
 
-    let apiUrl = `/api/pageviews/${type}?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}`;
-    if (type == "article") {
-      apiUrl += `&article=${encodeURIComponent(article)}`;
-    }
-    if (type == "category") {
-      apiUrl += `&category=${encodeURIComponent(category)}`;
-    }
+      const type = document.getElementById("type").value;
+      const wiki = document.getElementById("wiki").value;
+      const startDate = document.getElementById("start_date").value;
+      const endDate = document.getElementById("end_date").value;
+      const category = document.getElementById("category").value;
+      const article = document.getElementById("article").value;
 
-    try {
-      const response = await fetch(apiUrl);
-      if (!response.ok) {
-        throw new Error("Failed to fetch data");
+      let apiUrl = `/api/pageviews/${type}?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}`;
+      let label = "";
+
+      if (type == "article") {
+        apiUrl += `&article=${encodeURIComponent(article)}`;
+        label = `Article: ${article}`;
+      }
+      if (type == "category") {
+        apiUrl += `&category=${encodeURIComponent(category)}`;
+        label = `Category: ${category}`;
       }
 
-      const data = await response.json();
-      renderChart(data);
-    } catch (error) {
-      console.error("Error:", error);
-      alert("Failed to fetch data. Please try again.");
-    }
-  });
+      try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+          throw new Error("Failed to fetch data");
+        }
 
-function renderChart(data) {
+        const data = await response.json();
+        updateChart(data, label);
+      } catch (error) {
+        console.error("Error:", error);
+        alert("Failed to fetch data. Please try again.");
+      }
+    });
+});
+
+let chartInstance = null;
+
+function initializeChart() {
   const theme = window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";
 
-  const chart = echarts.init(document.getElementById("chart"), theme, {
+  chartInstance = echarts.init(document.getElementById("chart"), theme, {
     renderer: "svg",
   });
-  const option = {
+
+  const initialOption = {
     darkMode: "auto",
-    // as per https://phabricator.wikimedia.org/T375234
     color: [
       "#4b77d6",
       "#eeb533",
@@ -63,17 +73,12 @@ function renderChart(data) {
     },
     xAxis: {
       type: "category",
-      data: data.map((item) => item.date),
+      data: [],
     },
     yAxis: {
       type: "value",
     },
-    series: [
-      {
-        data: data.map((item) => item.views),
-        type: "line",
-      },
-    ],
+    series: [],
     toolbox: {
       show: true,
       feature: {
@@ -88,8 +93,35 @@ function renderChart(data) {
     },
   };
 
-  chart.setOption(option);
-  window.onresize = chart.resize;
+  chartInstance.setOption(initialOption);
+  window.onresize = chartInstance.resize;
+}
+
+function updateChart(data, label) {
+  const existingOption = chartInstance.getOption();
+
+  // Update xAxis data if new dates are present
+  const newDates = data.map((item) => item.date);
+  const existingDates = existingOption.xAxis[0].data;
+  const mergedDates = Array.from(new Set([...existingDates, ...newDates]));
+  mergedDates.sort(); // Ensure dates are sorted
+  chartInstance.setOption({
+    xAxis: {
+      data: mergedDates,
+    },
+  });
+
+  // Add a new series for the new data
+  chartInstance.setOption({
+    series: [
+      ...existingOption.series,
+      {
+        name: label,
+        data: data.map((item) => item.views),
+        type: "line",
+      },
+    ],
+  });
 }
 
 document.addEventListener("DOMContentLoaded", function () {
