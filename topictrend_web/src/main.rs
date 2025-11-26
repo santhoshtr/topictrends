@@ -37,8 +37,12 @@ async fn main() {
     let state: Arc<AppState> = Arc::new(AppState::new());
     let app = Router::new()
         .route(
-            "/api/categorytrend/{wiki}/{category_id}",
+            "/api/pageviews/category",
             get(handlers::get_category_trend_handler),
+        )
+        .route(
+            "/api/pageviews/article",
+            get(handlers::get_article_trend_handler),
         )
         .with_state(state)
         .layer(TraceLayer::new_for_http())

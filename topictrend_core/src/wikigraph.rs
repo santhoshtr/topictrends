@@ -1,7 +1,6 @@
 use roaring::RoaringBitmap;
 use std::collections::HashMap;
 use std::collections::VecDeque;
-
 /// The core high-performance graph structure.
 /// All internal logic uses "Dense IDs" (0..N), not the raw Wikipedia Page IDs.
 #[derive(Clone, Debug)]
@@ -27,9 +26,14 @@ pub struct WikiGraph {
 
 impl WikiGraph {
     /// Find all articles in a category (and optionally subcategories to depth N)
-    pub fn get_articles_in_category(&self, wiki_cat_id: u32, max_depth: u8) -> RoaringBitmap {
-        // 1. Translate External ID -> Internal Dense ID
-        let start_node = match self.cat_original_to_dense.get(&wiki_cat_id) {
+    pub fn get_articles_in_category(
+        &self,
+        category_title: &String,
+        max_depth: u8,
+    ) -> RoaringBitmap {
+        let category_id = self.get_category_id(category_title);
+        // Translate External ID -> Internal Dense ID
+        let start_node = match self.cat_original_to_dense.get(&category_id) {
             Some(&id) => id,
             None => return RoaringBitmap::new(), // Category not found
         };
@@ -65,9 +69,11 @@ impl WikiGraph {
 
     /// Get immediate subcategories (Depth 1)
     /// Returns a vector of tuples: (Original_Wiki_ID, Category_Name)
-    pub fn get_child_categories(&self, wiki_cat_id: u32) -> Vec<(u32, String)> {
+    pub fn get_child_categories(&self, category_title: &String) -> Vec<(u32, String)> {
+        let category_id = self.get_category_id(category_title);
+
         // 1. Convert External ID -> Internal Dense ID
-        let dense_id = match self.cat_original_to_dense.get(&wiki_cat_id) {
+        let dense_id = match self.cat_original_to_dense.get(&category_id) {
             Some(&id) => id,
             None => return Vec::new(), // Category not found
         };
@@ -90,10 +96,12 @@ impl WikiGraph {
     /// Returns a vector of tuples: (Original_Wiki_ID, Category_Name, Depth)
     pub fn get_descendant_categories(
         &self,
-        wiki_cat_id: u32,
+        category_title: &String,
         max_depth: u8,
     ) -> Vec<(u32, String, u8)> {
-        let start_node = match self.cat_original_to_dense.get(&wiki_cat_id) {
+        let category_id = self.get_category_id(category_title);
+
+        let start_node = match self.cat_original_to_dense.get(&category_id) {
             Some(&id) => id,
             None => return Vec::new(),
         };
@@ -137,7 +145,8 @@ impl WikiGraph {
     }
 
     /// Find parent categories (Navigate Up)
-    pub fn get_parent_categories(&self, wiki_cat_id: u32) -> Vec<u32> {
+    pub fn get_parent_categories(&self, category_title: &String) -> Vec<u32> {
+        let wiki_cat_id = self.get_category_id(category_title);
         let dense_id = match self.cat_original_to_dense.get(&wiki_cat_id) {
             Some(&id) => id,
             None => return Vec::new(),
@@ -157,6 +166,29 @@ impl WikiGraph {
     /// Helper to resolve Article Dense ID -> Name
     pub fn get_article_name(&self, dense_id: u32) -> Option<&String> {
         self.art_names.get(dense_id as usize)
+    }
+
+    /// Helper to get category_id for the given category_title
+    pub fn get_category_id(&self, category_title: &String) -> u32 {
+        // Normalize both sides when searching
+        match self
+            .cat_names
+            .iter()
+            .position(|name| name == category_title)
+        {
+            Some(dense_id) => self.cat_dense_to_original[dense_id],
+            None => {
+                panic!("Category title '{}' not found", category_title)
+            }
+        }
+    }
+
+    /// Helper to get article_id for the given article_title
+    pub fn get_article_id(&self, article_title: &String) -> u32 {
+        match self.art_names.iter().position(|name| name == article_title) {
+            Some(dense_id) => self.art_dense_to_original[dense_id],
+            None => panic!("Article title '{}' not found", article_title),
+        }
     }
 
     /// Get all parent categories for a specific article.

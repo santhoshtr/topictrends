@@ -1,36 +1,83 @@
 use axum::{
-    extract::{Path, Query, State},
     Json,
+    extract::{Path, Query, State},
 };
-use topictrend::pageview_engine::PageViewEngine;
 use std::sync::Arc;
+use topictrend::pageview_engine::PageViewEngine;
 
-
-use crate::models::TrendParams;
+use crate::models::CategoryTrendParams;
 use crate::models::TrendResponse;
-use crate::models::AppState;
+use crate::models::{AppState, ArticleTrendParams};
 
 pub async fn get_category_trend_handler(
-    Path((wiki, category_id)): Path<(String, u32)>,
-    Query(params): Query<TrendParams>,
+    Query(params): Query<CategoryTrendParams>,
     State(state): State<Arc<AppState>>,
 ) -> Json<Vec<TrendResponse>> {
     let depth = params.depth.unwrap_or(0);
-    let start = params.start_date.unwrap_or_else(|| /* 30 days ago */ 
-        chrono::Local::now().date_naive() - chrono::Duration::days(30)
-    );
-    let end = params.end_date.unwrap_or_else(|| 
-        chrono::Local::now().date_naive()
-    );
-   // Get the pageview_engine for the given wiki from state.engines. If not present, create
-   // new PageViewEngine, add to app state.
-    let mut engine:  PageViewEngine = {
-        let mut engines = state.engines.write().unwrap(); // Acquire a write lock
-        engines.entry(wiki.clone()).or_insert_with(|| PageViewEngine::new(wiki.as_str())).clone()
-    };
-    // We pass a reference (&) to the mask. 
-    // The engine uses it to filter the huge daily vectors.
-    let raw_data = engine.get_category_trend(category_id,depth, start, end);
+    let start = params
+        .start_date
+        .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
+    let end = params
+        .end_date
+        .unwrap_or_else(|| chrono::Local::now().date_naive());
+
+    // Clone what you need for the blocking task
+    let state_clone = state.clone();
+    let wiki_clone = params.wiki.clone();
+
+    // Wrap the entire blocking operation
+    let raw_data = tokio::task::spawn_blocking(move || {
+        let mut engine = {
+            let mut engines = state_clone.engines.write().unwrap();
+            engines
+                .entry(wiki_clone.clone())
+                .or_insert_with(|| PageViewEngine::new(wiki_clone.as_str()))
+                .clone()
+        };
+
+        engine.get_category_trend(&params.category, depth, start, end)
+    })
+    .await
+    .unwrap(); // Handle JoinError properly in production
+
+    let response = raw_data
+        .into_iter()
+        .map(|(date, views)| TrendResponse { date, views })
+        .collect();
+
+    Json(response)
+}
+
+pub async fn get_article_trend_handler(
+    Query(params): Query<ArticleTrendParams>,
+    State(state): State<Arc<AppState>>,
+) -> Json<Vec<TrendResponse>> {
+    let depth = params.depth.unwrap_or(0);
+    let start = params
+        .start_date
+        .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
+    let end = params
+        .end_date
+        .unwrap_or_else(|| chrono::Local::now().date_naive());
+
+    // Clone what you need for the blocking task
+    let state_clone = state.clone();
+    let wiki_clone = params.wiki.clone();
+
+    // Wrap the entire blocking operation
+    let raw_data = tokio::task::spawn_blocking(move || {
+        let mut engine = {
+            let mut engines = state_clone.engines.write().unwrap();
+            engines
+                .entry(wiki_clone.clone())
+                .or_insert_with(|| PageViewEngine::new(wiki_clone.as_str()))
+                .clone()
+        };
+
+        engine.get_article_trend(&params.article, depth, start, end)
+    })
+    .await
+    .unwrap(); // Handle JoinError properly in production
 
     let response = raw_data
         .into_iter()

@@ -1,5 +1,6 @@
 use crate::{graphbuilder::GraphBuilder, wikigraph::WikiGraph};
 use chrono::{Datelike, NaiveDate};
+use roaring::RoaringBitmap;
 use std::io::Read;
 use std::{collections::HashMap, error::Error, fs::File};
 
@@ -54,25 +55,92 @@ impl PageViewEngine {
     /// Calculate the total pageviews for a set of articles over time.
     pub fn get_category_trend(
         &mut self,
-        wiki_cat_id: u32,
+        category: &String,
         depth: u8,
         start_date: NaiveDate,
         end_date: NaiveDate,
     ) -> Vec<(NaiveDate, u64)> {
         let mut results = Vec::new();
-
+        let category_id = self.wikigraph.get_category_id(&category);
         // The graph returns the RoaringBitmap of all relevant article IDs.
-        let article_mask = self.wikigraph.get_articles_in_category(wiki_cat_id, depth);
+        let article_mask = self.wikigraph.get_articles_in_category(category, depth);
 
         // Optimization: If mask is empty, return early
         if article_mask.is_empty() {
-            eprintln!("Could not find articles in category: {}", self.wiki);
+            eprintln!(
+                "Could not find articles in category: {}/{}",
+                self.wiki, &category
+            );
             return vec![];
         }
         println!(
             "Found {} articles in category {}",
             article_mask.len(),
-            wiki_cat_id
+            category_id
+        );
+        let mut curr = start_date;
+
+        self.load_history_for_date_range(start_date, end_date)
+            .expect("Error in loading pageview history");
+
+        while curr <= end_date {
+            if let Some(day_data) = self.daily_views.get(&curr) {
+                // High Performance Loop
+                // Summing values only for articles in the category
+                let mut daily_total: u64 = 0;
+
+                // RoaringBitmap iter is sorted, which is cache-friendly
+                for article_dense_id in article_mask.iter() {
+                    // distinct get is O(1)
+                    // We use get unchecked for max speed if we are sure indices are valid
+                    if let Some(&views) = day_data.get(article_dense_id as usize) {
+                        daily_total += views as u64;
+                    }
+                }
+                dbg!(daily_total);
+                results.push((curr, daily_total));
+            } else {
+                eprintln!("Daily views for {} is not available", curr);
+                results.push((curr, 0));
+            }
+            curr = curr.succ_opt().unwrap();
+        }
+        results
+    }
+
+    /// Calculate the total pageviews for a set of articles over time.
+    pub fn get_article_trend(
+        &mut self,
+        article: &String,
+        depth: u8,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+    ) -> Vec<(NaiveDate, u64)> {
+        let mut results = Vec::new();
+        let article_id = self.wikigraph.get_article_id(article);
+
+        let article_dense_id = self
+            .wikigraph
+            .art_original_to_dense
+            .get(&article_id)
+            .expect("Could not find dense id");
+
+        let mut article_mask: RoaringBitmap = RoaringBitmap::new();
+
+        article_mask.insert(*article_dense_id);
+
+        // Optimization: If mask is empty, return early
+        if article_mask.is_empty() {
+            eprintln!(
+                "Could not find articles in category: {}/{}",
+                self.wiki, &article
+            );
+            return vec![];
+        }
+        println!(
+            "Found {} articles in category {}",
+            article_mask.len(),
+            article
         );
         let mut curr = start_date;
 

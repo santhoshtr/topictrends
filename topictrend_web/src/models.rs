@@ -22,12 +22,21 @@ impl AppState {
 
 // --- Request DTO ---
 #[derive(Deserialize)]
-pub struct TrendParams {
+pub struct CategoryTrendParams {
+    pub wiki: String,
+    pub category: String,
     pub depth: Option<u8>,
     pub start_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
 }
-
+#[derive(Deserialize)]
+pub struct ArticleTrendParams {
+    pub wiki: String,
+    pub article: String,
+    pub depth: Option<u8>,
+    pub start_date: Option<NaiveDate>,
+    pub end_date: Option<NaiveDate>,
+}
 // --- Response DTO ---
 #[derive(Serialize)]
 pub struct TrendResponse {

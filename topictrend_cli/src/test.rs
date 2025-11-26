@@ -84,7 +84,7 @@ fn verify_pageviews() {
 
     let mut engine = PageViewEngine::new("testwiki");
     let category_views = engine.get_category_trend(
-        1,
+        &("Category 1".to_string()),
         0,
         "2032-10-12".parse().unwrap(),
         "2032-10-12".parse().unwrap(),
