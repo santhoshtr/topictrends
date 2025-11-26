@@ -2,6 +2,7 @@ use anyhow::Result;
 use polars::prelude::*;
 use roaring::RoaringBitmap;
 use std::collections::HashMap;
+use std::fs::File;
 use std::path::Path;
 use std::time::Instant;
 
@@ -21,7 +22,7 @@ impl GraphBuilder {
     pub fn build(&self) -> Result<WikiGraph> {
         let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "data".to_string());
 
-        println!("Starting Graph Build...");
+        println!("Starting Graph Build for {}...", self.wiki);
         let start = Instant::now();
 
         // A. Load Categories & Create Mapping
@@ -76,7 +77,11 @@ impl GraphBuilder {
         let path: PlPath = PlPath::Local(Arc::from(Path::new(
             format!("{}/{}/article_category.parquet", data_dir, self.wiki).as_str(),
         )));
-        let df_art_cat = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
+
+        let df_art_cat = LazyFrame::scan_parquet(path, Default::default())?
+            .select([col("article_id"), col("category_id")])
+            .with_new_streaming(true)
+            .collect()?;
 
         let a_col = df_art_cat.column("article_id")?.u32()?;
         let c_col_ac = df_art_cat.column("category_id")?.u32()?;
@@ -92,7 +97,8 @@ impl GraphBuilder {
                 cat_articles[c_dense as usize].insert(a_dense);
 
                 // Populate Article metadata
-                article_cats[a_dense as usize].push(c_dense);
+                // FIXME
+                // article_cats[a_dense as usize].push(c_dense);
             }
         }
 
