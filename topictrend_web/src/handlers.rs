@@ -1,6 +1,6 @@
 use axum::{
     Json,
-    extract::{Path, Query, State},
+    extract::{Query, State},
 };
 use std::sync::Arc;
 use topictrend::pageview_engine::PageViewEngine;
@@ -21,27 +21,10 @@ pub async fn get_category_trend_handler(
         .end_date
         .unwrap_or_else(|| chrono::Local::now().date_naive());
 
-    // Clone what you need for the blocking task
-    let state_clone = state.clone();
-    let wiki_clone = params.wiki.clone();
-
     // Wrap the entire blocking operation
-    let raw_data = tokio::task::spawn_blocking(move || {
-        let mut engine = {
-            let mut engines = state_clone.engines.write().unwrap();
-            engines
-                .entry(wiki_clone.clone())
-                .or_insert_with(|| PageViewEngine::new(wiki_clone.as_str()))
-                .clone()
-        };
+    let mut engine = get_or_build_engine(state, &params.wiki).await;
 
-        engine.get_category_trend(&params.category, depth, start, end)
-    })
-    .await
-    .unwrap_or_else(|err| {
-        eprintln!("Error: Failed to execute blocking task: {}", err);
-        vec![] // Return an empty vector in case of failure
-    });
+    let raw_data = engine.get_category_trend(&params.category, depth, start, end);
 
     let response = raw_data
         .into_iter()
@@ -63,24 +46,10 @@ pub async fn get_article_trend_handler(
         .end_date
         .unwrap_or_else(|| chrono::Local::now().date_naive());
 
-    // Clone what you need for the blocking task
-    let state_clone = state.clone();
-    let wiki_clone = params.wiki.clone();
-
     // Wrap the entire blocking operation
-    let raw_data = tokio::task::spawn_blocking(move || {
-        let mut engine = {
-            let mut engines = state_clone.engines.write().unwrap();
-            engines
-                .entry(wiki_clone.clone())
-                .or_insert_with(|| PageViewEngine::new(wiki_clone.as_str()))
-                .clone()
-        };
+    let mut engine = get_or_build_engine(state, &params.wiki).await;
 
-        engine.get_article_trend(&params.article, depth, start, end)
-    })
-    .await
-    .unwrap(); // Handle JoinError properly in production
+    let raw_data = engine.get_article_trend(&params.article, depth, start, end);
 
     let response = raw_data
         .into_iter()
@@ -88,4 +57,19 @@ pub async fn get_article_trend_handler(
         .collect();
 
     Json(response)
+}
+
+async fn get_or_build_engine(state: Arc<AppState>, wiki: &str) -> PageViewEngine {
+    let state_clone = state.clone();
+    let wiki_clone = wiki.to_string();
+
+    tokio::task::spawn_blocking(move || {
+        let mut engines = state_clone.engines.write().unwrap();
+        engines
+            .entry(wiki_clone.clone())
+            .or_insert_with(|| PageViewEngine::new(wiki_clone.as_str()))
+            .clone()
+    })
+    .await
+    .expect("Failed to spawn blocking task")
 }
