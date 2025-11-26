@@ -51,6 +51,14 @@ async fn main() {
             "/api/pageviews/article",
             get(handlers::get_article_trend_handler),
         )
+        .route(
+            "/api/search/articles",
+            get(handlers::search_articles_by_prefix),
+        )
+        .route(
+            "/api/search/categories",
+            get(handlers::search_categories_by_prefix),
+        )
         .with_state(state)
         .layer(cors);
 

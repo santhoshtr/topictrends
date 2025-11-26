@@ -10,7 +10,7 @@ pub struct PageViewEngine {
     // We use Arc to make it cheap to clone/share across web threads
     daily_views: HashMap<NaiveDate, Vec<u32>>,
     wiki: String,
-    wikigraph: WikiGraph,
+    pub wikigraph: WikiGraph,
 }
 
 pub fn load_bin_file(path: &str, expected_size: usize) -> Result<Vec<u32>, Box<dyn Error>> {

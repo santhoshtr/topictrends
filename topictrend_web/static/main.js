@@ -10,19 +10,23 @@ document.addEventListener("DOMContentLoaded", function () {
       const wiki = document.getElementById("wiki").value;
       const startDate = document.getElementById("start_date").value;
       const endDate = document.getElementById("end_date").value;
-      const category = document.getElementById("category").value;
-      const article = document.getElementById("article").value;
+      const category = document
+        .getElementById("category")
+        .value.replaceAll(" ", "_");
+      const article = document
+        .getElementById("article")
+        .value.replaceAll(" ", "_");
 
       let apiUrl = `/api/pageviews/${type}?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}`;
       let label = "";
 
       if (type == "article") {
         apiUrl += `&article=${encodeURIComponent(article)}`;
-        label = `Article: ${article}`;
+        label = `Article: ${wiki} - ${article}`;
       }
       if (type == "category") {
         apiUrl += `&category=${encodeURIComponent(category)}`;
-        label = `Category: ${category}`;
+        label = `Category: ${wiki} - ${category}`;
       }
 
       try {
@@ -72,6 +76,10 @@ function initializeChart() {
     },
     tooltip: {
       trigger: "axis",
+    },
+    legend: {
+      top: "bottom",
+      left: "center", // Center the legend horizontally
     },
     xAxis: {
       type: "category",
@@ -147,7 +155,39 @@ document.addEventListener("DOMContentLoaded", function () {
   day = String(oneMonthAgo.getDate()).padStart(2, "0");
 
   startDatePicker.value = `${year}-${month}-${day}`;
+
+  setupAutocomplete("category", "/api/search/categories");
+  setupAutocomplete("article", "/api/search/articles");
 });
+
+async function setupAutocomplete(inputId, apiUrl) {
+  const inputField = document.getElementById(inputId);
+  inputField.addEventListener("keyup", async () => {
+    const dataList = document.getElementById(`datalist-${inputId}`);
+    const query = inputField.value;
+    if (query.length < 2) return; // Only search for 2+ characters
+
+    try {
+      const response = await fetch(
+        `${apiUrl}?${inputId}=${encodeURIComponent(query)}&wiki=${wiki.value}`,
+      );
+      if (!response.ok) {
+        console.error("Failed to fetch autocomplete data");
+        return;
+      }
+
+      const suggestions = await response.json();
+      dataList.innerHTML = ""; // Clear previous suggestions
+      suggestions.forEach((item) => {
+        const option = document.createElement("option");
+        option.value = item.replaceAll("_", " ");
+        dataList.appendChild(option);
+      });
+    } catch (error) {
+      console.error("Error fetching autocomplete data:", error);
+    }
+  });
+}
 
 function removeErrorMessage() {
   const errorContainer = document.getElementById("error-message");

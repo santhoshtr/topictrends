@@ -5,9 +5,9 @@ use axum::{
 use std::sync::Arc;
 use topictrend::pageview_engine::PageViewEngine;
 
-use crate::models::CategoryTrendParams;
-use crate::models::TrendResponse;
 use crate::models::{AppState, ArticleTrendParams};
+use crate::models::{ArticleSearchParams, CategoryTrendParams};
+use crate::models::{CategorySearchParams, TrendResponse};
 
 pub async fn get_category_trend_handler(
     Query(params): Query<CategoryTrendParams>,
@@ -72,4 +72,45 @@ async fn get_or_build_engine(state: Arc<AppState>, wiki: &str) -> PageViewEngine
     })
     .await
     .expect("Failed to spawn blocking task")
+}
+
+pub async fn search_articles_by_prefix(
+    Query(params): Query<ArticleSearchParams>,
+    State(state): State<Arc<AppState>>,
+) -> Json<Vec<String>> {
+    let article_prefix = params.article.to_lowercase().replace(' ', "_");
+    let wiki = params.wiki;
+
+    let engine = get_or_build_engine(state, &wiki).await;
+
+    let results: Vec<String> = engine
+        .wikigraph
+        .art_names
+        .iter()
+        .filter(|name| name.to_lowercase().starts_with(&article_prefix))
+        .take(10)
+        .cloned()
+        .collect();
+
+    Json(results)
+}
+pub async fn search_categories_by_prefix(
+    Query(params): Query<CategorySearchParams>,
+    State(state): State<Arc<AppState>>,
+) -> Json<Vec<String>> {
+    let category_prefix = params.category.to_lowercase().replace(' ', "_");
+    let wiki = params.wiki;
+
+    let engine = get_or_build_engine(state, &wiki).await;
+
+    let results: Vec<String> = engine
+        .wikigraph
+        .art_names
+        .iter()
+        .filter(|name| name.to_lowercase().starts_with(&category_prefix))
+        .take(10)
+        .cloned()
+        .collect();
+
+    Json(results)
 }

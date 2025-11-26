@@ -25,6 +25,9 @@
           <label for="wiki">Wiki</label>
           <select id="wiki">
             <option value="enwiki">English</option>
+            <option value="hiwiki">Hindi</option>
+            <option value="idwiki">Indonesian</option>
+            <option value="mlwiki">Malayalam</option>
             <option value="eswiki">Spanish</option>
             <option value="tawiki">Tamil</option>
           </select>
@@ -37,12 +40,14 @@
           </select>
         </div>
         <div class="form-item">
-          <label for=" input">Category</label>
-          <input type="text" id="category" name="category">
+          <label for="category">Category</label>
+          <input type="text" id="category" name="category" list="datalist-category">
+          <datalist id="datalist-category"></datalist>
         </div>
         <div class="form-item">
-          <label for=" article">Article</label>
-          <input type="text" id="article" name="article">
+          <label for="article">Article</label>
+          <input type="text" id="article" name="article" list="datalist-article">
+          <datalist id="datalist-article"></datalist>
         </div>
         <div class="form-item">
           <label for=" start_date">Start Date:</label>

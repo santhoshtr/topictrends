@@ -37,6 +37,17 @@ pub struct ArticleTrendParams {
     pub start_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
 }
+#[derive(Deserialize)]
+pub struct ArticleSearchParams {
+    pub wiki: String,
+    pub article: String,
+}
+#[derive(Deserialize)]
+pub struct CategorySearchParams {
+    pub wiki: String,
+    pub category: String,
+}
+
 // --- Response DTO ---
 #[derive(Serialize)]
 pub struct TrendResponse {
