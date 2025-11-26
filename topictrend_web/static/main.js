@@ -26,6 +26,8 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       try {
+        removeErrorMessage();
+
         const response = await fetch(apiUrl);
         if (!response.ok) {
           throw new Error("Failed to fetch data");
@@ -35,7 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
         updateChart(data, label);
       } catch (error) {
         console.error("Error:", error);
-        alert("Failed to fetch data. Please try again.");
+        showErrorMessage("Failed to fetch data. Please try again.");
       }
     });
 });
@@ -146,3 +148,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
   startDatePicker.value = `${year}-${month}-${day}`;
 });
+
+function removeErrorMessage() {
+  const errorContainer = document.getElementById("error-message");
+  if (errorContainer) {
+    errorContainer.remove();
+  }
+}
+
+function showErrorMessage(message) {
+  const sidebar = document.querySelector(".sidebar");
+  const errorMessage = document.createElement("div");
+  errorMessage.classList.add("error-message");
+  errorMessage.textContent = message;
+  sidebar.appendChild(errorMessage);
+}

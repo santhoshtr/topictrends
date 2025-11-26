@@ -120,7 +120,28 @@
     height: 100dvh;
     overflow: hidden;
   }
+  .primary-button {
+    background-color: var(--background-color-progressive);
+    color: var(--color-base);
+    border: none;
+    padding: var(--spacing-md) var(--spacing-xl);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    display: flex;
+    place-content: center;
 
+    &:hover {
+      background-color: var(--background-color-progressive--hover);
+    }
+
+    &:disabled {
+      background-color: var(--background-color-disabled);
+      cursor: not-allowed;
+    }
+  }
   .sidebar {
     border-right: 1px solid var(--border-color-base);
     display: flex;
@@ -131,11 +152,13 @@
     form {
       display: flex;
       flex-direction: column;
-gap: 1em;
-.form-item{
-  display: flex;
-  flex-direction: column;
-}
+      gap: 1em;
+
+      .form-item {
+        display: flex;
+        flex-direction: column;
+      }
+
       label {
         font-size: var(--font-size-sm);
         color: var(--color-subtle);
@@ -148,12 +171,24 @@ gap: 1em;
         font-size: 14px;
       }
     }
+
+    .error-message {
+      color: var(--color-error);
+      position: absolute;
+      bottom: 1em;
+    }
   }
 
   .main {
     flex: 1;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: start;
+
+
+    .chart {
+      width: 100%;
+      height: min(600px, 66dvh);
+    }
   }
 }

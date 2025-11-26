@@ -21,14 +21,16 @@
     <div class="sidebar">
       <h2>TopicTrend</h2>
       <form id="trend-form">
-        <label for="wiki">Wiki</label>
-        <select id="wiki">
-          <option value="enwiki">English</option>
-          <option value="eswiki">Spanish</option>
-          <option value="tawiki">Tamil</option>
-        </select>
         <div class="form-item">
-                <label for=" type">Type:</label>
+          <label for="wiki">Wiki</label>
+          <select id="wiki">
+            <option value="enwiki">English</option>
+            <option value="eswiki">Spanish</option>
+            <option value="tawiki">Tamil</option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label for=" type">Type:</label>
           <select id="type" name="type">
             <option value="category">Category</option>
             <option value="article">Article</option>
@@ -47,19 +49,16 @@
           <input type="date" id="start_date" name="start-date" required>
         </div>
         <div class="form-item">
-
           <label for=" end_date">End Date:</label>
           <input type="date" id="end_date" name="end-date" required>
         </div>
         <div class="form-item">
-
-          <button type=" submit">Submit</button>
+          <button type="submit" class="primary-button">Submit</button>
         </div>
-
       </form>
     </div>
     <div class="main">
-      <div id="chart" style="width: 100%; height: 100%;"></div>
+      <div id="chart" class="chart"></div>
     </div>
   </div>
   <script src="/static/main.js"></script>
