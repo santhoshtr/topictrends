@@ -150,7 +150,13 @@ fn handle_get_articles(graph: &wikigraph::WikiGraph, matches: &ArgMatches) {
     let category_title: &String = matches.get_one::<String>("category").unwrap();
     let depth: &u8 = matches.get_one::<u8>("depth").unwrap();
 
-    let articles = graph.get_articles_in_category(category_title, *depth);
+    let articles = match graph.get_articles_in_category(category_title, *depth) {
+        Ok(articles) => articles,
+        Err(err) => {
+            eprintln!("Error: {}", err);
+            std::process::exit(1);
+        }
+    };
     println!(
         "Found {} articles in category {} (depth {}).",
         articles.len(),
@@ -168,7 +174,13 @@ fn handle_get_articles(graph: &wikigraph::WikiGraph, matches: &ArgMatches) {
 fn handle_get_child_categories(graph: &wikigraph::WikiGraph, matches: &ArgMatches) {
     let category_title: &String = matches.get_one::<String>("category").unwrap();
 
-    let children = graph.get_child_categories(category_title);
+    let children = match graph.get_child_categories(category_title) {
+        Ok(children) => children,
+        Err(err) => {
+            eprintln!("Error: {}", err);
+            std::process::exit(1);
+        }
+    };
     println!(
         "Found {} child categories for category {}.",
         children.len(),
@@ -184,7 +196,13 @@ fn handle_get_descendant_categories(graph: &wikigraph::WikiGraph, matches: &ArgM
     let category_title: &String = matches.get_one::<String>("category").unwrap();
     let depth: &u8 = matches.get_one::<u8>("depth").unwrap();
 
-    let descendants = graph.get_descendant_categories(category_title, *depth);
+    let descendants = match graph.get_descendant_categories(category_title, *depth) {
+        Ok(descendants) => descendants,
+        Err(err) => {
+            eprintln!("Error: {}", err);
+            std::process::exit(1);
+        }
+    };
     println!(
         "Found {} descendant categories for category {} (depth {}).",
         descendants.len(),
@@ -200,7 +218,13 @@ fn handle_get_descendant_categories(graph: &wikigraph::WikiGraph, matches: &ArgM
 fn handle_get_parent_categories(graph: &wikigraph::WikiGraph, matches: &ArgMatches) {
     let category_title: &String = matches.get_one::<String>("category").unwrap();
 
-    let parents = graph.get_parent_categories(category_title);
+    let parents = match graph.get_parent_categories(category_title) {
+        Ok(parents) => parents,
+        Err(err) => {
+            eprintln!("Error: {}", err);
+            std::process::exit(1);
+        }
+    };
     println!(
         "Found {} parent categories for category {}.",
         parents.len(),
@@ -215,7 +239,13 @@ fn handle_get_parent_categories(graph: &wikigraph::WikiGraph, matches: &ArgMatch
 fn handle_get_article_categories(graph: &wikigraph::WikiGraph, matches: &ArgMatches) {
     let article_id: &u32 = matches.get_one::<u32>("article-id").unwrap();
 
-    let categories = graph.get_categories_for_article(*article_id);
+    let categories = match graph.get_categories_for_article(*article_id) {
+        Ok(categories) => categories,
+        Err(err) => {
+            eprintln!("Error: {}", err);
+            std::process::exit(1);
+        }
+    };
     println!(
         "Found {} categories for article {}.",
         categories.len(),

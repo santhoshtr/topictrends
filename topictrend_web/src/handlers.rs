@@ -38,7 +38,10 @@ pub async fn get_category_trend_handler(
         engine.get_category_trend(&params.category, depth, start, end)
     })
     .await
-    .unwrap(); // Handle JoinError properly in production
+    .unwrap_or_else(|err| {
+        eprintln!("Error: Failed to execute blocking task: {}", err);
+        vec![] // Return an empty vector in case of failure
+    });
 
     let response = raw_data
         .into_iter()

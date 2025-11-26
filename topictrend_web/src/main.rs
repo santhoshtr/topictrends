@@ -4,9 +4,8 @@ mod models;
 use crate::models::AppState;
 use axum::{
     Router,
-    extract::Query,
     http::{Method, StatusCode, header::*},
-    response::{Html, IntoResponse},
+    response::Html,
     routing::{get, get_service},
 };
 use std::{net::SocketAddr, sync::Arc};

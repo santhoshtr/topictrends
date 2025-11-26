@@ -30,12 +30,14 @@ impl WikiGraph {
         &self,
         category_title: &String,
         max_depth: u8,
-    ) -> RoaringBitmap {
-        let category_id = self.get_category_id(category_title);
+    ) -> Result<RoaringBitmap, String> {
+        let category_id = self.get_category_id(category_title)?;
         // Translate External ID -> Internal Dense ID
         let start_node = match self.cat_original_to_dense.get(&category_id) {
             Some(&id) => id,
-            None => return RoaringBitmap::new(), // Category not found
+            None => {
+                return Ok(RoaringBitmap::new());
+            } // Dense ID not found
         };
 
         let mut result = RoaringBitmap::new();
@@ -64,32 +66,35 @@ impl WikiGraph {
                 }
             }
         }
-        result
+        Ok(result)
     }
 
     /// Get immediate subcategories (Depth 1)
     /// Returns a vector of tuples: (Original_Wiki_ID, Category_Name)
-    pub fn get_child_categories(&self, category_title: &String) -> Vec<(u32, String)> {
-        let category_id = self.get_category_id(category_title);
+    pub fn get_child_categories(
+        &self,
+        category_title: &String,
+    ) -> Result<Vec<(u32, String)>, String> {
+        let category_id = self.get_category_id(category_title)?;
 
         // 1. Convert External ID -> Internal Dense ID
         let dense_id = match self.cat_original_to_dense.get(&category_id) {
             Some(&id) => id,
-            None => return Vec::new(), // Category not found
+            None => return Ok(Vec::new()), // Category not found
         };
 
         // 2. Lookup children in the Adjacency List
         if let Some(children_dense) = self.children.get(dense_id as usize) {
             // 3. Map back to (WikiID, Name)
-            children_dense
+            Ok(children_dense
                 .iter()
                 .map(|&child_dense| {
                     let idx = child_dense as usize;
                     (self.cat_dense_to_original[idx], self.cat_names[idx].clone())
                 })
-                .collect()
+                .collect())
         } else {
-            Vec::new()
+            Ok(Vec::new())
         }
     }
     /// Get all subcategories up to a specific depth `n`.
@@ -98,12 +103,12 @@ impl WikiGraph {
         &self,
         category_title: &String,
         max_depth: u8,
-    ) -> Vec<(u32, String, u8)> {
-        let category_id = self.get_category_id(category_title);
+    ) -> Result<Vec<(u32, String, u8)>, String> {
+        let category_id = self.get_category_id(category_title)?;
 
         let start_node = match self.cat_original_to_dense.get(&category_id) {
             Some(&id) => id,
-            None => return Vec::new(),
+            None => return Ok(Vec::new()),
         };
 
         let mut results = Vec::new();
@@ -141,25 +146,25 @@ impl WikiGraph {
             }
         }
 
-        results
+        Ok(results)
     }
 
     /// Find parent categories (Navigate Up)
-    pub fn get_parent_categories(&self, category_title: &String) -> Vec<u32> {
-        let wiki_cat_id = self.get_category_id(category_title);
+    pub fn get_parent_categories(&self, category_title: &String) -> Result<Vec<u32>, String> {
+        let wiki_cat_id = self.get_category_id(category_title)?;
         let dense_id = match self.cat_original_to_dense.get(&wiki_cat_id) {
             Some(&id) => id,
-            None => return Vec::new(),
+            None => return Ok(Vec::new()),
         };
 
         if let Some(parents_dense) = self.parents.get(dense_id as usize) {
             // Convert back to Original IDs for the user
-            parents_dense
+            Ok(parents_dense
                 .iter()
                 .map(|&p_dense| self.cat_dense_to_original[p_dense as usize])
-                .collect()
+                .collect())
         } else {
-            Vec::new()
+            Ok(Vec::new())
         }
     }
 
@@ -169,49 +174,50 @@ impl WikiGraph {
     }
 
     /// Helper to get category_id for the given category_title
-    pub fn get_category_id(&self, category_title: &String) -> u32 {
+    pub fn get_category_id(&self, category_title: &String) -> Result<u32, String> {
         // Normalize both sides when searching
         match self
             .cat_names
             .iter()
             .position(|name| name == category_title)
         {
-            Some(dense_id) => self.cat_dense_to_original[dense_id],
-            None => {
-                panic!("Category title '{}' not found", category_title)
-            }
+            Some(dense_id) => Ok(self.cat_dense_to_original[dense_id]),
+            None => Err(format!("Category title '{}' not found", category_title)),
         }
     }
 
     /// Helper to get article_id for the given article_title
-    pub fn get_article_id(&self, article_title: &String) -> u32 {
+    pub fn get_article_id(&self, article_title: &String) -> Result<u32, String> {
         match self.art_names.iter().position(|name| name == article_title) {
-            Some(dense_id) => self.art_dense_to_original[dense_id],
-            None => panic!("Article title '{}' not found", article_title),
+            Some(dense_id) => Ok(self.art_dense_to_original[dense_id]),
+            None => Err(format!("Article title '{}' not found", article_title)),
         }
     }
 
     /// Get all parent categories for a specific article.
     /// Returns a vector of tuples: (Category_Wiki_ID, Category_Name)
-    pub fn get_categories_for_article(&self, wiki_article_id: u32) -> Vec<(u32, String)> {
+    pub fn get_categories_for_article(
+        &self,
+        wiki_article_id: u32,
+    ) -> Result<Vec<(u32, String)>, String> {
         // 1. Convert Article External ID -> Article Internal Dense ID
         let dense_art_id = match self.art_original_to_dense.get(&wiki_article_id) {
             Some(&id) => id,
-            None => return Vec::new(), // Article not found
+            None => return Ok(Vec::new()), // Article not found
         };
 
         // 2. Lookup the list of Category Dense IDs for this article
         if let Some(cat_dense_ids) = self.article_cats.get(dense_art_id as usize) {
             // 3. Map Category Dense IDs back to (WikiID, Name)
-            cat_dense_ids
+            Ok(cat_dense_ids
                 .iter()
                 .map(|&cat_dense| {
                     let idx = cat_dense as usize;
                     (self.cat_dense_to_original[idx], self.cat_names[idx].clone())
                 })
-                .collect()
+                .collect())
         } else {
-            Vec::new()
+            Ok(Vec::new())
         }
     }
 }

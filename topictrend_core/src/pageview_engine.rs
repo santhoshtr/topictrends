@@ -61,9 +61,21 @@ impl PageViewEngine {
         end_date: NaiveDate,
     ) -> Vec<(NaiveDate, u64)> {
         let mut results = Vec::new();
-        let category_id = self.wikigraph.get_category_id(&category);
+        let category_id = match self.wikigraph.get_category_id(&category) {
+            Ok(id) => id,
+            Err(err) => {
+                eprintln!("Error: {}", err);
+                return vec![];
+            }
+        };
         // The graph returns the RoaringBitmap of all relevant article IDs.
-        let article_mask = self.wikigraph.get_articles_in_category(category, depth);
+        let article_mask = match self.wikigraph.get_articles_in_category(category, depth) {
+            Ok(mask) => mask,
+            Err(err) => {
+                eprintln!("Error: {}", err);
+                return vec![];
+            }
+        };
 
         // Optimization: If mask is empty, return early
         if article_mask.is_empty() {
@@ -117,17 +129,25 @@ impl PageViewEngine {
         end_date: NaiveDate,
     ) -> Vec<(NaiveDate, u64)> {
         let mut results = Vec::new();
-        let article_id = self.wikigraph.get_article_id(article);
+        let article_id = match self.wikigraph.get_article_id(article) {
+            Ok(id) => id,
+            Err(err) => {
+                eprintln!("Error: {}", err);
+                return vec![];
+            }
+        };
 
-        let article_dense_id = self
-            .wikigraph
-            .art_original_to_dense
-            .get(&article_id)
-            .expect("Could not find dense id");
+        let article_dense_id = match self.wikigraph.art_original_to_dense.get(&article_id) {
+            Some(&dense_id) => dense_id,
+            None => {
+                eprintln!("Could not find dense id for article: {}", article);
+                return vec![];
+            }
+        };
 
         let mut article_mask: RoaringBitmap = RoaringBitmap::new();
 
-        article_mask.insert(*article_dense_id);
+        article_mask.insert(article_dense_id);
 
         // Optimization: If mask is empty, return early
         if article_mask.is_empty() {
