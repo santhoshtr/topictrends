@@ -34,9 +34,6 @@ pub fn load_bin_file(path: &str, expected_size: usize) -> Result<Vec<u32>, Box<d
             body.len()
         );
     }
-    if body.len() > 3100 {
-        dbg!(body[4381]);
-    }
 
     Ok(body.to_vec())
 }
@@ -109,7 +106,6 @@ impl PageViewEngine {
                         daily_total += views as u64;
                     }
                 }
-                dbg!(daily_total);
                 results.push((curr, daily_total));
             } else {
                 eprintln!("Daily views for {} is not available", curr);
@@ -181,7 +177,6 @@ impl PageViewEngine {
                         daily_total += views as u64;
                     }
                 }
-                dbg!(daily_total);
                 results.push((curr, daily_total));
             } else {
                 eprintln!("Daily views for {} is not available", curr);

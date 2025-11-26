@@ -13,8 +13,6 @@ use topictrend::{graphbuilder::GraphBuilder, wikigraph::WikiGraph};
 use byteorder::{LittleEndian, WriteBytesExt};
 
 pub fn generate_bin_dump(views: Vec<u32>, output_path: &String) -> Result<(), Box<dyn Error>> {
-    dbg!(views.len());
-
     //  Write Binary File
     let out_file = File::create(output_path).expect("Error opening output file");
     let mut writer = BufWriter::new(out_file);
@@ -92,7 +90,6 @@ pub fn get_daily_pageviews(wiki: &str, year: &i16, month: &i8, day: &i8) -> Vec<
                     println!("{} views for article id {}", views, page_id);
                 }
             }
-            dbg!(page_id, views);
         }
     }
     dense_vector
