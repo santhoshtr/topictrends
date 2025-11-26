@@ -1,8 +1,10 @@
 use parquet::file::writer::SerializedFileWriter;
 use parquet::{file::properties::WriterProperties, record::RecordWriter as _};
 use parquet_derive::ParquetRecordWriter;
+use polars::prelude::{LazyFrame, PlPath};
 use std::fs::File;
 use std::io::{self, BufRead};
+use std::path::Path;
 use std::sync::Arc;
 
 #[derive(Debug, ParquetRecordWriter)]
@@ -13,12 +15,33 @@ struct ArticleCategory {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
-    if args.len() < 2 {
-        eprintln!("Usage: {} <output_file>", args[0]);
+    if args.len() < 3 {
+        eprintln!("Usage: {} <articles_parquet> <output_file>", args[0]);
         std::process::exit(1);
     }
-    let output_file = &args[1];
+    let articles_parquet = &args[1];
+    let output_file = &args[2];
     let stdin = io::stdin();
+
+    // Before we write this to parquet file, we want to do a filtering
+    // Check if article_id is present in articles.parquet (column is  page_id)
+    // This is because the article category mapping can contain articles in any namespace
+    // but we are interested in 0 (main) namespace. Filtering out in sql query is very slow
+    // for English wikipedia due to multiple joins.
+    // Load articles.parquet to get valid article IDs
+    let articles_parquet_path: PlPath = PlPath::Local(Arc::from(Path::new(&articles_parquet)));
+    let articles_df =
+        LazyFrame::scan_parquet(articles_parquet_path, Default::default())?.collect()?;
+    let valid_article_ids: Vec<u32> = articles_df
+        .column("page_id")?
+        .u32()?
+        .into_iter()
+        .filter_map(|id| id)
+        .collect();
+
+    let valid_article_ids_set: std::collections::HashSet<u32> =
+        valid_article_ids.into_iter().collect();
+
     let results: Vec<ArticleCategory> = stdin
         .lock()
         .lines()
@@ -27,10 +50,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut parts = line.split('\t');
             let article_id = parts.next()?.parse::<u32>().ok()?;
             let category_id = parts.next()?.parse::<u32>().ok()?;
-            Some(ArticleCategory {
-                article_id,
-                category_id,
-            })
+            if valid_article_ids_set.contains(&article_id) {
+                Some(ArticleCategory {
+                    article_id,
+                    category_id,
+                })
+            } else {
+                None
+            }
         })
         .collect();
 
