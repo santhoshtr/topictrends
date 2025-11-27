@@ -1,3 +1,5 @@
+import { autocomp } from "./autocomp.js";
+
 document.addEventListener("DOMContentLoaded", function () {
   initializeChart();
 
@@ -168,31 +170,21 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 async function setupAutocomplete(inputId, apiUrl) {
-  const inputField = document.getElementById(inputId);
-  inputField.addEventListener("input", async () => {
-    const dataList = document.getElementById(`datalist-${inputId}`);
-    const query = inputField.value;
-    if (query.length < 2) return; // Only search for 2+ characters
-
-    try {
+  autocomp(document.getElementById(inputId), {
+    onQuery: async (val) => {
+      const query = val.trim();
+      if (query.length < 2) {
+        return [];
+      }
       const response = await fetch(
         `${apiUrl}?${inputId}=${encodeURIComponent(query)}&wiki=${wiki.value}`,
       );
-      if (!response.ok) {
-        console.error("Failed to fetch autocomplete data");
-        return;
-      }
+      return await response.json();
+    },
 
-      const suggestions = await response.json();
-      dataList.innerHTML = ""; // Clear previous suggestions
-      suggestions.forEach((item) => {
-        const option = document.createElement("option");
-        option.value = item.replaceAll("_", " ");
-        dataList.appendChild(option);
-      });
-    } catch (error) {
-      console.error("Error fetching autocomplete data:", error);
-    }
+    onSelect: (val) => {
+      return val.replaceAll("_", " ");
+    },
   });
 }
 

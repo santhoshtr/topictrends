@@ -11,7 +11,7 @@
   <link rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/@wikimedia/codex-design-tokens/theme-wikimedia-ui-mode-dark.css"
     media="( prefers-color-scheme: dark )">
-
+  <link rel="stylesheet" href="https://tools-static.wmflabs.org/cdnjs/ajax/libs/codex/1.19.1/codex.style.css">
   <link rel="stylesheet" href="/static/styles.css">
   <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
 </head>
@@ -23,7 +23,7 @@
       <form id="trend-form">
         <div class="form-item">
           <label for="wiki">Wiki</label>
-          <select id="wiki">
+          <select id="wiki" class="cdx-select">
             <option value="enwiki">English</option>
             <option value="hiwiki">Hindi</option>
             <option value="idwiki">Indonesian</option>
@@ -34,19 +34,17 @@
         </div>
         <div class="form-item">
           <input type="radio" id="tab-category" name="type" value="category" checked />
-          <input type="radio" id="tab-article" name="type" value="article"/>
+          <input type="radio" id="tab-article" name="type" value="article" />
           <div class="tab">
-            <label for="tab-category">Category</label>
-            <label for="tab-article">Article</label>
+            <label for="tab-category" class="cdx-label">Category</label>
+            <label for="tab-article" class="cdx-label">Article</label>
           </div>
           <div class="tab-content">
             <div class="tab-content-category">
-              <input type="search" id="category" name="category" list="datalist-category" placeholder="Search category">
-              <datalist id="datalist-category"></datalist>
+              <input type="search" id="category" name="category" placeholder="Search category" class="cdx-text-input__input">
             </div>
             <div class="tab-content-article">
-              <input type="search" id="article" name="article" list="datalist-article" placeholder="Search article">
-              <datalist id="datalist-article"></datalist>
+              <input type="search" id="article" name="article"  placeholder="Search article" class="cdx-text-input__input">
             </div>
           </div>
         </div>
@@ -61,7 +59,7 @@
           </div>
         </div>
         <div class="form-item">
-          <button type="submit" class="primary-button">Submit</button>
+          <button type="submit" class="cdx-button cdx-button--action-progressive cdx-button--weight-primary">Submit</button>
         </div>
       </form>
     </div>
@@ -69,7 +67,7 @@
       <div id="chart" class="chart"></div>
     </div>
   </div>
-  <script src="/static/main.js"></script>
+  <script src="/static/main.js" type="module"></script>
 </body>
 
 </html>
