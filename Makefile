@@ -35,12 +35,7 @@ init: $(DATA_DIR)/wikipedia.list
 	@mkdir -p $(DATA_DIR)
 
 # Per-wiki targets
-$(WIKIS): %:
-	$(MAKE) data/$*/articles.parquet
-	$(MAKE) data/$*/categories.parquet
-	$(MAKE) data/$*/article_category.parquet
-	$(MAKE) data/$*/category_graph.parquet
-	$(MAKE) data/$*/pageviews/${YEAR}/${MONTH}/${DAY}.bin
+$(WIKIS): %: data/%/articles.parquet data/%/categories.parquet data/%/article_category.parquet data/%/category_graph.parquet data/%/pageviews/${YEAR}/${MONTH}/${DAY}.bin
 
 # Article data
 $(DATA_DIR)/%/articles.parquet: $(QUERIES_DIR)/articles.sql
@@ -61,10 +56,11 @@ $(DATA_DIR)/%/category_graph.parquet: $(QUERIES_DIR)/category-graph.sql
 	@cat $< | analytics-mysql $* | $(CARGO_RELEASE)/get-categorygraph $@
 
 # Article-category mapping
-$(DATA_DIR)/%/article_category.parquet: $(QUERIES_DIR)/article-category.sql
+$(DATA_DIR)/%/article_category.parquet: $(QUERIES_DIR)/article-category.sql $(DATA_DIR)/%/articles.parquet
 	@mkdir -p $(dir $@)
 	@echo "Fetching article-category mapping for $*..."
-	@cat $< | analytics-mysql $* | $(CARGO_RELEASE)/get-article_category $@
+	@cat $< | analytics-mysql $* | \
+		$(CARGO_RELEASE)/get-article_category $(DATA_DIR)/$*/articles.parquet $(DATA_DIR)/$*/categories.parquet  $@
 
 # Daily pageviews for specific wiki
 # Expands to data/enwiki/pageviews/2025/12/30.bin (example)
@@ -85,9 +81,8 @@ $(DATA_DIR)/pageviews/%.parquet:
 	MONTH=$$(echo $@ | cut -d'/' -f4); \
 	DAY=$$(basename $@ .parquet); \
 	mkdir -p $$(dirname $@); \
-	URL="https://dumps.wikimedia.org/other/pageview_complete/$$YEAR/$$YEAR-$$MONTH/pageviews-$$YEAR$$MONTH$$DAY-user.bz2"; \
-	echo "Downloading pageviews for $$YEAR-$$MONTH-$$DAY From $$URL"; \
-	curl -fsSL "$$URL" | bzip2 -dc | $(CARGO_RELEASE)/get-pageviews $@ || { echo "Error downloading pageviews"; exit 1; }
+	PAGEVIEWS_PATH="/mnt/nfs/dumps-clouddumps1001.wikimedia.org/other/pageview_complete/$$YEAR/$$YEAR-$$MONTH/pageviews-$$YEAR$$MONTH$$DAY-user.bz2"; \
+	cat "$$PAGEVIEWS_PATH" | bzip2 -dc | $(CARGO_RELEASE)/get-pageviews $@ || { echo "Error downloading pageviews"; exit 1; }
 
 # Wikipedia list
 $(DATA_DIR)/wikipedia.list:
