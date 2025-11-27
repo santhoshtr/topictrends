@@ -125,7 +125,7 @@ pub async fn search_categories_by_prefix(
 
         engine_lock
             .get_wikigraph()
-            .art_names
+            .cat_names
             .iter()
             .filter(|name| name.to_lowercase().starts_with(&category_prefix))
             .take(10)
