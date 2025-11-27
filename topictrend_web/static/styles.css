@@ -120,6 +120,24 @@
     height: 100dvh;
     overflow: hidden;
   }
+
+  input,
+  select,
+  button {
+    font-size: 14px;
+    margin: 0;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 0;
+    padding: 4px 8px;
+    background-color: var(--background-color-base, #fff);
+    color: var(--color-base, #fff);
+    border-color: var(--border-color-interactive, #72777d);
+    box-shadow: inset 0 0 0 1px var(--box-shadow-color-transparent, transparent);
+    transition-property: background-color, color, border-color, box-shadow;
+    transition-duration: .25s;
+  }
+
   .primary-button {
     background-color: var(--background-color-progressive);
     color: var(--color-base);
@@ -142,6 +160,7 @@
       cursor: not-allowed;
     }
   }
+
   .sidebar {
     border-right: 1px solid var(--border-color-base);
     display: flex;
@@ -164,18 +183,25 @@
         color: var(--color-subtle);
       }
 
-      input,
-      select,
-      button {
-        padding: 8px;
-        font-size: 14px;
-      }
+
+    }
+
+    .error-message,
+    .success-message {
+      position: absolute;
+      bottom: 1em;
+      padding: var(--spacing-sm);
+      border-radius: var(--border-radius);
+      font-size: var(--font-size-sm);
+      width: 45ch;
     }
 
     .error-message {
       color: var(--color-error);
-      position: absolute;
-      bottom: 1em;
+    }
+
+    .success-message {
+      color: var(--color-progressive);
     }
   }
 
