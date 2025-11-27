@@ -33,7 +33,6 @@ pub struct CategoryTrendParams {
 pub struct ArticleTrendParams {
     pub wiki: String,
     pub article: String,
-    pub depth: Option<u8>,
     pub start_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
 }

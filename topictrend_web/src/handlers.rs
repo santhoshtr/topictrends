@@ -38,7 +38,6 @@ pub async fn get_article_trend_handler(
     Query(params): Query<ArticleTrendParams>,
     State(state): State<Arc<AppState>>,
 ) -> Json<Vec<TrendResponse>> {
-    let depth = params.depth.unwrap_or(0);
     let start = params
         .start_date
         .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
@@ -49,7 +48,7 @@ pub async fn get_article_trend_handler(
     // Wrap the entire blocking operation
     let mut engine = get_or_build_engine(state, &params.wiki).await;
 
-    let raw_data = engine.get_article_trend(&params.article, depth, start, end);
+    let raw_data = engine.get_article_trend(&params.article, start, end);
 
     let response = raw_data
         .into_iter()
