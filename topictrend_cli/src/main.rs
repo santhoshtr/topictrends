@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .arg(
                     Arg::new("depth")
                         .long("depth")
-                        .short('n')
+                        .short('d')
                         .default_value("1")
                         .value_parser(clap::value_parser!(u8))
                         .help("Depth for recursive queries"),
@@ -61,7 +61,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .arg(
                     Arg::new("depth")
                         .long("depth")
-                        .short('n')
+                        .short('d')
                         .default_value("1")
                         .help("Depth for recursive queries"),
                 ),
