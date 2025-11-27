@@ -31,7 +31,14 @@ impl WikiGraph {
         category_title: &String,
         max_depth: u8,
     ) -> Result<RoaringBitmap, String> {
+        let start_time = std::time::Instant::now(); // Start timing
         let category_id = self.get_category_id(category_title)?;
+        let elapsed_time = start_time.elapsed(); // Calculate elapsed time
+        println!(
+            "Time taken to fetch category ID for '{}': {:?}",
+            category_title, elapsed_time
+        );
+
         // Translate External ID -> Internal Dense ID
         let start_node = match self.cat_original_to_dense.get(&category_id) {
             Some(&id) => id,
@@ -75,7 +82,13 @@ impl WikiGraph {
         &self,
         category_title: &String,
     ) -> Result<Vec<(u32, String)>, String> {
+        let start_time = std::time::Instant::now(); // Start timing
         let category_id = self.get_category_id(category_title)?;
+        let elapsed_time = start_time.elapsed(); // Calculate elapsed time
+        println!(
+            "Time taken to fetch category ID for '{}': {:?}",
+            category_title, elapsed_time
+        );
 
         // 1. Convert External ID -> Internal Dense ID
         let dense_id = match self.cat_original_to_dense.get(&category_id) {

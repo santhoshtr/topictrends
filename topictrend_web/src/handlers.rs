@@ -2,7 +2,10 @@ use axum::{
     Json,
     extract::{Query, State},
 };
-use std::sync::Arc;
+use std::{
+    sync::{Arc, RwLock},
+    time::Instant,
+};
 use topictrend::pageview_engine::PageViewEngine;
 
 use crate::models::{AppState, ArticleTrendParams};
@@ -22,10 +25,16 @@ pub async fn get_category_trend_handler(
         .unwrap_or_else(|| chrono::Local::now().date_naive());
 
     // Wrap the entire blocking operation
-    let mut engine = get_or_build_engine(state, &params.wiki).await;
+    let now = Instant::now();
+    let engine = get_or_build_engine(state, &params.wiki).await;
 
-    let raw_data = engine.get_category_trend(&params.category, depth, start, end);
+    println!("Engine build completed in {:.2?}s", now.elapsed());
 
+    // Acquire a write lock to access the engine mutably
+    let raw_data = {
+        let mut engine_lock = engine.write().unwrap();
+        engine_lock.get_category_trend(&params.category, depth, start, end)
+    };
     let response = raw_data
         .into_iter()
         .map(|(date, views)| TrendResponse { date, views })
@@ -46,10 +55,15 @@ pub async fn get_article_trend_handler(
         .unwrap_or_else(|| chrono::Local::now().date_naive());
 
     // Wrap the entire blocking operation
-    let mut engine = get_or_build_engine(state, &params.wiki).await;
 
-    let raw_data = engine.get_article_trend(&params.article, start, end);
+    let now = Instant::now();
+    let engine = get_or_build_engine(state, &params.wiki).await;
 
+    // Acquire a write lock to access the engine mutably
+    let raw_data = {
+        let mut engine_lock = engine.write().unwrap();
+        engine_lock.get_article_trend(&params.article, start, end)
+    };
     let response = raw_data
         .into_iter()
         .map(|(date, views)| TrendResponse { date, views })
@@ -58,16 +72,18 @@ pub async fn get_article_trend_handler(
     Json(response)
 }
 
-async fn get_or_build_engine(state: Arc<AppState>, wiki: &str) -> PageViewEngine {
-    let state_clone = state.clone();
-    let wiki_clone = wiki.to_string();
+async fn get_or_build_engine(state: Arc<AppState>, wiki: &str) -> Arc<RwLock<PageViewEngine>> {
+    let wiki = wiki.to_string(); // Avoid cloning inside the blocking task
 
     tokio::task::spawn_blocking(move || {
-        let mut engines = state_clone.engines.write().unwrap();
-        engines
-            .entry(wiki_clone.clone())
-            .or_insert_with(|| PageViewEngine::new(wiki_clone.as_str()))
-            .clone()
+        let mut engines = state.engines.write().unwrap();
+        if let Some(engine) = engines.get(&wiki) {
+            Arc::clone(engine) // Return the existing Arc<RwLock<PageViewEngine>>
+        } else {
+            let new_engine = Arc::new(RwLock::new(PageViewEngine::new(&wiki)));
+            engines.insert(wiki.clone(), Arc::clone(&new_engine)); // Insert the new Arc<RwLock<PageViewEngine>>
+            new_engine
+        }
     })
     .await
     .expect("Failed to spawn blocking task")
@@ -78,19 +94,21 @@ pub async fn search_articles_by_prefix(
     State(state): State<Arc<AppState>>,
 ) -> Json<Vec<String>> {
     let article_prefix = params.article.to_lowercase().replace(' ', "_");
-    let wiki = params.wiki;
 
-    let engine = get_or_build_engine(state, &wiki).await;
+    let engine = get_or_build_engine(state, &params.wiki).await;
 
-    let results: Vec<String> = engine
-        .wikigraph
-        .art_names
-        .iter()
-        .filter(|name| name.to_lowercase().starts_with(&article_prefix))
-        .take(10)
-        .cloned()
-        .collect();
+    let results: Vec<String> = {
+        let engine_lock = engine.write().unwrap();
 
+        engine_lock
+            .get_wikigraph()
+            .art_names
+            .iter()
+            .filter(|name| name.to_lowercase().starts_with(&article_prefix))
+            .take(10)
+            .cloned()
+            .collect()
+    };
     Json(results)
 }
 pub async fn search_categories_by_prefix(
@@ -102,14 +120,18 @@ pub async fn search_categories_by_prefix(
 
     let engine = get_or_build_engine(state, &wiki).await;
 
-    let results: Vec<String> = engine
-        .wikigraph
-        .art_names
-        .iter()
-        .filter(|name| name.to_lowercase().starts_with(&category_prefix))
-        .take(10)
-        .cloned()
-        .collect();
+    let results: Vec<String> = {
+        let engine_lock = engine.write().unwrap();
+
+        engine_lock
+            .get_wikigraph()
+            .art_names
+            .iter()
+            .filter(|name| name.to_lowercase().starts_with(&category_prefix))
+            .take(10)
+            .cloned()
+            .collect()
+    };
 
     Json(results)
 }

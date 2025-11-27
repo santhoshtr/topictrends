@@ -7,9 +7,8 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use topictrend::pageview_engine::PageViewEngine;
 
-#[derive(Clone)]
 pub struct AppState {
-    pub engines: Arc<RwLock<HashMap<String, PageViewEngine>>>,
+    pub engines: Arc<RwLock<HashMap<String, Arc<RwLock<PageViewEngine>>>>>,
 }
 
 impl AppState {

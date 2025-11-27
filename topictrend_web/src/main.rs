@@ -9,7 +9,6 @@ use axum::{
     routing::{get, get_service},
 };
 use std::{net::SocketAddr, sync::Arc};
-use tower_http::trace::TraceLayer;
 use tower_http::{cors::CorsLayer, services::ServeDir};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 

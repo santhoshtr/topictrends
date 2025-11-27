@@ -2,7 +2,6 @@ use anyhow::Result;
 use polars::prelude::*;
 use roaring::RoaringBitmap;
 use std::collections::HashMap;
-use std::fs::File;
 use std::path::Path;
 use std::time::Instant;
 
@@ -26,30 +25,30 @@ impl GraphBuilder {
         let start = Instant::now();
 
         // A. Load Categories & Create Mapping
-        println!("Loading Categories...");
+        print!("  Loading Categories...");
         let (cat_dense_to_original, cat_names, cat_original_to_dense) =
             Self::load_nodes(format!("{}/{}/categories.parquet", data_dir, self.wiki))?;
 
         let num_cats = cat_dense_to_original.len();
-        println!("Loaded {} categories.", num_cats);
+        println!("\r  Loaded {} categories.", num_cats);
 
         // B. Load Articles & Create Mapping
-        println!("Loading Articles...");
+        print!("  Loading Articles...");
         let (art_dense_to_original, art_names, art_original_to_dense) =
             Self::load_nodes(format!("{}/{}/articles.parquet", data_dir, self.wiki))?;
 
         let num_arts: usize = art_dense_to_original.len();
-        println!("Loaded {} articles.", num_arts);
+        println!("\r  Loaded {} articles.", num_arts);
 
         // C. Initialize Structure Containers
         let mut children = vec![Vec::new(); num_cats];
         let mut parents = vec![Vec::new(); num_cats];
         let mut cat_articles = vec![RoaringBitmap::new(); num_cats];
-        let mut article_cats = vec![Vec::new(); num_arts];
+        let article_cats = vec![Vec::new(); num_arts];
 
         // D. Load Relations: Category Parent -> Child
         // Note: User provided 'cat_parents.parquet' (parent, child)
-        println!("Loading Category Hierarchy...");
+        print!("  Loading Category Hierarchy...");
         let path: PlPath = PlPath::Local(Arc::from(Path::new(
             format!("{}/{}/category_graph.parquet", data_dir, self.wiki).as_str(),
         )));
@@ -72,8 +71,9 @@ impl GraphBuilder {
             }
         }
 
-        // F. Load Article -> Category
-        println!("Loading Article-Category definitions...");
+        println!("\r  Loaded Category Hierarchy");
+        // Load Article -> Category
+        print!("  Loading Article-Category definitions...");
         let path: PlPath = PlPath::Local(Arc::from(Path::new(
             format!("{}/{}/article_category.parquet", data_dir, self.wiki).as_str(),
         )));
@@ -102,7 +102,12 @@ impl GraphBuilder {
             }
         }
 
-        println!("Graph build completed in {:.2?}s", start.elapsed());
+        println!("\r  Loaded Article-Category definitions");
+        println!(
+            "Graph build completed for {} in {:.2?}s",
+            self.wiki,
+            start.elapsed()
+        );
 
         Ok(WikiGraph {
             children,

@@ -4,13 +4,12 @@ use roaring::RoaringBitmap;
 use std::io::Read;
 use std::{collections::HashMap, error::Error, fs::File};
 
-#[derive(Clone, Debug)]
 pub struct PageViewEngine {
     // Map Date -> Vector of pageviews (Index is Dense Article ID)
     // We use Arc to make it cheap to clone/share across web threads
     daily_views: HashMap<NaiveDate, Vec<u32>>,
     wiki: String,
-    pub wikigraph: WikiGraph,
+    wikigraph: WikiGraph,
 }
 
 pub fn load_bin_file(path: &str, expected_size: usize) -> Result<Vec<u32>, Box<dyn Error>> {
@@ -42,11 +41,15 @@ impl PageViewEngine {
     pub fn new(wiki: &str) -> Self {
         let graph_builder = GraphBuilder::new(wiki);
         let graph: WikiGraph = graph_builder.build().expect("Error while building graph");
-        return Self {
+        Self {
             wiki: wiki.to_string(),
             daily_views: HashMap::new(),
             wikigraph: graph,
-        };
+        }
+    }
+
+    pub fn get_wikigraph(&self) -> &WikiGraph {
+        &self.wikigraph
     }
 
     /// Calculate the total pageviews for a set of articles over time.
@@ -58,14 +61,13 @@ impl PageViewEngine {
         end_date: NaiveDate,
     ) -> Vec<(NaiveDate, u64)> {
         let mut results = Vec::new();
-        let category_id = match self.wikigraph.get_category_id(&category) {
+        let category_id = match self.wikigraph.get_category_id(category) {
             Ok(id) => id,
             Err(err) => {
                 eprintln!("Error: {}", err);
                 return vec![];
             }
         };
-        // The graph returns the RoaringBitmap of all relevant article IDs.
         let article_mask = match self.wikigraph.get_articles_in_category(category, depth) {
             Ok(mask) => mask,
             Err(err) => {
@@ -88,11 +90,11 @@ impl PageViewEngine {
             self.wiki,
             &category
         );
-        let mut curr = start_date;
 
         self.load_history_for_date_range(start_date, end_date)
             .expect("Error in loading pageview history");
 
+        let mut curr = start_date;
         while curr <= end_date {
             if let Some(day_data) = self.daily_views.get(&curr) {
                 // High Performance Loop
@@ -109,11 +111,11 @@ impl PageViewEngine {
                 }
                 results.push((curr, daily_total));
             } else {
-                eprintln!("Daily views for {} is not available", curr);
                 results.push((curr, 0));
             }
             curr = curr.succ_opt().unwrap();
         }
+
         results
     }
 
@@ -121,7 +123,6 @@ impl PageViewEngine {
     pub fn get_article_trend(
         &mut self,
         article: &String,
-        depth: u8,
         start_date: NaiveDate,
         end_date: NaiveDate,
     ) -> Vec<(NaiveDate, u64)> {
@@ -157,35 +158,34 @@ impl PageViewEngine {
             );
             return vec![];
         }
-        println!(
-            "Found {} articles in category {}/{}",
-            article_mask.len(),
-            self.wiki,
-            &article
-        );
-        let mut curr = start_date;
+        // println!(
+        //     "Found {} articles in category {}/{}",
+        //     article_mask.len(),
+        //     self.wiki,
+        //     &article
+        // );
+        let mut curr: NaiveDate = start_date;
 
         self.load_history_for_date_range(start_date, end_date)
             .expect("Error in loading pageview history");
 
         while curr <= end_date {
-            if let Some(day_data) = self.daily_views.get(&curr) {
-                // High Performance Loop
-                // Summing values only for articles in the category
-                let mut daily_total: u64 = 0;
-
-                // RoaringBitmap iter is sorted, which is cache-friendly
-                for article_dense_id in article_mask.iter() {
-                    // distinct get is O(1)
-                    // We use get unchecked for max speed if we are sure indices are valid
-                    if let Some(&views) = day_data.get(article_dense_id as usize) {
-                        daily_total += views as u64;
+            match self.daily_views.get(&curr) {
+                Some(day_data) => {
+                    let mut daily_total: u64 = 0;
+                    for article_dense_id in article_mask.iter() {
+                        // distinct get is O(1)
+                        // We use get unchecked for max speed if we are sure indices are valid
+                        if let Some(&views) = day_data.get(article_dense_id as usize) {
+                            daily_total += views as u64;
+                        }
                     }
+                    results.push((curr, daily_total));
                 }
-                results.push((curr, daily_total));
-            } else {
-                eprintln!("Daily views for {} is not available", curr);
-                results.push((curr, 0));
+                None => {
+                    //eprintln!("Daily views for {} is not available", curr);
+                    results.push((curr, 0));
+                }
             }
             curr = curr.succ_opt().unwrap();
         }
@@ -236,7 +236,8 @@ impl PageViewEngine {
         let day_vec = load_bin_file(&bin_filename, num_articles)
             .expect("Error reading the pageview bin file");
         println!(
-            "Loaded views for {}, found {} articles",
+            "Loaded page views for {} on {}, found {} articles",
+            self.wiki,
             date,
             day_vec.len()
         );
