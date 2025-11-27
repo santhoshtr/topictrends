@@ -83,9 +83,10 @@ impl PageViewEngine {
             return vec![];
         }
         println!(
-            "Found {} articles in category {}",
+            "Found {} articles in category {}/{}",
             article_mask.len(),
-            category_id
+            self.wiki,
+            &category
         );
         let mut curr = start_date;
 
@@ -136,7 +137,10 @@ impl PageViewEngine {
         let article_dense_id = match self.wikigraph.art_original_to_dense.get(&article_id) {
             Some(&dense_id) => dense_id,
             None => {
-                eprintln!("Could not find dense id for article: {}", article);
+                eprintln!(
+                    "Could not find dense id for article: {}/{}",
+                    self.wiki, &article
+                );
                 return vec![];
             }
         };
@@ -154,9 +158,10 @@ impl PageViewEngine {
             return vec![];
         }
         println!(
-            "Found {} articles in category {}",
+            "Found {} articles in category {}/{}",
             article_mask.len(),
-            article
+            self.wiki,
+            &article
         );
         let mut curr = start_date;
 
@@ -221,10 +226,10 @@ impl PageViewEngine {
         );
 
         if !std::path::Path::new(&bin_filename).exists() {
-            eprintln!(
-                "Could not find page view data for {} at {}",
-                date, bin_filename
-            );
+            // eprintln!(
+            //     "Could not find page view data for {} at {}",
+            //     date, bin_filename
+            // );
             return Ok(None);
         }
 
