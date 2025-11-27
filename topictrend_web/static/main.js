@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const wiki = document.getElementById("wiki").value;
       const startDate = document.getElementById("start_date").value;
       const endDate = document.getElementById("end_date").value;
+      const depth = 2;
       const category = document
         .getElementById("category")
         .value.replaceAll(" ", "_");
@@ -17,7 +18,7 @@ document.addEventListener("DOMContentLoaded", function () {
         .getElementById("article")
         .value.replaceAll(" ", "_");
 
-      let apiUrl = `/api/pageviews/${type}?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}`;
+      let apiUrl = `/api/pageviews/${type}?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}`;
       let label = "";
 
       if (type == "article") {
@@ -30,7 +31,8 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       try {
-        removeErrorMessage();
+        const startTime = performance.now();
+        removeMessage();
 
         const response = await fetch(apiUrl);
         if (!response.ok) {
@@ -39,9 +41,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const data = await response.json();
         updateChart(data, label);
+
+        const endTime = performance.now();
+        const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
+        showMessage(`Fetched ${label} in ${timeTaken} seconds.`, "success");
       } catch (error) {
         console.error("Error:", error);
-        showErrorMessage("Failed to fetch data. Please try again.");
+        showMessage("Failed to fetch data. Please try again.", "error");
       }
     });
 });
@@ -129,6 +135,7 @@ function updateChart(data, label) {
         name: label,
         data: data.map((item) => item.views),
         type: "line",
+        smooth: true,
       },
     ],
   });
@@ -162,7 +169,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 async function setupAutocomplete(inputId, apiUrl) {
   const inputField = document.getElementById(inputId);
-  inputField.addEventListener("keyup", async () => {
+  inputField.addEventListener("input", async () => {
     const dataList = document.getElementById(`datalist-${inputId}`);
     const query = inputField.value;
     if (query.length < 2) return; // Only search for 2+ characters
@@ -189,17 +196,20 @@ async function setupAutocomplete(inputId, apiUrl) {
   });
 }
 
-function removeErrorMessage() {
-  const errorContainer = document.getElementById("error-message");
-  if (errorContainer) {
-    errorContainer.remove();
+function removeMessage() {
+  const messageContainer = document.getElementById("message-container");
+  if (messageContainer) {
+    messageContainer.remove();
   }
 }
 
-function showErrorMessage(message) {
+function showMessage(message, type) {
   const sidebar = document.querySelector(".sidebar");
-  const errorMessage = document.createElement("div");
-  errorMessage.classList.add("error-message");
-  errorMessage.textContent = message;
-  sidebar.appendChild(errorMessage);
+  const messageDiv = document.createElement("div");
+  messageDiv.id = "message-container";
+  messageDiv.classList.add(
+    type === "error" ? "error-message" : "success-message",
+  );
+  messageDiv.textContent = message;
+  sidebar.appendChild(messageDiv);
 }
