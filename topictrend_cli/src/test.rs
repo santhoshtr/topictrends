@@ -9,7 +9,7 @@ mod per_day_wiki_stats;
 
 fn create_parquet_file(data: DataFrame, output_path: &str) {
     let mut file = File::create(output_path)
-        .expect(format!("Failed to create Parquet file {}", output_path).as_str());
+        .unwrap_or_else(|_| panic!("Failed to create Parquet file {}", output_path));
     ParquetWriter::new(&mut file)
         .with_compression(ParquetCompression::Snappy)
         .finish(&mut data.clone())
@@ -22,7 +22,7 @@ fn setup_test_data() {
 
     // Create articles.parquet
     let articles = df![
-        "page_id" => &[1 as u32, 2 as u32, 3 as u32],
+        "page_id" => &[1_u32, 2_u32, 3_u32],
         "page_title" => &["Article 1", "Article 2", "Article 3"]
     ]
     .unwrap();
@@ -30,7 +30,7 @@ fn setup_test_data() {
 
     // Create categories.parquet
     let categories = df![
-        "page_id" => &[1 as u32, 2 as u32],
+        "page_id" => &[1_u32, 2_u32],
         "page_title" => &["Category 1", "Category 2"]
     ]
     .unwrap();
@@ -38,16 +38,16 @@ fn setup_test_data() {
 
     // Create article-category mapping
     let article_category = df![
-        "article_id" => &[1 as u32, 2 as u32, 3 as u32],
-        "category_id" => &[1 as u32, 1 as u32, 2 as u32]
+        "article_id" => &[1_u32, 2_u32, 3_u32],
+        "category_id" => &[1_u32, 1_u32, 2_u32]
     ]
     .unwrap();
     create_parquet_file(article_category, "data/testwiki/article_category.parquet");
 
     // Create category-graph
     let category_graph = df![
-        "parent" => &[1 as u32],
-        "child" => &[2 as u32]
+        "parent" => &[1_u32],
+        "child" => &[2_u32]
     ]
     .unwrap();
     create_parquet_file(category_graph, "data/testwiki/category_graph.parquet");
@@ -55,9 +55,9 @@ fn setup_test_data() {
     // Create pageviews.parquet
     let pageviews = df![
         "project" => &["testwiki", "testwiki", "testwiki", "testwiki"],
-        "page_id" => &[1 as u32, 2 as u32, 3 as u32, 2 as u32],
+        "page_id" => &[1_u32, 2_u32, 3_u32, 2_u32],
         "access_method" => &["desktop", "desktop", "desktop", "mobile-web"],
-        "daily_views" => &[100 as u32, 200 as u32, 300 as u32, 500 as u32]
+        "daily_views" => &[100_u32, 200_u32, 300_u32, 500_u32]
     ]
     .unwrap();
     create_parquet_file(pageviews, "data/pageviews/2032/10/12.parquet");

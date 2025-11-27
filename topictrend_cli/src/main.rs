@@ -1,5 +1,5 @@
 use clap::{Arg, ArgMatches, Command};
-use std::error::Error;
+use std::{error::Error, time::Instant};
 use topictrend::{graphbuilder::GraphBuilder, pageview_engine::PageViewEngine, wikigraph};
 
 mod pageviews;
@@ -127,18 +127,37 @@ fn main() -> Result<(), Box<dyn Error>> {
         .get_matches();
 
     let wiki_id: &str = matches.get_one::<String>("wiki").unwrap();
-    let graph_builder = GraphBuilder::new(wiki_id);
-    let graph = graph_builder.build().expect("Error while building graph");
-
     // Dispatch subcommands
     match matches.subcommand() {
-        Some(("list-articles", sub_m)) => handle_get_articles(&graph, sub_m),
-        Some(("list-child-categories", sub_m)) => handle_get_child_categories(&graph, sub_m),
+        Some(("list-articles", sub_m)) => {
+            let graph_builder = GraphBuilder::new(wiki_id);
+            let graph = graph_builder.build().expect("Error while building graph");
+
+            handle_get_articles(&graph, sub_m)
+        }
+        Some(("list-child-categories", sub_m)) => {
+            let graph_builder = GraphBuilder::new(wiki_id);
+            let graph = graph_builder.build().expect("Error while building graph");
+            handle_get_child_categories(&graph, sub_m)
+        }
         Some(("list-descendant-categories", sub_m)) => {
+            let graph_builder = GraphBuilder::new(wiki_id);
+            let graph = graph_builder.build().expect("Error while building graph");
+
             handle_get_descendant_categories(&graph, sub_m)
         }
-        Some(("list-parent-categories", sub_m)) => handle_get_parent_categories(&graph, sub_m),
-        Some(("list-article-categories", sub_m)) => handle_get_article_categories(&graph, sub_m),
+        Some(("list-parent-categories", sub_m)) => {
+            let graph_builder = GraphBuilder::new(wiki_id);
+            let graph = graph_builder.build().expect("Error while building graph");
+
+            handle_get_parent_categories(&graph, sub_m)
+        }
+        Some(("list-article-categories", sub_m)) => {
+            let graph_builder = GraphBuilder::new(wiki_id);
+            let graph = graph_builder.build().expect("Error while building graph");
+
+            handle_get_article_categories(&graph, sub_m)
+        }
         Some(("category-trend", sub_m)) => handle_category_trend(wiki_id, sub_m),
         _ => println!("No valid subcommand provided. Use --help for usage."),
     }
@@ -258,6 +277,8 @@ fn handle_get_article_categories(graph: &wikigraph::WikiGraph, matches: &ArgMatc
 }
 
 fn handle_category_trend(wiki_id: &str, matches: &ArgMatches) {
+    let start = Instant::now();
+
     let category: &String = matches.get_one::<String>("category").unwrap();
     let depth: &u8 = matches.get_one::<u8>("depth").unwrap();
     let start_date = matches
@@ -280,4 +301,5 @@ fn handle_category_trend(wiki_id: &str, matches: &ArgMatches) {
     for trend in raw_data {
         println!(" - {}: {} views", trend.0, trend.1);
     }
+    println!("Trend calculation completed in {:.2?}s", start.elapsed());
 }

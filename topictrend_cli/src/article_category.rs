@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .column("page_id")?
         .u32()?
         .into_iter()
-        .filter_map(|id| id)
+        .flatten()
         .collect();
 
     let valid_article_ids_set: std::collections::HashSet<u32> =
@@ -50,7 +50,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .column("page_id")?
         .u32()?
         .into_iter()
-        .filter_map(|id| id)
+        .flatten()
         .collect();
     let valid_category_ids_set: std::collections::HashSet<u32> =
         valid_category_ids.into_iter().collect();
