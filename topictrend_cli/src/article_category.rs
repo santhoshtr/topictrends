@@ -20,7 +20,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::process::exit(1);
     }
     let articles_parquet = &args[1];
-    let output_file = &args[2];
+    let categories_parquet = &args[2];
+    let output_file = &args[3];
     let stdin = io::stdin();
 
     // Before we write this to parquet file, we want to do a filtering
@@ -42,6 +43,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let valid_article_ids_set: std::collections::HashSet<u32> =
         valid_article_ids.into_iter().collect();
 
+    let categories_parquet_path: PlPath = PlPath::Local(Arc::from(Path::new(&categories_parquet)));
+    let categories_df =
+        LazyFrame::scan_parquet(categories_parquet_path, Default::default())?.collect()?;
+    let valid_category_ids: Vec<u32> = categories_df
+        .column("page_id")?
+        .u32()?
+        .into_iter()
+        .filter_map(|id| id)
+        .collect();
+    let valid_category_ids_set: std::collections::HashSet<u32> =
+        valid_category_ids.into_iter().collect();
+
     let results: Vec<ArticleCategory> = stdin
         .lock()
         .lines()
@@ -50,7 +63,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut parts = line.split('\t');
             let article_id = parts.next()?.parse::<u32>().ok()?;
             let category_id = parts.next()?.parse::<u32>().ok()?;
-            if valid_article_ids_set.contains(&article_id) {
+            if valid_article_ids_set.contains(&article_id)
+                && valid_category_ids_set.contains(&category_id)
+            {
                 Some(ArticleCategory {
                     article_id,
                     category_id,
