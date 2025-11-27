@@ -6,7 +6,7 @@ document.addEventListener("DOMContentLoaded", function () {
     .addEventListener("submit", async (event) => {
       event.preventDefault();
 
-      const type = document.getElementById("type").value;
+      const type = document.querySelector('input[name="type"]:checked').value;
       const wiki = document.getElementById("wiki").value;
       const startDate = document.getElementById("start_date").value;
       const endDate = document.getElementById("end_date").value;

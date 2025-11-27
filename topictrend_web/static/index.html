@@ -33,29 +33,32 @@
           </select>
         </div>
         <div class="form-item">
-          <label for=" type">Type:</label>
-          <select id="type" name="type">
-            <option value="category">Category</option>
-            <option value="article">Article</option>
-          </select>
+          <input type="radio" id="tab-category" name="type" value="category" checked />
+          <input type="radio" id="tab-article" name="type" value="article"/>
+          <div class="tab">
+            <label for="tab-category">Category</label>
+            <label for="tab-article">Article</label>
+          </div>
+          <div class="tab-content">
+            <div class="tab-content-category">
+              <input type="search" id="category" name="category" list="datalist-category" placeholder="Search category">
+              <datalist id="datalist-category"></datalist>
+            </div>
+            <div class="tab-content-article">
+              <input type="search" id="article" name="article" list="datalist-article" placeholder="Search article">
+              <datalist id="datalist-article"></datalist>
+            </div>
+          </div>
         </div>
-        <div class="form-item">
-          <label for="category">Category</label>
-          <input type="text" id="category" name="category" list="datalist-category">
-          <datalist id="datalist-category"></datalist>
-        </div>
-        <div class="form-item">
-          <label for="article">Article</label>
-          <input type="text" id="article" name="article" list="datalist-article">
-          <datalist id="datalist-article"></datalist>
-        </div>
-        <div class="form-item">
-          <label for=" start_date">Start Date:</label>
-          <input type="date" id="start_date" name="start-date" required>
-        </div>
-        <div class="form-item">
-          <label for=" end_date">End Date:</label>
-          <input type="date" id="end_date" name="end-date" required>
+        <div class="form-item row">
+          <div class="form-item">
+            <label for=" start_date">Start Date</label>
+            <input type="date" id="start_date" name="start-date" required>
+          </div>
+          <div class="form-item">
+            <label for=" end_date">End Date</label>
+            <input type="date" id="end_date" name="end-date" required>
+          </div>
         </div>
         <div class="form-item">
           <button type="submit" class="primary-button">Submit</button>
