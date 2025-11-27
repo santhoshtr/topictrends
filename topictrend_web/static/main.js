@@ -1,58 +1,55 @@
 import { autocomp } from "./autocomp.js";
 
 document.addEventListener("DOMContentLoaded", function () {
+  document.getElementById("trend-form").addEventListener("submit", onSubmit);
   initializeChart();
+  populateFormFromQueryParams();
+});
 
-  document
-    .getElementById("trend-form")
-    .addEventListener("submit", async (event) => {
-      event.preventDefault();
+async function onSubmit(event) {
+  event.preventDefault();
 
-      const type = document.querySelector('input[name="type"]:checked').value;
-      const wiki = document.getElementById("wiki").value;
-      const startDate = document.getElementById("start_date").value;
-      const endDate = document.getElementById("end_date").value;
-      const depth = 2;
+  const params = new URLSearchParams();
+  const type = document.querySelector('input[name="type"]:checked').value;
+  const wiki = document.getElementById("wiki").value;
+  const startDate = document.getElementById("start_date").value;
+  const endDate = document.getElementById("end_date").value;
+  const depth = 2;
+
+  params.append("type", type);
+  params.append("wiki", wiki);
+  params.append("start_date", startDate);
+  params.append("end_date", endDate);
+  params.append("depth", depth);
+  try {
+    if (type === "category") {
       const category = document
         .getElementById("category")
         .value.replaceAll(" ", "_");
+      params.append("category", category);
+
+      // Update the browser URL with the new parameters
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.pushState({}, "", newUrl);
+
+      await fetchCategoryPageviews(wiki, category, startDate, endDate, depth);
+      await renderSubCategories(wiki, category);
+    } else if (type === "article") {
       const article = document
         .getElementById("article")
         .value.replaceAll(" ", "_");
+      params.append("article", article);
 
-      let apiUrl = `/api/pageviews/${type}?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}`;
-      let label = "";
-
-      if (type == "article") {
-        apiUrl += `&article=${encodeURIComponent(article)}`;
-        label = `Article: ${wiki} - ${article}`;
-      }
-      if (type == "category") {
-        apiUrl += `&category=${encodeURIComponent(category)}`;
-        label = `Category: ${wiki} - ${category}`;
-      }
-
-      try {
-        const startTime = performance.now();
-        removeMessage();
-
-        const response = await fetch(apiUrl);
-        if (!response.ok) {
-          throw new Error("Failed to fetch data");
-        }
-
-        const data = await response.json();
-        updateChart(data, label);
-
-        const endTime = performance.now();
-        const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
-        showMessage(`Fetched ${label} in ${timeTaken} seconds.`, "success");
-      } catch (error) {
-        console.error("Error:", error);
-        showMessage("Failed to fetch data. Please try again.", "error");
-      }
-    });
-});
+      // Update the browser URL with the new parameters
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.pushState({}, "", newUrl);
+      await fetchArticlePageviews(wiki, article, startDate, endDate);
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    showMessage("Failed to fetch data. Please try again.", "error");
+  }
+}
 
 let chartInstance = null;
 
@@ -143,6 +140,72 @@ function updateChart(data, label) {
   });
 }
 
+async function renderSubCategories(wiki, category) {
+  const categoryListContainer = document.getElementById("category-list");
+  const apiUrl = `/api/list/sub_categories?wiki=${wiki}&category=${category}`;
+
+  const response = await fetch(apiUrl);
+  const subcategories = await response.json();
+  if (!response.ok) {
+    throw new Error("Failed to fetch data");
+  }
+
+  categoryListContainer.innerHTML = ""; // Clear previous results
+
+  const subheading = document.createElement("h3");
+  subheading.textContent = "Subcategories";
+  categoryListContainer.appendChild(subheading);
+
+  const ul = document.createElement("ul");
+  subcategories.forEach((subcategory) => {
+    const li = document.createElement("li");
+    const categoryLabel = document.createElement("span");
+    categoryLabel.href = "#";
+    categoryLabel.textContent = subcategory.replaceAll("_", " ");
+    const plotButton = document.createElement("button");
+    plotButton.title = "Plot pageviews for this category";
+    plotButton.className = "plot-button";
+    plotButton.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" 
+        height="16px" viewBox="0 -960 960 960"
+        width="16px" fill="currentColor">
+      <path d="m140-220-60-60 300-300 160 160 284-320 56 56-340 384-160-160-240 240Z"/>
+      </svg>
+      `;
+    plotButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      const startDate = document.getElementById("start_date").value;
+      const endDate = document.getElementById("end_date").value;
+      const depth = 2;
+
+      fetchCategoryPageviews(wiki, subcategory, startDate, endDate, depth);
+    });
+    const analyseButton = document.createElement("button");
+    analyseButton.title = "Analyse this category";
+    analyseButton.className = "analyse-button";
+    analyseButton.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" 
+    height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor">
+    <path d="M400-320q100 0 170-70t70-170q0-100-70-170t-170-70q-100 0-170 70t-70 170q0 100 70 170t170 70Zm-40-120v-280h80v280h-80Zm-140 0v-200h80v200h-80Zm280 0v-160h80v160h-80ZM824-80 597-307q-41 32-91 49.5T400-240q-134 0-227-93T80-560q0-134 93-227t227-93q134 0 227 93t93 227q0 56-17.5 106T653-363l227 227-56 56Z"/></svg>
+    `;
+
+    analyseButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      const urlParams = new URLSearchParams(window.location.search);
+      urlParams.set("category", subcategory);
+      urlParams.set("type", "category");
+      const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+      window.location.href = newUrl;
+    });
+    li.appendChild(categoryLabel);
+    li.appendChild(plotButton);
+    li.appendChild(analyseButton);
+    ul.appendChild(li);
+  });
+
+  categoryListContainer.appendChild(ul);
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   const startDatePicker = document.getElementById("start_date");
   const endDatePicker = document.getElementById("end_date");
@@ -188,20 +251,100 @@ async function setupAutocomplete(inputId, apiUrl) {
   });
 }
 
-function removeMessage() {
-  const messageContainer = document.getElementById("message-container");
-  if (messageContainer) {
-    messageContainer.remove();
+function showMessage(message, type) {
+  const messageEl = document.getElementById("status");
+  messageEl.classList.remove("error-message");
+  messageEl.classList.remove("success-message");
+  messageEl.classList.add(
+    type === "error" ? "error-message" : "success-message",
+  );
+  messageEl.textContent = message;
+}
+
+async function fetchCategoryPageviews(
+  wiki,
+  category,
+  startDate,
+  endDate,
+  depth,
+) {
+  const apiUrl = `/api/pageviews/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&category=${encodeURIComponent(
+    category,
+  )}`;
+  const label = `Category: ${wiki} - ${category.replaceAll("_", " ")}`;
+
+  try {
+    const startTime = performance.now();
+    const response = await fetch(apiUrl);
+    if (!response.ok) {
+      throw new Error("Failed to fetch data");
+    }
+
+    const data = await response.json();
+    updateChart(data, label);
+    const endTime = performance.now();
+    const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
+    showMessage(`Fetched ${label} in ${timeTaken} seconds.`, "success");
+  } catch (error) {
+    console.error("Error:", error);
+    showMessage("Failed to fetch category data. Please try again.", "error");
   }
 }
 
-function showMessage(message, type) {
-  const sidebar = document.querySelector(".sidebar");
-  const messageDiv = document.createElement("div");
-  messageDiv.id = "message-container";
-  messageDiv.classList.add(
-    type === "error" ? "error-message" : "success-message",
-  );
-  messageDiv.textContent = message;
-  sidebar.appendChild(messageDiv);
+async function fetchArticlePageviews(wiki, article, startDate, endDate) {
+  const apiUrl = `/api/pageviews/article?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&article=${encodeURIComponent(
+    article,
+  )}`;
+  const label = `Article: ${wiki} - ${article.replaceAll("_", " ")}`;
+
+  try {
+    const startTime = performance.now();
+    const response = await fetch(apiUrl);
+    if (!response.ok) {
+      throw new Error("Failed to fetch data");
+    }
+
+    const data = await response.json();
+    updateChart(data, label);
+    const endTime = performance.now();
+    const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
+    showMessage(`Fetched ${label} in ${timeTaken} seconds.`, "success");
+  } catch (error) {
+    console.error("Error:", error);
+    showMessage("Failed to fetch article data. Please try again.", "error");
+  }
+}
+function populateFormFromQueryParams() {
+  const urlParams = new URLSearchParams(window.location.search);
+
+  const type = urlParams.get("type");
+  const wiki = urlParams.get("wiki");
+  const startDate = urlParams.get("start_date");
+  const endDate = urlParams.get("end_date");
+  const category = urlParams.get("category");
+  const article = urlParams.get("article");
+
+  if (type) {
+    document.querySelector(`input[name="type"][value="${type}"]`).checked =
+      true;
+  }
+  if (wiki) {
+    document.getElementById("wiki").value = wiki;
+  }
+  if (startDate) {
+    document.getElementById("start_date").value = startDate;
+  }
+  if (endDate) {
+    document.getElementById("end_date").value = endDate;
+  }
+  if (type === "category" && category) {
+    document.getElementById("category").value = category.replaceAll("_", " ");
+  }
+  if (type === "article" && article) {
+    document.getElementById("article").value = article.replaceAll("_", " ");
+  }
+
+  if (type && wiki && startDate && endDate) {
+    onSubmit(new Event("submit"));
+  }
 }

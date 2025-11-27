@@ -46,6 +46,12 @@ pub struct CategorySearchParams {
     pub category: String,
 }
 
+#[derive(Deserialize)]
+pub struct SubCategoryParams {
+    pub wiki: String,
+    pub category: String,
+}
+
 // --- Response DTO ---
 #[derive(Serialize)]
 pub struct TrendResponse {

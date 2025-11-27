@@ -58,6 +58,10 @@ async fn main() {
             "/api/search/categories",
             get(handlers::search_categories_by_prefix),
         )
+        .route(
+            "/api/list/sub_categories",
+            get(handlers::get_sub_categories),
+        )
         .with_state(state)
         .layer(cors);
 

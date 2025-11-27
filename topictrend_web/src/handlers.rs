@@ -8,7 +8,7 @@ use std::{
 };
 use topictrend::pageview_engine::PageViewEngine;
 
-use crate::models::{AppState, ArticleTrendParams};
+use crate::models::{AppState, ArticleTrendParams, SubCategoryParams};
 use crate::models::{ArticleSearchParams, CategoryTrendParams};
 use crate::models::{CategorySearchParams, TrendResponse};
 
@@ -56,7 +56,6 @@ pub async fn get_article_trend_handler(
 
     // Wrap the entire blocking operation
 
-    let now = Instant::now();
     let engine = get_or_build_engine(state, &params.wiki).await;
 
     // Acquire a write lock to access the engine mutably
@@ -134,4 +133,29 @@ pub async fn search_categories_by_prefix(
     };
 
     Json(results)
+}
+
+pub async fn get_sub_categories(
+    Query(params): Query<SubCategoryParams>,
+    State(state): State<Arc<AppState>>,
+) -> Json<Vec<String>> {
+    let category_title = params.category;
+    let wiki = params.wiki;
+
+    let engine = get_or_build_engine(state, &wiki).await;
+
+    let results: Result<Vec<(u32, String)>, String> = {
+        let engine_lock = engine.write().unwrap();
+
+        engine_lock
+            .get_wikigraph()
+            .get_child_categories(&category_title)
+    };
+
+    let string_results: Vec<String> = match results {
+        Ok(categories) => categories.into_iter().map(|(_, name)| name).collect(),
+        Err(_) => Vec::new(),
+    };
+
+    Json(string_results)
 }
