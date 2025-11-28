@@ -54,7 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
     let valid_category_ids_set: std::collections::HashSet<u32> =
         valid_category_ids.into_iter().collect();
-
+    let mut record_count = 0;
     let results: Vec<ArticleCategory> = stdin
         .lock()
         .lines()
@@ -66,11 +66,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if valid_article_ids_set.contains(&article_id)
                 && valid_category_ids_set.contains(&category_id)
             {
-                let record_count = results.len() + 1; // Increment count for the current record
                 if record_count % 1000 == 0 {
                     print!("\rProcessed {} records", record_count);
-                    io::stdout().flush().unwrap();
                 }
+                record_count += 1;
                 Some(ArticleCategory {
                     article_id,
                     category_id,
