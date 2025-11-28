@@ -55,11 +55,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let valid_category_ids_set: std::collections::HashSet<u32> =
         valid_category_ids.into_iter().collect();
     let mut record_count = 0;
+    let mut lines_count = 0;
     let results: Vec<ArticleCategory> = stdin
         .lock()
         .lines()
         .filter_map(|line| {
             let line = line.ok()?;
+            lines_count += 1;
             let mut parts = line.split('\t');
             let article_id = parts.next()?.parse::<u32>().ok()?;
             let category_id = parts.next()?.parse::<u32>().ok()?;
@@ -67,7 +69,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 && valid_category_ids_set.contains(&category_id)
             {
                 if record_count % 1000 == 0 {
-                    print!("\rProcessed {} records", record_count);
+                    print!(
+                        "\rRetrieved {} records from {} query results",
+                        record_count, lines_count
+                    );
                 }
                 record_count += 1;
                 Some(ArticleCategory {
@@ -80,7 +85,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         .collect();
 
-    println!("Retrieved {} records", results.len());
+    println!(
+        "\nRetrieved {} records from {} query results",
+        results.len(),
+        lines_count
+    );
 
     let schema = results.as_slice().schema().unwrap();
     let props = Arc::new(
