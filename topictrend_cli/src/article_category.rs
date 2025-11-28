@@ -65,15 +65,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut parts = line.split('\t');
             let article_id = parts.next()?.parse::<u32>().ok()?;
             let category_id = parts.next()?.parse::<u32>().ok()?;
+
+            if lines_count % 1000 == 0 {
+                print!(
+                    "\rRetrieved {} records from {} query results",
+                    record_count, lines_count
+                );
+            }
+
             if valid_article_ids_set.contains(&article_id)
                 && valid_category_ids_set.contains(&category_id)
             {
-                if record_count % 1000 == 0 {
-                    print!(
-                        "\rRetrieved {} records from {} query results",
-                        record_count, lines_count
-                    );
-                }
                 record_count += 1;
                 Some(ArticleCategory {
                     article_id,
