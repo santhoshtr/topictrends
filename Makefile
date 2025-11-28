@@ -48,7 +48,7 @@ $(WIKIS): %: \
 	$(DATA_DIR)/%/pageviews/$(YEAR)/$(MONTH)/$(DAY).bin
 
 # Helper function for database queries
-dbquery = mariadb --host $*.analytics.db.svc.wikimedia.cloud --database $*_p
+dbquery = mariadb --quick --host $*.analytics.db.svc.wikimedia.cloud --database $*_p
 
 # Article data
 $(DATA_DIR)/%/articles.parquet: $(QUERIES_DIR)/articles.sql
