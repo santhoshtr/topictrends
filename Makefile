@@ -1,7 +1,6 @@
 SHELL := /bin/bash
 .ONESHELL:
-
-WIKIS := $(shell cat data/wikipedia.list 2>/dev/null)
+.SHELLFLAGS := -euo pipefail -c
 YEAR := $(shell date -d "yesterday" +%Y)
 MONTH := $(shell date -d "yesterday" +%m)
 DAY := $(shell date -d "yesterday" +%d)
@@ -9,7 +8,8 @@ DAY := $(shell date -d "yesterday" +%d)
 CARGO := cargo
 CARGO_RELEASE := target/release
 
-DATA_DIR := data
+DATA_DIR ?= data
+WIKIS := $(shell cat $(DATA_DIR)/wikipedia.list 2>/dev/null)
 QUERIES_DIR := queries
 PAGEVIEWS_DIR := $(DATA_DIR)/pageviews
 
@@ -19,8 +19,10 @@ PAGEVIEWS_DIR := $(DATA_DIR)/pageviews
 
 # Help target
 help:
+	@echo "This Makefile can only be used in a wmcloud VPS."
 	@echo "Available targets:"
-	@echo "  run     - Process all wikis and run wikigraph"
+	@echo "  run     - Process all wikis and run wikigraph cli"
+	@echo "  web     - Start webserver"
 	@echo "  init    - Initialize data directory and wikipedia list"
 	@echo "  clean   - Remove generated data files"
 	@echo "  help    - Show this help message"
@@ -29,37 +31,48 @@ help:
 run: init $(WIKIS)
 	$(CARGO_RELEASE)/wikigraph
 
+$(DATA_DIR):
+	@mkdir -p $@
+
 # Initialize directory structure
 init: $(DATA_DIR)/wikipedia.list
 	cargo build --release
 	@mkdir -p $(DATA_DIR)
 
 # Per-wiki targets
-$(WIKIS): %: data/%/articles.parquet data/%/categories.parquet data/%/article_category.parquet data/%/category_graph.parquet data/%/pageviews/${YEAR}/${MONTH}/${DAY}.bin
+$(WIKIS): %: \
+	$(DATA_DIR)/%/articles.parquet \
+	$(DATA_DIR)/%/categories.parquet \
+	$(DATA_DIR)/%/article_category.parquet \
+	$(DATA_DIR)/%/category_graph.parquet \
+	$(DATA_DIR)/%/pageviews/$(YEAR)/$(MONTH)/$(DAY).bin
+
+# Helper function for database queries
+dbquery = mariadb --host $*.analytics.db.svc.wikimedia.cloud --database $*_p
 
 # Article data
 $(DATA_DIR)/%/articles.parquet: $(QUERIES_DIR)/articles.sql
 	@mkdir -p $(dir $@)
 	@echo "Fetching articles for $*..."
-	@cat $< | analytics-mysql $* | $(CARGO_RELEASE)/get-articles $@
+	@cat $< | $(call dbquery) | $(CARGO_RELEASE)/get-articles $@
 
 # Category data
 $(DATA_DIR)/%/categories.parquet: $(QUERIES_DIR)/categories.sql
 	@mkdir -p $(dir $@)
 	@echo "Fetching categories for $*..."
-	@cat $< | analytics-mysql $* | $(CARGO_RELEASE)/get-categories $@
+	@cat $< | $(call dbquery) | $(CARGO_RELEASE)/get-categories $@
 
 # Category graph
 $(DATA_DIR)/%/category_graph.parquet: $(QUERIES_DIR)/category-graph.sql
 	@mkdir -p $(dir $@)
 	@echo "Fetching category graph for $*..."
-	@cat $< | analytics-mysql $* | $(CARGO_RELEASE)/get-categorygraph $@
+	@cat $< | $(call dbquery) | $(CARGO_RELEASE)/get-categorygraph $@
 
 # Article-category mapping
 $(DATA_DIR)/%/article_category.parquet: $(QUERIES_DIR)/article-category.sql $(DATA_DIR)/%/articles.parquet
 	@mkdir -p $(dir $@)
 	@echo "Fetching article-category mapping for $*..."
-	@cat $< | analytics-mysql $* | \
+	@cat $< | $(call dbquery) | \
 		$(CARGO_RELEASE)/get-article_category $(DATA_DIR)/$*/articles.parquet $(DATA_DIR)/$*/categories.parquet  $@
 
 # Daily pageviews for specific wiki
@@ -77,15 +90,16 @@ $(DATA_DIR)/%.bin:
 # Raw pageview data from Wikimedia
 # Expands to data/pageviews/2025/12/30.parquet (example)
 $(DATA_DIR)/pageviews/%.parquet:
-	YEAR=$$(echo $@ | cut -d'/' -f3); \
+	@YEAR=$$(echo $@ | cut -d'/' -f3); \
 	MONTH=$$(echo $@ | cut -d'/' -f4); \
 	DAY=$$(basename $@ .parquet); \
 	mkdir -p $$(dirname $@); \
-	PAGEVIEWS_PATH="/mnt/nfs/dumps-clouddumps1001.wikimedia.org/other/pageview_complete/$$YEAR/$$YEAR-$$MONTH/pageviews-$$YEAR$$MONTH$$DAY-user.bz2"; \
-	cat "$$PAGEVIEWS_PATH" | bzip2 -dc | $(CARGO_RELEASE)/get-pageviews $@ || { echo "Error downloading pageviews"; exit 1; }
+	URL="https://dumps.wikimedia.org/other/pageview_complete/$$YEAR/$$YEAR-$$MONTH/pageviews-$$YEAR$$MONTH$$DAY-user.bz2"; \
+	curl -fsSL "$$URL" | bzip2 -dc \
+		| $(CARGO_RELEASE)/get-pageviews $@ || { echo "Error downloading pageviews"; exit 1; }
 
 # Wikipedia list
-$(DATA_DIR)/wikipedia.list:
+$(DATA_DIR)/wikipedia.list: | $(DATA_DIR)
 	@echo "Fetching Wikipedia list..."
 	@mkdir -p $(DATA_DIR)
 	@curl -fsSL https://noc.wikimedia.org/conf/dblists/closed.dblist > closed.dblist
@@ -112,3 +126,5 @@ web: init
            $(DATA_DIR)/%/category_graph.parquet \
            $(DATA_DIR)/%/article_category.parquet \
            $(DATA_DIR)/pageviews/%.parquet
+# Prevent parallel issues with shared resources
+.NOTPARALLEL: $(DATA_DIR)/pageviews/%.parquet
