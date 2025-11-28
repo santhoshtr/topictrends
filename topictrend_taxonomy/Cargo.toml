@@ -1,21 +1,19 @@
 [package]
-name = "topictrend_core"
+name = "topictrend_taxonomy"
 version = "0.1.0"
 edition = "2024"
-
-[lib]
-name = "topictrend"
 
 
 [dependencies]
 parquet = {workspace=true}
 parquet_derive = {workspace=true}
 polars =  {workspace=true}
-roaring =  {workspace=true}
 anyhow = {workspace=true}
 ahash = {workspace=true}
 clap =  {workspace=true}
 chrono =  {workspace=true}
 byteorder = {workspace=true}
-
-
+lancedb = "0.22.3"
+arrow-array = "57.0"
+futures = "0.3.31"
+tokio = "1.47.2"

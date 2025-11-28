@@ -41,7 +41,6 @@ topictrend_core = {path="../topictrend_core"}
 parquet = {workspace=true}
 parquet_derive =  {workspace=true}
 polars =  {workspace=true}
-roaring =  {workspace=true}
 anyhow = {workspace=true}
 ahash = {workspace=true}
 clap =  {workspace=true}
