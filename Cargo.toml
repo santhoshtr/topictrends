@@ -3,8 +3,7 @@ resolver = "3"
 members = [
   "topictrend_core",
   "topictrend_cli",
-  "topictrend_web",
-  "topictrend_taxonomy"
+  "topictrend_web"
 ]
 
 [workspace.dependencies]
