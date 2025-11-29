@@ -1,3 +1,4 @@
+mod category_searcher;
 mod handlers;
 mod models;
 
