@@ -18,8 +18,8 @@ impl fmt::Display for SearchResult {
         writeln!(f, "Score: {:.4}", self.score)?;
 
         // Extract and display page_id
-        if let Some(page_id) = self.payload.get("page_id") {
-            if let Some(kind) = &page_id.kind {
+        if let Some(page_id) = self.payload.get("page_id")
+            && let Some(kind) = &page_id.kind {
                 match kind {
                     qdrant_client::qdrant::value::Kind::IntegerValue(val) => {
                         writeln!(f, "  Page ID: {}", val)?;
@@ -27,11 +27,10 @@ impl fmt::Display for SearchResult {
                     _ => writeln!(f, "  Page ID: {:?}", page_id)?,
                 }
             }
-        }
 
         // Extract and display page_title
-        if let Some(page_title) = self.payload.get("page_title") {
-            if let Some(kind) = &page_title.kind {
+        if let Some(page_title) = self.payload.get("page_title")
+            && let Some(kind) = &page_title.kind {
                 match kind {
                     qdrant_client::qdrant::value::Kind::StringValue(val) => {
                         writeln!(f, "  Title: {}", val)?;
@@ -39,12 +38,11 @@ impl fmt::Display for SearchResult {
                     _ => writeln!(f, "  Title: {:?}", page_title)?,
                 }
             }
-        }
 
         // Display any other fields
         for (key, value) in self.payload.iter() {
-            if key != "page_id" && key != "page_title" {
-                if let Some(kind) = &value.kind {
+            if key != "page_id" && key != "page_title"
+                && let Some(kind) = &value.kind {
                     match kind {
                         qdrant_client::qdrant::value::Kind::StringValue(val) => {
                             writeln!(f, "  {}: {}", key, val)?;
@@ -61,7 +59,6 @@ impl fmt::Display for SearchResult {
                         _ => writeln!(f, "  {}: {:?}", key, value)?,
                     }
                 }
-            }
         }
 
         Ok(())

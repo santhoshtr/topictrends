@@ -62,7 +62,7 @@ async fn run() -> Result<()> {
             println!("Starting indexing for wiki: {}", wiki);
             injest(&client, wiki.clone())
                 .await
-                .expect(format!("Failed to index wiki '{}'", wiki).as_str());
+                .unwrap_or_else(|_| panic!("Failed to index wiki '{}'", wiki));
 
             println!("✓ Indexing completed successfully for '{}'", wiki);
         }
@@ -72,7 +72,7 @@ async fn run() -> Result<()> {
 
             let results = search(query.clone(), wiki.clone(), n)
                 .await
-                .expect(format!("Failed to search in wiki '{}'", wiki).as_str());
+                .unwrap_or_else(|_| panic!("Failed to search in wiki '{}'", wiki));
 
             if results.is_empty() {
                 println!("No results found for query: '{}'", query);
