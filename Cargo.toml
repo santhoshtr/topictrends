@@ -3,7 +3,8 @@ resolver = "3"
 members = [
   "topictrend_core",
   "topictrend_cli",
-  "topictrend_web"
+  "topictrend_web",
+  "topictrend_taxonomy"
 ]
 
 [workspace.dependencies]
@@ -14,7 +15,7 @@ polars = { version = "0.52", features=["lazy","parquet", "dtype-full", "strings"
 roaring = { version = "0.11", features=[] }
 anyhow = "1.0"
 ahash = "0.8"
-clap = "4.5.53"
+clap = { version = "4", features = ["derive"] }
 chrono = "0.4.42"
 rayon = "1.11"
 byteorder = "1.5"

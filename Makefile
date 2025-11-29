@@ -15,7 +15,7 @@ PAGEVIEWS_DIR := $(DATA_DIR)/pageviews
 
 .DEFAULT_GOAL := run
 
-.PHONY: run init clean help $(WIKIS)
+.PHONY: run init clean help $(WIKIS) qdrant
 
 # Help target
 help:
@@ -119,6 +119,10 @@ clean:
 
 web: init
 	 $(CARGO_RELEASE)/topictrend_web
+
+qdrant:
+	# Port 6334 is GRPC and that is what rust will use.
+	docker run -d --rm -p 6333:6333 -p 6334:6334 --name qdrant qdrant/qdrant
 
 # Prevent deletion of intermediate files
 .PRECIOUS: $(DATA_DIR)/%/articles.parquet \

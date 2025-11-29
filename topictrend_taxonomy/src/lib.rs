@@ -1,46 +1,354 @@
-use arrow_array::RecordBatch;
-use arrow_array::{Float32Array, RecordBatchIterator, StringArray};
-use futures::StreamExt;
-use lancedb::{
-    Connection,
-    arrow::{
-        RecordBatchStream,
-        arrow_schema::{DataType, Field, Schema},
+use std::error::Error;
+use std::path::Path;
+
+use ahash::HashMap;
+use anyhow::Result;
+use polars::prelude::PlPath;
+use qdrant_client::qdrant::HnswConfigDiffBuilder;
+use qdrant_client::qdrant::PointsOperationResponse;
+use qdrant_client::qdrant::SearchParamsBuilder;
+use qdrant_client::qdrant::SearchPointsBuilder;
+use qdrant_client::qdrant::Value;
+use qdrant_client::{
+    Payload, Qdrant,
+    qdrant::{
+        CreateCollectionBuilder, Distance, PointStruct, ScalarQuantizationBuilder,
+        UpsertPointsBuilder, VectorParamsBuilder,
     },
-    connect,
-    query::{ExecutableQuery, QueryBase},
 };
-use std::{error::Error, sync::Arc};
 
-async fn search(
-    db: Connection,
-    query: String,
-    k: i32,
-) -> Result<Vec<RecordBatch>, Box<dyn std::error::Error>> {
-    let table_name = "category";
+use reqwest::Client;
+use std::sync::Arc;
 
-    let table = db.open_table(table_name).execute().await.unwrap();
+use crate::models::EmbeddingResponse;
+use crate::models::SearchResult;
+mod models;
+static EMBEDDING_API_URL: &str = "https://embed.wmcloud.org/api/embeddings";
 
-    let stream: std::pin::Pin<Box<dyn RecordBatchStream + Send + 'static>> = table
-        .query()
-        .limit(2)
-        .nearest_to(&[1.0; 128])?
-        .execute()
-        .await
-        .unwrap();
-
-    Ok(Vec::new())
+pub async fn get_connection() -> Result<Qdrant, Box<dyn Error>> {
+    let quadrant_server =
+        std::env::var("QUADRANT_SERVER").unwrap_or_else(|_| "http://localhost:6334".to_string());
+    let client = Qdrant::from_url(&quadrant_server)
+        .skip_compatibility_check()
+        .build()?;
+    Ok(client)
 }
 
-pub async fn init_db(uri: String) -> Result<Connection, Box<dyn std::error::Error>> {
-    let db = connect(&uri).execute().await?;
-    let table_name = "category";
+pub async fn injest(db: &Qdrant, wiki: String) -> Result<(), Box<dyn std::error::Error>> {
+    let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "data".to_string());
+    let parquet_path = format!("{}/{}/categories.parquet", data_dir, wiki);
 
-    let schema = Arc::new(Schema::new(vec![
-        Field::new("id", DataType::Int32, false),
-        //Field::new("item", DataType::Utf8, true),
-    ]));
-    let table_name = "category";
-    db.create_empty_table(table_name, schema).execute().await;
-    Ok(db)
+    // Read parquet file in a blocking context to avoid runtime conflicts
+    let (page_ids_vec, page_titles_vec) = tokio::task::spawn_blocking(move || {
+        let parquet_path: PlPath = PlPath::Local(Arc::from(Path::new(&parquet_path)));
+        let df = polars::prelude::LazyFrame::scan_parquet(parquet_path, Default::default())?
+            .select([
+                polars::prelude::col("page_id"),
+                polars::prelude::col("page_title"),
+            ])
+            .collect()?;
+
+        let page_ids = df.column("page_id")?.u32()?;
+        let page_titles = df.column("page_title")?.str()?;
+
+        // Convert to Vec to move out of the blocking task
+        let ids: Vec<Option<u32>> = page_ids.into_iter().collect();
+        let titles: Vec<Option<&str>> = page_titles.into_iter().collect();
+        let titles_owned: Vec<Option<String>> = titles
+            .into_iter()
+            .map(|opt| opt.map(|s| s.to_string()))
+            .collect();
+        Ok::<_, polars::error::PolarsError>((ids, titles_owned))
+    })
+    .await
+    .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?
+    .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
+    let total_records = page_ids_vec.len();
+    println!("Found {} records to process", total_records);
+    let client = Client::new();
+    let mut processed = 0;
+    let mut batch = Vec::new();
+    for (page_id, page_title) in page_ids_vec.into_iter().zip(page_titles_vec.into_iter()) {
+        if let (Some(id), Some(title)) = (page_id, page_title) {
+            batch.push((id, title));
+
+            if batch.len() == 100 {
+                let embeddings = fetch_embeddings(&client, &batch).await?;
+                insert_to_qdrant(db, &wiki, &batch, &embeddings).await?;
+                processed += batch.len();
+                print!(
+                    "\rProgress: {}/{} records processed ({:.1}%)",
+                    processed,
+                    total_records,
+                    (processed as f64 / total_records as f64) * 100.0
+                );
+                batch.clear();
+            }
+        }
+    }
+
+    if !batch.is_empty() {
+        let embeddings = fetch_embeddings(&client, &batch).await?;
+        insert_to_qdrant(db, &wiki, &batch, &embeddings).await?;
+        processed += batch.len();
+        print!(
+            "\rProgress: {}/{} records processed ({:.1}%)",
+            processed,
+            total_records,
+            (processed as f64 / total_records as f64) * 100.0
+        );
+    }
+    println!();
+    println!("✓ Completed! Total records processed: {}", processed);
+    Ok(())
+}
+
+async fn insert_to_qdrant(
+    client: &Qdrant,
+    wiki: &str,
+    batch: &[(u32, String)],
+    embeddings: &Vec<Vec<f32>>,
+) -> Result<PointsOperationResponse> {
+    let collection_name = format!("{}-categories", wiki);
+
+    // Try to create collection, ignore error if it already exists
+    let _ = client
+        .create_collection(
+            CreateCollectionBuilder::new(&collection_name)
+                .vectors_config(VectorParamsBuilder::new(768, Distance::Cosine).on_disk(true))
+                .quantization_config(ScalarQuantizationBuilder::default().always_ram(true))
+                .hnsw_config(
+                    HnswConfigDiffBuilder::default()
+                        .on_disk(true)
+                        .inline_storage(true),
+                ),
+        )
+        .await;
+
+    // Use page_id as the point ID to avoid duplicates
+    // Qdrant will automatically overwrite points with the same ID
+    let points: Vec<PointStruct> = batch
+        .iter()
+        .zip(embeddings.iter())
+        .map(|((page_id, title), embedding)| {
+            let mut payload = Payload::new();
+            payload.insert("page_id", Value::from(*page_id as i64));
+            payload.insert("page_title", Value::from(title.clone()));
+
+            // Use page_id as the point ID instead of sequential index
+            PointStruct::new(*page_id as u64, embedding.clone(), payload)
+        })
+        .collect();
+    Ok(client
+        .upsert_points(UpsertPointsBuilder::new(&collection_name, points))
+        .await?)
+}
+
+async fn fetch_embeddings(
+    client: &reqwest::Client,
+    batch: &[(u32, String)],
+) -> Result<Vec<Vec<f32>>, Box<dyn Error>> {
+    let texts: Vec<String> = batch.iter().map(|(_, title)| title.clone()).collect();
+    let response = client
+        .post(EMBEDDING_API_URL)
+        .header("accept", "application/json")
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({
+            "texts": texts,
+            "model_id": "sentence-transformers/LaBSE#refs/pr/18"
+           //  "model_id": "intfloat/multilingual-e5-base"
+            // "model_id": "santhosh/Qwen3-Embedding-0.6B-int8-ov"
+        }))
+        .send()
+        .await?;
+
+    let embedding_response: EmbeddingResponse = response.json().await?;
+    let embeddings: Vec<Vec<f32>> = embedding_response.embeddings;
+    Ok(embeddings)
+}
+
+pub async fn search(
+    query: String,
+    wiki: String,
+    number_of_results: u64,
+) -> Result<Vec<SearchResult>, Box<dyn std::error::Error>> {
+    let client = get_connection().await?;
+    let collection_name = format!("{}-categories", wiki);
+
+    // Fetch the embedding for the query
+    let http_client = Client::new();
+    let query_batch = vec![(0u32, query.clone())];
+
+    let query_embeddings = fetch_embeddings(&http_client, &query_batch).await?;
+
+    if query_embeddings.is_empty() {
+        return Err("Failed to get embedding for query".into());
+    }
+
+    let query_vector = query_embeddings[0].clone();
+
+    let search_result = client
+        .search_points(
+            SearchPointsBuilder::new(collection_name, query_vector, number_of_results)
+                .with_payload(true)
+                .params(SearchParamsBuilder::default().exact(true)),
+        )
+        .await?;
+
+    let results: Vec<SearchResult> = search_result
+        .result
+        .into_iter()
+        .map(|point| {
+            let payload = point
+                .payload
+                .into_iter()
+                .collect::<HashMap<String, Value>>();
+            SearchResult {
+                score: point.score,
+                payload,
+            }
+        })
+        .collect();
+
+    Ok(results)
+}
+
+// Integration test helper - only runs when Qdrant is available
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+
+    async fn is_qdrant_available() -> bool {
+        match get_connection().await {
+            Ok(client) => client.health_check().await.is_ok(),
+            Err(_) => false,
+        }
+    }
+
+    #[tokio::test]
+    #[ignore] // Run with: cargo test -- --ignored
+    async fn test_full_insert_flow() {
+        if !is_qdrant_available().await {
+            println!("Qdrant not available, skipping integration test");
+            return;
+        }
+
+        let qdrant_client = get_connection().await.expect("Failed to connect to Qdrant");
+        let wiki = "enwiki";
+        let batch = vec![
+            (1u32, "Machine Learning".to_string()),
+            (2u32, "Artificial Intelligence".to_string()),
+            (3u32, "Deep Learning".to_string()),
+            (4u32, "Deep blue sea".to_string()),
+            (5u32, "ഡീപ് ലേങിങ്ങ്".to_string()),
+        ];
+
+        // Fetch actual embeddings from the API
+        let http_client = Client::new();
+
+        let embeddings_result = fetch_embeddings(&http_client, &batch).await;
+
+        match embeddings_result {
+            Ok(embeddings) => {
+                println!("Successfully fetched {} embeddings", embeddings.len());
+                println!("Embedding dimension: {}", embeddings[0].len());
+
+                let result = insert_to_qdrant(&qdrant_client, wiki, &batch, &embeddings).await;
+                assert!(
+                    result.is_ok(),
+                    "Failed to insert to Qdrant: {:?}",
+                    result.err()
+                );
+
+                println!("Successfully inserted embeddings to Qdrant");
+
+                // Now test search functionality
+                println!("\nTesting search functionality...");
+
+                // Search for a query similar to our inserted data
+                let search_query = "Neural Networks".to_string();
+                println!("Searching for: {}", search_query);
+
+                // First get embedding for the search query
+                let query_batch = vec![(0u32, search_query.clone())];
+                let query_embedding_result = fetch_embeddings(&http_client, &query_batch).await;
+
+                match query_embedding_result {
+                    Ok(query_embeddings) => {
+                        println!("Got search query embedding");
+
+                        // Perform the search
+                        let collection_name = format!("{}-categories", wiki);
+                        let search_result = qdrant_client
+                            .search_points(
+                                SearchPointsBuilder::new(
+                                    collection_name.clone(),
+                                    query_embeddings[0].clone(),
+                                    3,
+                                )
+                                .with_payload(true)
+                                .params(SearchParamsBuilder::default().exact(false)),
+                            )
+                            .await;
+
+                        match search_result {
+                            Ok(results) => {
+                                println!("Search returned {} results", results.result.len());
+
+                                for (idx, point) in results.result.iter().enumerate() {
+                                    println!("\nResult {}:", idx + 1);
+                                    println!("  Score: {}", point.score);
+                                    println!("  ID: {:?}", point.id);
+
+                                    if let Some(title) = point.payload.get("page_title") {
+                                        println!("  Title: {:?}", title);
+                                    }
+                                    if let Some(page_id) = point.payload.get("page_id") {
+                                        println!("  Page ID: {:?}", page_id);
+                                    }
+                                }
+
+                                assert!(!results.result.is_empty(), "Search should return results");
+                                assert!(
+                                    results.result.len() <= 3,
+                                    "Should return at most 3 results"
+                                );
+
+                                // Verify that results have the expected payload fields
+                                for point in &results.result {
+                                    assert!(
+                                        point.payload.contains_key("page_title"),
+                                        "Result should have page_title"
+                                    );
+                                    assert!(
+                                        point.payload.contains_key("page_id"),
+                                        "Result should have page_id"
+                                    );
+                                }
+
+                                println!("\nSearch test passed!");
+                            }
+                            Err(e) => {
+                                panic!("Search failed: {:?}", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        println!("Failed to fetch query embedding: {:?}", e);
+                        println!("Skipping search test");
+                    }
+                }
+            }
+            Err(e) => {
+                println!("Failed to fetch embeddings from API: {:?}", e);
+                println!("Skipping Qdrant insertion test");
+                return;
+            }
+        }
+
+        // Cleanup
+        let collection_name = format!("{}-categories", wiki);
+        let delete_result = qdrant_client.delete_collection(&collection_name).await;
+        println!("\nCleanup result: {:?}", delete_result);
+    }
 }
