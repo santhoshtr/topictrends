@@ -4,6 +4,7 @@ use roaring::RoaringBitmap;
 use std::path::Path;
 use std::time::Instant;
 
+use crate::csr_adjacency::CsrAdjacency;
 use crate::direct_map::DirectMap;
 use crate::wikigraph::WikiGraph;
 
@@ -41,8 +42,6 @@ impl GraphBuilder {
         println!("\r  Loaded {} articles.", num_arts);
 
         // C. Initialize Structure Containers
-        let mut children = vec![Vec::new(); num_cats];
-        let mut parents = vec![Vec::new(); num_cats];
         let mut cat_articles = vec![RoaringBitmap::new(); num_cats];
         let article_cats = vec![Vec::new(); num_arts];
 
@@ -56,7 +55,10 @@ impl GraphBuilder {
 
         let p_col = df_rel.column("parent")?.u32()?;
         let c_col = df_rel.column("child")?.u32()?;
-
+        //  Create a temporary vector of pairs (Parent_Dense -> Child_Dense)
+        // We estimate capacity to avoid reallocations
+        let mut forward_edges: Vec<(u32, u32)> = Vec::with_capacity(p_col.len());
+        let mut backward_edges: Vec<(u32, u32)> = Vec::with_capacity(p_col.len());
         // Iterate and populate adjacency lists
         // We use the HashMaps to convert Raw ID -> Dense ID on the fly
         for (opt_p, opt_c) in p_col.into_iter().zip(c_col.into_iter()) {
@@ -66,11 +68,19 @@ impl GraphBuilder {
                     cat_original_to_dense.get(c_raw),
                 )
             {
-                children[p_dense as usize].push(c_dense);
-                parents[c_dense as usize].push(p_dense);
+                // Forward: Parent -> Child
+                forward_edges.push((p_dense, c_dense));
+                // Backward: Child -> Parent (for the parents CSR)
+                backward_edges.push((c_dense, p_dense));
             }
         }
-
+        // Build the optimized CSR Structures
+        // This moves the data into the compact format and drops the temp vectors
+        let children = CsrAdjacency::from_pairs(num_cats, &forward_edges);
+        let parents = CsrAdjacency::from_pairs(num_cats, &backward_edges);
+        // Drop temp vectors explicitly (optional, Rust does this automatically)
+        drop(forward_edges);
+        drop(backward_edges);
         println!("\r  Loaded Category Hierarchy");
         // Load Article -> Category
         print!("  Loading Article-Category definitions...");

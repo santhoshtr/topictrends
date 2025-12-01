@@ -27,3 +27,61 @@ impl DirectMap {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_creates_empty_map() {
+        let map = DirectMap::new(10);
+        assert_eq!(map.get(0), None);
+        assert_eq!(map.get(5), None);
+        assert_eq!(map.get(10), None);
+    }
+
+    #[test]
+    fn test_insert_and_get() {
+        let mut map = DirectMap::new(10);
+        map.insert(5, 100);
+        assert_eq!(map.get(5), Some(100));
+        assert_eq!(map.get(4), None);
+        assert_eq!(map.get(6), None);
+    }
+
+    #[test]
+    fn test_insert_overwrites_existing_value() {
+        let mut map = DirectMap::new(10);
+        map.insert(3, 50);
+        map.insert(3, 75);
+        assert_eq!(map.get(3), Some(75));
+    }
+
+    #[test]
+    fn test_resize_on_large_key() {
+        let mut map = DirectMap::new(5);
+        map.insert(10, 200);
+        assert_eq!(map.get(10), Some(200));
+        assert_eq!(map.get(5), None);
+    }
+
+    #[test]
+    fn test_multiple_insertions() {
+        let mut map = DirectMap::new(20);
+        map.insert(0, 10);
+        map.insert(15, 150);
+        map.insert(7, 70);
+        
+        assert_eq!(map.get(0), Some(10));
+        assert_eq!(map.get(15), Some(150));
+        assert_eq!(map.get(7), Some(70));
+        assert_eq!(map.get(1), None);
+        assert_eq!(map.get(8), None);
+    }
+
+    #[test]
+    fn test_get_out_of_bounds() {
+        let map = DirectMap::new(5);
+        assert_eq!(map.get(100), None);
+    }
+}

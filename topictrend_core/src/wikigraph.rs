@@ -1,22 +1,18 @@
+use crate::{csr_adjacency::CsrAdjacency, direct_map::DirectMap};
 use roaring::RoaringBitmap;
-use std::collections::HashMap;
 use std::collections::VecDeque;
-
-use crate::direct_map::DirectMap;
 /// The core high-performance graph structure.
 /// All internal logic uses "Dense IDs" (0..N), not the raw Wikipedia Page IDs.
 #[derive(Debug)]
 pub struct WikiGraph {
-    pub(crate) children: Vec<Vec<u32>>,
+    pub(crate) children: CsrAdjacency,
 
-    pub(crate) parents: Vec<Vec<u32>>,
+    pub(crate) parents: CsrAdjacency,
 
     pub(crate) cat_articles: Vec<RoaringBitmap>,
 
     pub(crate) article_cats: Vec<Vec<u32>>,
 
-    // --- Metadata / ID Translation ---
-    // To convert results back to Strings/Original IDs for the user
     pub cat_dense_to_original: Vec<u32>,  // Dense -> WikiID
     pub cat_original_to_dense: DirectMap, // WikiID -> Dense
 
@@ -54,9 +50,8 @@ impl WikiGraph {
             }
 
             // B. Traverse deeper if allowed
-            if depth < max_depth
-                && let Some(children) = self.children.get(curr as usize)
-            {
+            if depth < max_depth {
+                let children = self.children.get(curr as u32);
                 for &child in children {
                     if !visited.contains(child) {
                         visited.insert(child);
@@ -71,26 +66,24 @@ impl WikiGraph {
     /// Get immediate subcategories (Depth 1)
     /// Returns a vector of category_ids: Original_Wiki_ID
     pub fn get_child_categories(&self, category_id: u32) -> Result<Vec<u32>, String> {
-        // 1. Convert External ID -> Internal Dense ID
+        //  Convert External ID -> Internal Dense ID
         let dense_id = match self.cat_original_to_dense.get(category_id) {
             Some(id) => id,
             None => return Ok(Vec::new()), // Category not found
         };
 
         // 2. Lookup children in the Adjacency List
-        if let Some(children_dense) = self.children.get(dense_id as usize) {
-            // 3. Map back to (WikiID, Name)
-            Ok(children_dense
-                .iter()
-                .map(|&child_dense| {
-                    let idx = child_dense as usize;
-                    self.cat_dense_to_original[idx]
-                })
-                .collect())
-        } else {
-            Ok(Vec::new())
-        }
+        let children_dense = self.children.get(dense_id);
+        // Map back to (WikiID, Name)
+        Ok(children_dense
+            .iter()
+            .map(|&child_dense| {
+                let idx = child_dense as usize;
+                self.cat_dense_to_original[idx]
+            })
+            .collect())
     }
+
     /// Get all subcategories up to a specific depth `n`.
     /// Returns a vector of tuples: (Original_Wiki_ID, Category_Name, Depth)
     pub fn get_descendant_categories(
@@ -124,12 +117,11 @@ impl WikiGraph {
             }
 
             // Enqueue children
-            if let Some(children) = self.children.get(curr as usize) {
-                for &child in children {
-                    if !visited.contains(child) {
-                        visited.insert(child);
-                        queue.push_back((child, depth + 1));
-                    }
+            let children = self.children.get(curr);
+            for &child in children {
+                if !visited.contains(child) {
+                    visited.insert(child);
+                    queue.push_back((child, depth + 1));
                 }
             }
         }
@@ -144,15 +136,12 @@ impl WikiGraph {
             None => return Ok(Vec::new()),
         };
 
-        if let Some(parents_dense) = self.parents.get(dense_id as usize) {
-            // Convert back to Original IDs for the user
-            Ok(parents_dense
-                .iter()
-                .map(|&p_dense| self.cat_dense_to_original[p_dense as usize])
-                .collect())
-        } else {
-            Ok(Vec::new())
-        }
+        let parents_dense = self.parents.get(dense_id);
+        // Convert back to Original IDs for the user
+        Ok(parents_dense
+            .iter()
+            .map(|&p_dense| self.cat_dense_to_original[p_dense as usize])
+            .collect())
     }
 
     /// Get all parent categories for a specific article.
