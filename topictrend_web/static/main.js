@@ -175,9 +175,22 @@ async function renderSubCategories(wiki, category) {
   categoryListContainer.appendChild(subheading);
 
   const ul = document.createElement("ul");
-  const subcategories = await getTitlesFromIds(subcategoryIds, wiki);
 
-  subcategories.forEach((title, id) => {
+  // Process subcategories in batches of 50
+  const batchSize = 50;
+  const allSubcategories = new Map();
+
+  for (let i = 0; i < subcategoryIds.length; i += batchSize) {
+    const batch = subcategoryIds.slice(i, i + batchSize);
+    const batchTitles = await getTitlesFromIds(batch, wiki);
+
+    // Merge batch results into the main map
+    batchTitles.forEach((title, id) => {
+      allSubcategories.set(id, title);
+    });
+  }
+
+  allSubcategories.forEach((title, id) => {
     title = title.replace(/^.*:\s*/, "");
     const li = document.createElement("li");
     li.id = id;
