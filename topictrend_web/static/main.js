@@ -2,6 +2,24 @@ import { autocomp } from "./autocomp.js";
 
 document.addEventListener("DOMContentLoaded", function () {
   document.getElementById("trend-form").addEventListener("submit", onSubmit);
+
+  // Set up wiki selector change handler
+  const wikiSelector = document.getElementById("wiki");
+  const articleElement = document.getElementById("article");
+  const categoryElement = document.getElementById("category");
+
+  wikiSelector.addEventListener("change", function () {
+    const wikiValue = this.value.replaceAll("wiki", "");
+    articleElement?.setAttribute("wiki", wikiValue);
+    categoryElement?.setAttribute("wiki", wikiValue);
+  });
+
+  // Initialize with current wiki value
+  const wikiValue = wikiSelector.value.replaceAll("wiki", "");
+
+  articleElement.setAttribute("wiki", wikiValue);
+  categoryElement.setAttribute("wiki", wikiValue);
+
   initializeChart();
   populateFormFromQueryParams();
 });
@@ -227,29 +245,7 @@ document.addEventListener("DOMContentLoaded", function () {
   day = String(oneMonthAgo.getDate()).padStart(2, "0");
 
   startDatePicker.value = `${year}-${month}-${day}`;
-
-  setupAutocomplete("category", "/api/search/categories");
-  setupAutocomplete("article", "/api/search/articles");
 });
-
-async function setupAutocomplete(inputId, apiUrl) {
-  autocomp(document.getElementById(inputId), {
-    onQuery: async (val) => {
-      const query = val.trim();
-      if (query.length < 2) {
-        return [];
-      }
-      const response = await fetch(
-        `${apiUrl}?${inputId}=${encodeURIComponent(query)}&wiki=${wiki.value}`,
-      );
-      return await response.json();
-    },
-
-    onSelect: (val) => {
-      return val.replaceAll("_", " ");
-    },
-  });
-}
 
 function showMessage(message, type) {
   const messageEl = document.getElementById("status");

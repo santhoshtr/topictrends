@@ -1,4 +1,3 @@
-mod category_searcher;
 mod handlers;
 mod models;
 
@@ -50,14 +49,6 @@ async fn main() {
         .route(
             "/api/pageviews/article",
             get(handlers::get_article_trend_handler),
-        )
-        .route(
-            "/api/search/articles",
-            get(handlers::search_articles_by_prefix),
-        )
-        .route(
-            "/api/search/categories",
-            get(handlers::search_categories_by_prefix),
         )
         .route(
             "/api/list/sub_categories",

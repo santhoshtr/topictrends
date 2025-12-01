@@ -41,12 +41,12 @@
           </div>
           <div class="tab-content">
             <div class="tab-content-category">
-              <input type="search" id="category" name="category" placeholder="Search category"
-                class="cdx-text-input__input">
+              <wiki-category-selector id="category" name="category"
+                placeholder="Search category"></wiki-category-selector>
+
             </div>
             <div class="tab-content-article">
-              <input type="search" id="article" name="article" placeholder="Search article"
-                class="cdx-text-input__input">
+              <wiki-article-selector id="article" name="article" placeholder="Search article"></wiki-article-selector>
             </div>
           </div>
         </div>
@@ -75,6 +75,8 @@
       </footer>
     </div>
     <script src="/static/main.js" type="module"></script>
+    <script src="/static/wikiarticleselector.js" type="module"></script>
+    <script src="/static/wikicategoryselector.js" type="module"></script>
 </body>
 
 </html>

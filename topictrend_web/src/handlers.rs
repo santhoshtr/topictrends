@@ -8,9 +8,8 @@ use std::{
 };
 use topictrend::pageview_engine::PageViewEngine;
 
-use crate::models::{AppState, ArticleTrendParams, SubCategoryParams};
-use crate::models::{ArticleSearchParams, CategoryTrendParams};
-use crate::models::{CategorySearchParams, TrendResponse};
+use crate::models::TrendResponse;
+use crate::models::{AppState, ArticleTrendParams, CategoryTrendParams, SubCategoryParams};
 
 pub async fn get_category_trend_handler(
     Query(params): Query<CategoryTrendParams>,
@@ -86,53 +85,6 @@ async fn get_or_build_engine(state: Arc<AppState>, wiki: &str) -> Arc<RwLock<Pag
     })
     .await
     .expect("Failed to spawn blocking task")
-}
-
-pub async fn search_articles_by_prefix(
-    Query(params): Query<ArticleSearchParams>,
-    State(state): State<Arc<AppState>>,
-) -> Json<Vec<String>> {
-    let article_prefix = params.article.to_lowercase().replace(' ', "_");
-
-    let engine = get_or_build_engine(state, &params.wiki).await;
-
-    let results: Vec<String> = {
-        let engine_lock = engine.write().unwrap();
-
-        engine_lock
-            .get_wikigraph()
-            .art_names
-            .iter()
-            .filter(|name| name.to_lowercase().starts_with(&article_prefix))
-            .take(10)
-            .cloned()
-            .collect()
-    };
-    Json(results)
-}
-pub async fn search_categories_by_prefix(
-    Query(params): Query<CategorySearchParams>,
-    State(state): State<Arc<AppState>>,
-) -> Json<Vec<String>> {
-    let category_prefix = params.category.to_lowercase().replace(' ', "_");
-    let wiki = params.wiki;
-
-    let engine = get_or_build_engine(state, &wiki).await;
-
-    let results: Vec<String> = {
-        let engine_lock = engine.write().unwrap();
-
-        engine_lock
-            .get_wikigraph()
-            .cat_names
-            .iter()
-            .filter(|name| name.to_lowercase().starts_with(&category_prefix))
-            .take(10)
-            .cloned()
-            .collect()
-    };
-
-    Json(results)
 }
 
 pub async fn get_sub_categories(

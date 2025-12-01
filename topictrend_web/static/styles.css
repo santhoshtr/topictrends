@@ -37,33 +37,12 @@
     color: var(--color-base);
     line-height: 1.5;
   }
-
-  .autocomp {
-    background: var(--background-color-base);
-    border-radius: 0 0 5px 5px;
-    border: 1px solid var(--border-color-base);
-    border-top: 0;
-    box-shadow: 2px 2px 2px #eee;
-    text-align: left;
-  }
-
-  .autocomp-item {
-    padding-bottom: 5px;
-    padding: 10px;
-    cursor: pointer;
-
-    &:hover,
-    &.autocomp-sel {
-      background: var(--background-color-interactive--hover);
-      font-weight: bold;
-    }
-  }
 }
 
 @layer components {
   .app-container {
     display: grid;
-    grid-template-columns: 1fr 2fr;
+    grid-template-columns: 400px 2fr;
     height: 100dvh;
     overflow: hidden;
   }
@@ -202,7 +181,7 @@
   width: 100%;
 
   .chart {
-    width: 66vw;
+    width: calc(100vw - 400px);
     height: 66dvh;
   }
 
@@ -211,4 +190,4 @@
   }
 
 }
-}
+
