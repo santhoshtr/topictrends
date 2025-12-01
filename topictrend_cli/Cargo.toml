@@ -5,47 +5,45 @@ edition = "2024"
 default-run = "wikigraph"
 
 [[bin]]
-name="get-categories"
-path="src/categories.rs"
+name = "get-categories"
+path = "src/categories.rs"
 
 [[bin]]
-name="get-articles"
-path="src/articles.rs"
+name = "get-articles"
+path = "src/articles.rs"
 
 [[bin]]
-name="get-categorygraph"
-path="src/category_graph.rs"
+name = "get-categorygraph"
+path = "src/category_graph.rs"
 
 [[bin]]
-name="get-article_category"
-path="src/article_category.rs"
+name = "get-article_category"
+path = "src/article_category.rs"
 
 [[bin]]
-name="get-pageviews"
-path="src/pageviews.rs"
+name = "get-pageviews"
+path = "src/pageviews.rs"
 
 [[bin]]
-name="get-per_day_wiki_stats"
-path="src/per_day_wiki_stats.rs"
+name = "get-per_day_wiki_stats"
+path = "src/per_day_wiki_stats.rs"
 
 [[bin]]
-name="wikigraph"
-path="src/main.rs"
+name = "wikigraph"
+path = "src/main.rs"
 
 [[bin]]
-name="test"
-path="src/test.rs"
+name = "test"
+path = "src/test.rs"
 
 [dependencies]
-topictrend_core = {path="../topictrend_core"}
-parquet = {workspace=true}
-parquet_derive =  {workspace=true}
-polars =  {workspace=true}
-anyhow = {workspace=true}
-ahash = {workspace=true}
-clap =  {workspace=true}
-chrono =  {workspace=true}
-rayon =  {workspace=true}
-byteorder = {workspace=true}
-
-
+topictrend_core = { path = "../topictrend_core" }
+parquet = { workspace = true }
+parquet_derive = { workspace = true }
+polars = { workspace = true }
+anyhow = { workspace = true }
+ahash = { workspace = true }
+clap = { workspace = true }
+chrono = { workspace = true }
+rayon = { workspace = true }
+byteorder = { workspace = true }

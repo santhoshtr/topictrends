@@ -5,13 +5,13 @@ edition = "2024"
 
 
 [dependencies]
-topictrend_core = { path="../topictrend_core"}
+topictrend_core = { path = "../topictrend_core" }
 chrono = { workspace = true }
 axum = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["arbitrary_precision"] }
 tokio = { version = "1.48", features = ["full"] }
-tower-http = { version = "0.6", features = ["cors","trace", "fs"] }
+tower-http = { version = "0.6", features = ["cors", "trace", "fs"] }
 env_logger = "0.11"
 log = "0.4"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
