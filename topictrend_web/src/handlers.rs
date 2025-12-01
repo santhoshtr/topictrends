@@ -23,7 +23,7 @@ pub async fn get_category_trend_handler(
         .end_date
         .unwrap_or_else(|| chrono::Local::now().date_naive());
     // Get category_id first, before acquiring any locks
-    let category_id = get_id_by_title(Arc::clone(&state), &params.wiki, &params.category)
+    let category_id = get_id_by_title(Arc::clone(&state), &params.wiki, &params.category, &14_i8)
         .await
         .unwrap();
 
@@ -56,7 +56,7 @@ pub async fn get_article_trend_handler(
     let end = params
         .end_date
         .unwrap_or_else(|| chrono::Local::now().date_naive());
-    let article_id = get_id_by_title(Arc::clone(&state), &params.wiki, &params.article)
+    let article_id = get_id_by_title(Arc::clone(&state), &params.wiki, &params.article, &0_i8)
         .await
         .unwrap();
     // Wrap the entire blocking operation
@@ -98,7 +98,7 @@ pub async fn get_sub_categories(
     State(state): State<Arc<AppState>>,
 ) -> Json<Vec<u32>> {
     // Get category_id first, before acquiring any locks
-    let category_id = get_id_by_title(Arc::clone(&state), &params.wiki, &params.category)
+    let category_id = get_id_by_title(Arc::clone(&state), &params.wiki, &params.category, &14_i8)
         .await
         .unwrap();
     let engine = get_or_build_engine(state, &params.wiki).await;
