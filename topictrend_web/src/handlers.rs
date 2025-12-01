@@ -22,10 +22,12 @@ pub async fn get_category_trend_handler(
     let end = params
         .end_date
         .unwrap_or_else(|| chrono::Local::now().date_naive());
-    // Get category_id first, before acquiring any locks
-    let category_id = get_id_by_title(Arc::clone(&state), &params.wiki, &params.category, &14_i8)
-        .await
-        .unwrap();
+
+    let category_id =
+        match get_id_by_title(Arc::clone(&state), &params.wiki, &params.category, &14_i8).await {
+            Ok(id) => id,
+            Err(_) => return Json(vec![]),
+        };
 
     // Wrap the entire blocking operation
     let now = Instant::now();
@@ -56,9 +58,13 @@ pub async fn get_article_trend_handler(
     let end = params
         .end_date
         .unwrap_or_else(|| chrono::Local::now().date_naive());
-    let article_id = get_id_by_title(Arc::clone(&state), &params.wiki, &params.article, &0_i8)
-        .await
-        .unwrap();
+
+    let article_id =
+        match get_id_by_title(Arc::clone(&state), &params.wiki, &params.article, &0_i8).await {
+            Ok(id) => id,
+            Err(_) => return Json(vec![]),
+        };
+
     // Wrap the entire blocking operation
 
     let engine = get_or_build_engine(state, &params.wiki).await;
@@ -97,10 +103,12 @@ pub async fn get_sub_categories(
     Query(params): Query<SubCategoryParams>,
     State(state): State<Arc<AppState>>,
 ) -> Json<Vec<u32>> {
-    // Get category_id first, before acquiring any locks
-    let category_id = get_id_by_title(Arc::clone(&state), &params.wiki, &params.category, &14_i8)
-        .await
-        .unwrap();
+    let category_id =
+        match get_id_by_title(Arc::clone(&state), &params.wiki, &params.category, &14_i8).await {
+            Ok(id) => id,
+            Err(_) => return Json(vec![]),
+        };
+
     let engine = get_or_build_engine(state, &params.wiki).await;
 
     let results: Result<Vec<u32>, String> = {
