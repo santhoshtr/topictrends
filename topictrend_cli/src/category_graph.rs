@@ -12,8 +12,8 @@ struct GraphRelation {
 }
 #[derive(Debug, ParquetRecordWriter)]
 struct CategoryRelation {
-    category: i32,
-    parent_category: i32,
+    category: u32,
+    parent_category: u32,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -30,8 +30,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .filter_map(|line| {
             let line = line.ok()?;
             let mut parts = line.split('\t');
-            let category = parts.next()?.parse::<i32>().ok()?;
-            let parent_category = parts.next()?.parse::<i32>().ok()?;
+            let category = parts.next()?.parse::<u32>().ok()?;
+            let parent_category = parts.next()?.parse::<u32>().ok()?;
             Some(CategoryRelation {
                 category,
                 parent_category,

@@ -2,15 +2,17 @@ use parquet::file::writer::SerializedFileWriter;
 use parquet::{file::properties::WriterProperties, record::RecordWriter as _};
 use parquet_derive::ParquetRecordWriter;
 use polars::prelude::{LazyFrame, PlPath};
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 use std::sync::Arc;
+use topictrend::direct_map::DirectMap;
 
 #[derive(Debug, ParquetRecordWriter)]
 struct ArticleCategory {
-    article_id: u32,
-    category_id: u32,
+    article_qid: u32,
+    category_qid: u32,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -33,27 +35,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let articles_parquet_path: PlPath = PlPath::Local(Arc::from(Path::new(&articles_parquet)));
     let articles_df =
         LazyFrame::scan_parquet(articles_parquet_path, Default::default())?.collect()?;
-    let valid_article_ids: Vec<u32> = articles_df
-        .column("page_id")?
-        .u32()?
+    let article_ids = articles_df.column("page_id")?.u32()?;
+    let article_qids = articles_df.column("qid")?.u32()?;
+
+    let article_id_to_qid: DirectMap = article_ids
         .into_iter()
-        .flatten()
+        .zip(article_qids.into_iter())
+        .filter_map(|(id, qid)| Some((id?, qid?)))
         .collect();
 
-    let valid_article_ids_set: std::collections::HashSet<u32> =
-        valid_article_ids.into_iter().collect();
+    let valid_article_ids_set: HashSet<u32> = article_id_to_qid.keys().into_iter().collect();
 
     let categories_parquet_path: PlPath = PlPath::Local(Arc::from(Path::new(&categories_parquet)));
     let categories_df =
         LazyFrame::scan_parquet(categories_parquet_path, Default::default())?.collect()?;
-    let valid_category_ids: Vec<u32> = categories_df
-        .column("page_id")?
-        .u32()?
+
+    let category_ids = categories_df.column("page_id")?.u32()?;
+    let category_qids = categories_df.column("qid")?.u32()?;
+
+    let category_id_to_qid: DirectMap = category_ids
         .into_iter()
-        .flatten()
+        .zip(category_qids.into_iter())
+        .filter_map(|(id, qid)| Some((id?, qid?)))
         .collect();
+
     let valid_category_ids_set: std::collections::HashSet<u32> =
-        valid_category_ids.into_iter().collect();
+        category_id_to_qid.keys().into_iter().collect();
+
     let mut record_count = 0;
     let mut lines_count = 0;
     let results: Vec<ArticleCategory> = stdin
@@ -66,6 +74,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let article_id = parts.next()?.parse::<u32>().ok()?;
             let category_id = parts.next()?.parse::<u32>().ok()?;
 
+            let article_qid = article_id_to_qid.get(article_id)?.clone();
+            let category_qid = category_id_to_qid.get(category_id)?.clone();
             if lines_count % 1000 == 0 {
                 print!(
                     "\rRetrieved {} records from {} query results",
@@ -78,8 +88,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             {
                 record_count += 1;
                 Some(ArticleCategory {
-                    article_id,
-                    category_id,
+                    article_qid,
+                    category_qid,
                 })
             } else {
                 None
