@@ -217,7 +217,7 @@ impl PageViewEngine {
 
         let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "data".to_string());
         let bin_filename = format!(
-            "{}/{}/pageviews/{}/{}/{}.bin",
+            "{}/{}/pageviews/{}/{:02}/{:02}.bin",
             data_dir,
             self.wiki,
             date.year(),

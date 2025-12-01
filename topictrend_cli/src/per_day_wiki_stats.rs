@@ -40,7 +40,10 @@ pub fn get_daily_pageviews(wiki: &str, year: &i16, month: &i8, day: &i8) -> Vec<
     // 1. Read data_dir/pageviews-{year}-{month}-{day}.parquet
     let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "data".to_string());
 
-    let file_path = format!("{}/pageviews/{}/{}/{}.parquet", data_dir, year, month, day);
+    let file_path = format!(
+        "{}/pageviews/{}/{:02}/{:02}.parquet",
+        data_dir, year, month, day
+    );
 
     if !std::path::Path::new(&file_path).exists() {
         eprintln!("Pageview file not found: {}", file_path);
@@ -83,10 +86,11 @@ pub fn get_daily_pageviews(wiki: &str, year: &i16, month: &i8, day: &i8) -> Vec<
 
     for (opt_page_id, opt_views) in page_ids.into_iter().zip(daily_views.into_iter()) {
         if let (Some(page_id), Some(views)) = (opt_page_id, opt_views)
-            && let Some(&dense_id) = graph.art_original_to_dense.get(&page_id) {
-                //  With dense_id as vector index, create a u32 dense vector with daily_views value
-                dense_vector[dense_id as usize] = views;
-            }
+            && let Some(&dense_id) = graph.art_original_to_dense.get(&page_id)
+        {
+            //  With dense_id as vector index, create a u32 dense vector with daily_views value
+            dense_vector[dense_id as usize] = views;
+        }
     }
     dense_vector
 }
@@ -146,7 +150,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Processing stats for wiki: {}, date: {}-{}-{}",
         wiki, year, month, day
     );
-    let page_views_dense_vector =
-        get_daily_pageviews(wiki, &{ *year }, &{ *month }, &{ *day });
+    let page_views_dense_vector = get_daily_pageviews(wiki, &{ *year }, &{ *month }, &{ *day });
     generate_bin_dump(page_views_dense_vector, output_path)
 }
