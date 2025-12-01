@@ -178,6 +178,7 @@ async function renderSubCategories(wiki, category) {
   const subcategories = await getTitlesFromIds(subcategoryIds, wiki);
 
   subcategories.forEach((title, id) => {
+    title = title.replace(/^.*:\s*/, "");
     const li = document.createElement("li");
     li.id = id;
     const categoryLabel = document.createElement("span");
