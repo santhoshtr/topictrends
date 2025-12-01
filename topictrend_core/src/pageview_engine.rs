@@ -55,20 +55,13 @@ impl PageViewEngine {
     /// Calculate the total pageviews for a set of articles over time.
     pub fn get_category_trend(
         &mut self,
-        category: &String,
+        category_id: u32,
         depth: u8,
         start_date: NaiveDate,
         end_date: NaiveDate,
     ) -> Vec<(NaiveDate, u64)> {
         let mut results = Vec::new();
-        let category_id = match self.wikigraph.get_category_id(category) {
-            Ok(id) => id,
-            Err(err) => {
-                eprintln!("Error: {}", err);
-                return vec![];
-            }
-        };
-        let article_mask = match self.wikigraph.get_articles_in_category(category, depth) {
+        let article_mask = match self.wikigraph.get_articles_in_category(category_id, depth) {
             Ok(mask) => mask,
             Err(err) => {
                 eprintln!("Error: {}", err);
@@ -80,7 +73,7 @@ impl PageViewEngine {
         if article_mask.is_empty() {
             eprintln!(
                 "Could not find articles in category: {}/{}",
-                self.wiki, &category
+                self.wiki, category_id
             );
             return vec![];
         }
@@ -88,7 +81,7 @@ impl PageViewEngine {
             "Found {} articles in category {}/{}",
             article_mask.len(),
             self.wiki,
-            &category
+            &category_id
         );
 
         self.load_history_for_date_range(start_date, end_date)
@@ -122,25 +115,18 @@ impl PageViewEngine {
     /// Calculate the total pageviews for a set of articles over time.
     pub fn get_article_trend(
         &mut self,
-        article: &String,
+        article_id: u32,
         start_date: NaiveDate,
         end_date: NaiveDate,
     ) -> Vec<(NaiveDate, u64)> {
         let mut results = Vec::new();
-        let article_id = match self.wikigraph.get_article_id(article) {
-            Ok(id) => id,
-            Err(err) => {
-                eprintln!("Error: {}", err);
-                return vec![];
-            }
-        };
 
-        let article_dense_id = match self.wikigraph.art_original_to_dense.get(&article_id) {
-            Some(&dense_id) => dense_id,
+        let article_dense_id = match self.wikigraph.art_original_to_dense.get(article_id) {
+            Some(dense_id) => dense_id,
             None => {
                 eprintln!(
                     "Could not find dense id for article: {}/{}",
-                    self.wiki, &article
+                    self.wiki, &article_id
                 );
                 return vec![];
             }
@@ -154,7 +140,7 @@ impl PageViewEngine {
         if article_mask.is_empty() {
             eprintln!(
                 "Could not find articles in category: {}/{}",
-                self.wiki, &article
+                self.wiki, &article_id
             );
             return vec![];
         }

@@ -1,10 +1,11 @@
+-include .env
 SHELL := /bin/bash
 .ONESHELL:
 .SHELLFLAGS := -euo pipefail -c
+export $(shell sed 's/=.*//' .env)
 YEAR := $(shell date -d "yesterday" +%Y)
 MONTH := $(shell date -d "yesterday" +%m)
 DAY := $(shell date -d "yesterday" +%d)
-
 CARGO := cargo
 CARGO_RELEASE := target/release
 

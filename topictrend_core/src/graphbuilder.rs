@@ -1,10 +1,10 @@
 use anyhow::Result;
 use polars::prelude::*;
 use roaring::RoaringBitmap;
-use std::collections::HashMap;
 use std::path::Path;
 use std::time::Instant;
 
+use crate::direct_map::DirectMap;
 use crate::wikigraph::WikiGraph;
 
 pub struct GraphBuilder {
@@ -26,7 +26,7 @@ impl GraphBuilder {
 
         // A. Load Categories & Create Mapping
         print!("  Loading Categories...");
-        let (cat_dense_to_original, cat_names, cat_original_to_dense) =
+        let (cat_dense_to_original, cat_original_to_dense) =
             Self::load_nodes(format!("{}/{}/categories.parquet", data_dir, self.wiki))?;
 
         let num_cats = cat_dense_to_original.len();
@@ -34,7 +34,7 @@ impl GraphBuilder {
 
         // B. Load Articles & Create Mapping
         print!("  Loading Articles...");
-        let (art_dense_to_original, art_names, art_original_to_dense) =
+        let (art_dense_to_original, art_original_to_dense) =
             Self::load_nodes(format!("{}/{}/articles.parquet", data_dir, self.wiki))?;
 
         let num_arts: usize = art_dense_to_original.len();
@@ -61,9 +61,9 @@ impl GraphBuilder {
         // We use the HashMaps to convert Raw ID -> Dense ID on the fly
         for (opt_p, opt_c) in p_col.into_iter().zip(c_col.into_iter()) {
             if let (Some(p_raw), Some(c_raw)) = (opt_p, opt_c)
-                && let (Some(&p_dense), Some(&c_dense)) = (
-                    cat_original_to_dense.get(&p_raw),
-                    cat_original_to_dense.get(&c_raw),
+                && let (Some(p_dense), Some(c_dense)) = (
+                    cat_original_to_dense.get(p_raw),
+                    cat_original_to_dense.get(c_raw),
                 )
             {
                 children[p_dense as usize].push(c_dense);
@@ -88,9 +88,9 @@ impl GraphBuilder {
 
         for (opt_a, opt_c) in a_col.into_iter().zip(c_col_ac.into_iter()) {
             if let (Some(a_raw), Some(c_raw)) = (opt_a, opt_c)
-                && let (Some(&a_dense), Some(&c_dense)) = (
-                    art_original_to_dense.get(&a_raw),
-                    cat_original_to_dense.get(&c_raw),
+                && let (Some(a_dense), Some(c_dense)) = (
+                    art_original_to_dense.get(a_raw),
+                    cat_original_to_dense.get(c_raw),
                 )
             {
                 // Populate RoaringBitmap for Category
@@ -116,36 +116,32 @@ impl GraphBuilder {
             article_cats,
             cat_dense_to_original,
             cat_original_to_dense,
-            cat_names,
             art_dense_to_original,
             art_original_to_dense,
-            art_names,
         })
     }
 
     // Helper to load node definitions and create ID mappings
-    fn load_nodes(path: String) -> Result<(Vec<u32>, Vec<String>, HashMap<u32, u32>)> {
+    fn load_nodes(path: String) -> Result<(Vec<u32>, DirectMap)> {
         let path: PlPath = PlPath::Local(Arc::from(Path::new(&path)));
         let df = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
-
         let ids = df.column("page_id")?.u32()?;
-        let titles = df.column("page_title")?.str()?;
 
+        let max_length = ids.len();
         let mut dense_to_original = Vec::with_capacity(ids.len());
-        let mut names = Vec::with_capacity(ids.len());
-        let mut original_to_dense = HashMap::with_capacity(ids.len());
+        let mut mapper = DirectMap::new(max_length as usize);
 
         let mut dense_counter = 0;
 
-        for (opt_id, opt_title) in ids.into_iter().zip(titles.into_iter()) {
-            if let (Some(id), Some(title)) = (opt_id, opt_title) {
+        for opt_id in ids.into_iter() {
+            if let Some(id) = opt_id {
                 dense_to_original.push(id);
-                names.push(title.to_string());
-                original_to_dense.insert(id, dense_counter);
+                //                names.push(title.to_string());
+                mapper.insert(id, dense_counter);
                 dense_counter += 1;
             }
         }
 
-        Ok((dense_to_original, names, original_to_dense))
+        Ok((dense_to_original, mapper))
     }
 }

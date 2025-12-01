@@ -1,9 +1,11 @@
 use roaring::RoaringBitmap;
 use std::collections::HashMap;
 use std::collections::VecDeque;
+
+use crate::direct_map::DirectMap;
 /// The core high-performance graph structure.
 /// All internal logic uses "Dense IDs" (0..N), not the raw Wikipedia Page IDs.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct WikiGraph {
     pub(crate) children: Vec<Vec<u32>>,
 
@@ -15,33 +17,23 @@ pub struct WikiGraph {
 
     // --- Metadata / ID Translation ---
     // To convert results back to Strings/Original IDs for the user
-    pub cat_dense_to_original: Vec<u32>, // Dense -> WikiID
-    pub cat_original_to_dense: HashMap<u32, u32>, // WikiID -> Dense
-    pub cat_names: Vec<String>,          // Dense -> Name
+    pub cat_dense_to_original: Vec<u32>,  // Dense -> WikiID
+    pub cat_original_to_dense: DirectMap, // WikiID -> Dense
 
     pub art_dense_to_original: Vec<u32>,
-    pub art_original_to_dense: HashMap<u32, u32>,
-    pub art_names: Vec<String>,
+    pub art_original_to_dense: DirectMap,
 }
 
 impl WikiGraph {
     /// Find all articles in a category (and optionally subcategories to depth N)
     pub fn get_articles_in_category(
         &self,
-        category_title: &String,
+        category_id: u32,
         max_depth: u8,
     ) -> Result<RoaringBitmap, String> {
-        let start_time = std::time::Instant::now(); // Start timing
-        let category_id = self.get_category_id(category_title)?;
-        let elapsed_time = start_time.elapsed(); // Calculate elapsed time
-        println!(
-            "Time taken to fetch category ID for '{}': {:?}",
-            category_title, elapsed_time
-        );
-
         // Translate External ID -> Internal Dense ID
-        let start_node = match self.cat_original_to_dense.get(&category_id) {
-            Some(&id) => id,
+        let start_node = match self.cat_original_to_dense.get(category_id) {
+            Some(id) => id,
             None => {
                 return Ok(RoaringBitmap::new());
             } // Dense ID not found
@@ -77,22 +69,11 @@ impl WikiGraph {
     }
 
     /// Get immediate subcategories (Depth 1)
-    /// Returns a vector of tuples: (Original_Wiki_ID, Category_Name)
-    pub fn get_child_categories(
-        &self,
-        category_title: &String,
-    ) -> Result<Vec<(u32, String)>, String> {
-        let start_time = std::time::Instant::now(); // Start timing
-        let category_id = self.get_category_id(category_title)?;
-        let elapsed_time = start_time.elapsed(); // Calculate elapsed time
-        println!(
-            "Time taken to fetch category ID for '{}': {:?}",
-            category_title, elapsed_time
-        );
-
+    /// Returns a vector of category_ids: Original_Wiki_ID
+    pub fn get_child_categories(&self, category_id: u32) -> Result<Vec<u32>, String> {
         // 1. Convert External ID -> Internal Dense ID
-        let dense_id = match self.cat_original_to_dense.get(&category_id) {
-            Some(&id) => id,
+        let dense_id = match self.cat_original_to_dense.get(category_id) {
+            Some(id) => id,
             None => return Ok(Vec::new()), // Category not found
         };
 
@@ -103,7 +84,7 @@ impl WikiGraph {
                 .iter()
                 .map(|&child_dense| {
                     let idx = child_dense as usize;
-                    (self.cat_dense_to_original[idx], self.cat_names[idx].clone())
+                    self.cat_dense_to_original[idx]
                 })
                 .collect())
         } else {
@@ -114,13 +95,11 @@ impl WikiGraph {
     /// Returns a vector of tuples: (Original_Wiki_ID, Category_Name, Depth)
     pub fn get_descendant_categories(
         &self,
-        category_title: &String,
+        category_id: u32,
         max_depth: u8,
-    ) -> Result<Vec<(u32, String, u8)>, String> {
-        let category_id = self.get_category_id(category_title)?;
-
-        let start_node = match self.cat_original_to_dense.get(&category_id) {
-            Some(&id) => id,
+    ) -> Result<Vec<(u32, u8)>, String> {
+        let start_node = match self.cat_original_to_dense.get(category_id) {
+            Some(id) => id,
             None => return Ok(Vec::new()),
         };
 
@@ -136,11 +115,7 @@ impl WikiGraph {
             // If it's not the start node, add it to results
             if curr != start_node {
                 let idx = curr as usize;
-                results.push((
-                    self.cat_dense_to_original[idx],
-                    self.cat_names[idx].clone(),
-                    depth,
-                ));
+                results.push((self.cat_dense_to_original[idx], depth));
             }
 
             // Stop if we reached max depth
@@ -163,10 +138,9 @@ impl WikiGraph {
     }
 
     /// Find parent categories (Navigate Up)
-    pub fn get_parent_categories(&self, category_title: &String) -> Result<Vec<u32>, String> {
-        let wiki_cat_id = self.get_category_id(category_title)?;
-        let dense_id = match self.cat_original_to_dense.get(&wiki_cat_id) {
-            Some(&id) => id,
+    pub fn get_parent_categories(&self, category_id: u32) -> Result<Vec<u32>, String> {
+        let dense_id = match self.cat_original_to_dense.get(category_id) {
+            Some(id) => id,
             None => return Ok(Vec::new()),
         };
 
@@ -181,41 +155,12 @@ impl WikiGraph {
         }
     }
 
-    /// Helper to resolve Article Dense ID -> Name
-    pub fn get_article_name(&self, dense_id: u32) -> Option<&String> {
-        self.art_names.get(dense_id as usize)
-    }
-
-    /// Helper to get category_id for the given category_title
-    pub fn get_category_id(&self, category_title: &String) -> Result<u32, String> {
-        // Normalize both sides when searching
-        match self
-            .cat_names
-            .iter()
-            .position(|name| name == category_title)
-        {
-            Some(dense_id) => Ok(self.cat_dense_to_original[dense_id]),
-            None => Err(format!("Category title '{}' not found", category_title)),
-        }
-    }
-
-    /// Helper to get article_id for the given article_title
-    pub fn get_article_id(&self, article_title: &String) -> Result<u32, String> {
-        match self.art_names.iter().position(|name| name == article_title) {
-            Some(dense_id) => Ok(self.art_dense_to_original[dense_id]),
-            None => Err(format!("Article title '{}' not found", article_title)),
-        }
-    }
-
     /// Get all parent categories for a specific article.
     /// Returns a vector of tuples: (Category_Wiki_ID, Category_Name)
-    pub fn get_categories_for_article(
-        &self,
-        wiki_article_id: u32,
-    ) -> Result<Vec<(u32, String)>, String> {
+    pub fn get_categories_for_article(&self, wiki_article_id: u32) -> Result<Vec<u32>, String> {
         // 1. Convert Article External ID -> Article Internal Dense ID
-        let dense_art_id = match self.art_original_to_dense.get(&wiki_article_id) {
-            Some(&id) => id,
+        let dense_art_id = match self.art_original_to_dense.get(wiki_article_id) {
+            Some(id) => id,
             None => return Ok(Vec::new()), // Article not found
         };
 
@@ -226,7 +171,7 @@ impl WikiGraph {
                 .iter()
                 .map(|&cat_dense| {
                     let idx = cat_dense as usize;
-                    (self.cat_dense_to_original[idx], self.cat_names[idx].clone())
+                    self.cat_dense_to_original[idx]
                 })
                 .collect())
         } else {

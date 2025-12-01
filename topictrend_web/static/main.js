@@ -163,7 +163,7 @@ async function renderSubCategories(wiki, category) {
   const apiUrl = `/api/list/sub_categories?wiki=${wiki}&category=${category}`;
 
   const response = await fetch(apiUrl);
-  const subcategories = await response.json();
+  const subcategoryIds = await response.json();
   if (!response.ok) {
     throw new Error("Failed to fetch data");
   }
@@ -175,7 +175,7 @@ async function renderSubCategories(wiki, category) {
   categoryListContainer.appendChild(subheading);
 
   const ul = document.createElement("ul");
-  subcategories.forEach((subcategory) => {
+  subcategoryIds.forEach((subcategory) => {
     const li = document.createElement("li");
     const categoryLabel = document.createElement("span");
     categoryLabel.href = "#";
@@ -222,6 +222,37 @@ async function renderSubCategories(wiki, category) {
   });
 
   categoryListContainer.appendChild(ul);
+}
+
+async function getTitlesFromIds(ids, wikicode) {
+  const pageIds = ids.join("|");
+  const apiUrl = `https://${wikicode.replaceAll("wiki","")}.wikipedia.org/w/api.php?action=query&prop=info&pageids=${pageIds}&format=json&formatversion=2`;
+  
+  try {
+    const response = await fetch(apiUrl, {
+      headers: {
+        'User-Agent': 'TopicTrend/1.0 (https://topictrends.wmcloud.org)'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    const titlesMap = new Map();
+    
+    if (data.query && data.query.pages) {
+      data.query.pages.forEach(page => {
+        titlesMap.set(page.pageid, page.title);
+      });
+    }
+    
+    return titlesMap;
+  } catch (error) {
+    console.error('Error fetching titles:', error);
+    return new Map();
+  }
 }
 
 document.addEventListener("DOMContentLoaded", function () {

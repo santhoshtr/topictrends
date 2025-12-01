@@ -1,5 +1,6 @@
 mod handlers;
 mod models;
+mod wiki;
 
 use crate::models::AppState;
 use axum::{

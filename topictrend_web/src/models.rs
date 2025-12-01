@@ -5,16 +5,26 @@ use std::{
 
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
+use sqlx::{MySql, Pool};
 use topictrend::pageview_engine::PageViewEngine;
 
 pub struct AppState {
     pub engines: Arc<RwLock<HashMap<String, Arc<RwLock<PageViewEngine>>>>>,
+    pub db_pools: Arc<RwLock<HashMap<String, Pool<MySql>>>>,
+    pub db_username: String,
+    pub db_password: String,
 }
 
 impl AppState {
     pub fn new() -> Self {
+        let db_username = std::env::var("DB_USERNAME").expect("DB_USERNAME must be set");
+        let db_password = std::env::var("DB_PASSWORD").expect("DB_PASSWORD must be set");
+
         Self {
             engines: Arc::new(RwLock::new(HashMap::new())),
+            db_pools: Arc::new(RwLock::new(HashMap::new())),
+            db_username,
+            db_password,
         }
     }
 }
