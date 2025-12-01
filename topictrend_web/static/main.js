@@ -229,7 +229,7 @@ async function renderSubCategories(wiki, category) {
 
 async function getTitlesFromIds(ids, wikicode) {
   const pageIds = ids.join("|");
-  const apiUrl = `https://${wikicode.replaceAll("wiki", "")}.wikipedia.org/w/api.php?action=query&prop=info&pageids=${pageIds}&format=json&formatversion=2`;
+  const apiUrl = `https://${wikicode.replaceAll("wiki", "")}.wikipedia.org/w/api.php?action=query&prop=info&pageids=${pageIds}&format=json&formatversion=2&origin=*`;
 
   try {
     const response = await fetch(apiUrl, {
