@@ -26,6 +26,36 @@ impl DirectMap {
             _ => None,
         }
     }
+    pub fn keys(&self) -> Vec<u32> {
+        self.mapping
+            .iter()
+            .enumerate()
+            .filter_map(|(index, &value)| {
+                if value != u32::MAX {
+                    Some(index as u32)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+}
+
+impl FromIterator<(u32, u32)> for DirectMap {
+    fn from_iter<I: IntoIterator<Item = (u32, u32)>>(iter: I) -> Self {
+        let pairs: Vec<(u32, u32)> = iter.into_iter().collect();
+
+        // Find the maximum key to determine initial size
+        let max_key = pairs.iter().map(|(k, _)| *k).max().unwrap_or(0);
+
+        let mut map = DirectMap::new(max_key as usize);
+
+        for (key, value) in pairs {
+            map.insert(key, value);
+        }
+
+        map
+    }
 }
 
 #[cfg(test)]
@@ -71,7 +101,7 @@ mod tests {
         map.insert(0, 10);
         map.insert(15, 150);
         map.insert(7, 70);
-        
+
         assert_eq!(map.get(0), Some(10));
         assert_eq!(map.get(15), Some(150));
         assert_eq!(map.get(7), Some(70));
@@ -83,5 +113,25 @@ mod tests {
     fn test_get_out_of_bounds() {
         let map = DirectMap::new(5);
         assert_eq!(map.get(100), None);
+    }
+
+    #[test]
+    fn test_keys_method() {
+        let mut map = DirectMap::new(10);
+        map.insert(2, 20);
+        map.insert(5, 50);
+        map.insert(8, 80);
+
+        let keys = map.keys();
+        assert_eq!(keys.len(), 3);
+        assert!(keys.contains(&2));
+        assert!(keys.contains(&5));
+        assert!(keys.contains(&8));
+    }
+
+    #[test]
+    fn test_keys_empty_map() {
+        let map = DirectMap::new(5);
+        assert_eq!(map.keys(), Vec::<u32>::new());
     }
 }
