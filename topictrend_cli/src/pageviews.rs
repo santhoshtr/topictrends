@@ -8,7 +8,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 #[derive(Debug, Clone)]
 struct PageView {
     project: String,
-    page_title: String,
     page_id: u32,
     access_method: String,
     daily_views: u32,
@@ -48,7 +47,6 @@ fn parse_line(line: &str) -> Result<PageView, Box<dyn std::error::Error>> {
 
     Ok(PageView {
         project: parts[0].to_string(),
-        page_title: parts[1].to_string(),
         page_id: parts[2].parse()?,
         access_method: parts[3].to_string(),
         daily_views: parts[4].parse()?,
@@ -62,7 +60,6 @@ fn process_chunk(records: Vec<PageView>) -> Result<DataFrame, PolarsError> {
         .iter()
         .map(|r| r.project.replace(".wikipedia", "wiki"))
         .collect();
-    let page_title: Vec<String> = records.iter().map(|r| r.page_title.clone()).collect();
     let page_id: Vec<u32> = records.iter().map(|r| r.page_id).collect();
     // Save some space by mapping the access methods to numbers
     let access_method: Vec<i8> = records
