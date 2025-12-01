@@ -8,6 +8,7 @@ use std::sync::Arc;
 #[derive(Debug, ParquetRecordWriter)]
 struct PageRecord {
     page_id: u32,
+    qid: u32,
     page_title: String,
 }
 
@@ -26,9 +27,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let line = line.ok()?;
             let mut parts = line.split('\t');
             let page_id = parts.next()?.parse::<u32>().ok()?;
+            let qid = parts.next()?.parse::<u32>().ok()?;
             let page_title = parts.next()?.to_string();
             Some(PageRecord {
                 page_id,
+                qid,
                 page_title,
             })
         })
