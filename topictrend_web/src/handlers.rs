@@ -23,16 +23,25 @@ pub enum ApiError {
     DatabaseError(sqlx::Error),
     EngineError(String),
     NotFound,
-    InternalError,
+    InternalError(String),
 }
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let (status, error_message) = match self {
-            ApiError::DatabaseError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Database error"),
-            ApiError::EngineError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Engine error"),
-            ApiError::NotFound => (StatusCode::NOT_FOUND, "Resource not found"),
-            ApiError::InternalError => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error"),
+            ApiError::DatabaseError(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Database error: {}", e),
+            ),
+            ApiError::EngineError(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Engine error: {}", e),
+            ),
+            ApiError::NotFound => (StatusCode::NOT_FOUND, "Resource not found".to_string()),
+            ApiError::InternalError(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Internal server error: {}", e),
+            ),
         };
 
         (status, Json(serde_json::json!({ "error": error_message }))).into_response()
@@ -53,19 +62,21 @@ pub async fn get_category_trend_handler(
 
     let category_qid = get_qid_by_title(Arc::clone(&state), &params.wiki, &params.category, &14_i8)
         .await
-        .map_err(|_| ApiError::NotFound)?;
+        .map_err(|e| ApiError::DatabaseError(e))?;
 
     // Wrap the entire blocking operation
     let now = Instant::now();
     let engine = get_or_build_engine(state, &params.wiki)
         .await
-        .map_err(|_| ApiError::InternalError)?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to build engine: {}", e)))?;
 
     println!("Engine build completed in {:.2?}s", now.elapsed());
 
     // Acquire a write lock to access the engine mutably
     let raw_data = {
-        let mut engine_lock = engine.write().map_err(|_| ApiError::InternalError)?;
+        let mut engine_lock = engine
+            .write()
+            .map_err(|e| ApiError::InternalError(format!("Failed to acquire write lock: {}", e)))?;
         engine_lock.get_category_trend(category_qid, depth, start, end)
     };
     let response = raw_data
@@ -89,16 +100,18 @@ pub async fn get_article_trend_handler(
 
     let article_qid = get_qid_by_title(Arc::clone(&state), &params.wiki, &params.article, &0_i8)
         .await
-        .map_err(|_| ApiError::NotFound)?;
+        .map_err(|e| ApiError::DatabaseError(e))?;
 
     // Wrap the entire blocking operation
     let engine = get_or_build_engine(state, &params.wiki)
         .await
-        .map_err(|_| ApiError::InternalError)?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to build engine: {}", e)))?;
 
     // Acquire a write lock to access the engine mutably
     let raw_data = {
-        let mut engine_lock = engine.write().map_err(|_| ApiError::InternalError)?;
+        let mut engine_lock = engine
+            .write()
+            .map_err(|e| ApiError::InternalError(format!("Failed to acquire write lock: {}", e)))?;
         engine_lock.get_article_trend(article_qid, start, end)
     };
     let response = raw_data
@@ -138,14 +151,16 @@ pub async fn get_sub_categories(
 ) -> Result<Json<HashMap<u32, String>>, ApiError> {
     let category_qid = get_qid_by_title(Arc::clone(&state), &params.wiki, &params.category, &14_i8)
         .await
-        .map_err(|_| ApiError::NotFound)?;
+        .map_err(|e| ApiError::DatabaseError(e))?;
 
     let engine = get_or_build_engine(Arc::clone(&state), &params.wiki)
         .await
-        .map_err(|_| ApiError::InternalError)?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to build engine: {}", e)))?;
 
     let category_qids: Result<Vec<u32>, String> = {
-        let engine_lock = engine.read().map_err(|_| ApiError::InternalError)?;
+        let engine_lock = engine
+            .read()
+            .map_err(|e| ApiError::InternalError(format!("Failed to acquire read lock: {}", e)))?;
 
         engine_lock
             .get_wikigraph()
@@ -154,15 +169,14 @@ pub async fn get_sub_categories(
 
     match category_qids {
         Ok(categories) => {
-            // Now the original state is still available
             let titles_map = get_titles_by_qids(state, &params.wiki, categories)
                 .await
-                .map_err(|_| ApiError::DatabaseError(sqlx::Error::RowNotFound))?;
-
+                .map_err(|e| ApiError::DatabaseError(e))?;
             Ok(Json(titles_map))
         }
-        Err(_) => Err(ApiError::EngineError(
-            "Failed to get child categories".to_string(),
-        )),
+        Err(e) => Err(ApiError::EngineError(format!(
+            "Failed to get child categories: {}",
+            e
+        ))),
     }
 }
