@@ -31,7 +31,7 @@ impl WikiGraph {
             } // Dense ID not found
         };
 
-        let mut result = RoaringBitmap::new();
+        let mut articles_dense = RoaringBitmap::new();
         let mut visited = RoaringBitmap::new(); // To handle cycles
         let mut queue = VecDeque::new();
 
@@ -42,7 +42,7 @@ impl WikiGraph {
         while let Some((curr, depth)) = queue.pop_front() {
             // A. Collect articles from this category
             if let Some(articles) = self.cat_articles.get(curr as usize) {
-                result |= articles;
+                articles_dense |= articles;
             }
 
             // B. Traverse deeper if allowed
@@ -56,7 +56,14 @@ impl WikiGraph {
                 }
             }
         }
-        Ok(result)
+        // Map back to QID
+        Ok(articles_dense
+            .iter()
+            .map(|article_dense| {
+                let idx = article_dense as usize;
+                self.art_dense_to_original[idx]
+            })
+            .collect())
     }
 
     /// Get immediate subcategories (Depth 1)
