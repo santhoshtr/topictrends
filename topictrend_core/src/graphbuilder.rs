@@ -49,8 +49,8 @@ impl GraphBuilder {
         )));
         let df_rel: DataFrame = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
 
-        let p_col = df_rel.column("parent")?.u32()?;
-        let c_col = df_rel.column("child")?.u32()?;
+        let p_col = df_rel.column("parent_qid")?.u32()?;
+        let c_col = df_rel.column("child_qid")?.u32()?;
         //  Create a temporary vector of pairs (Parent_Dense -> Child_Dense)
         // We estimate capacity to avoid reallocations
         let mut forward_edges: Vec<(u32, u32)> = Vec::with_capacity(p_col.len());
