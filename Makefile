@@ -67,7 +67,7 @@ $(DATA_DIR)/%/categories.parquet: $(QUERIES_DIR)/categories.sql
 $(DATA_DIR)/%/category_graph.parquet: $(QUERIES_DIR)/category-graph.sql
 	@mkdir -p $(dir $@)
 	@echo "Fetching category graph for $*..."
-	@cat $< | $(call dbquery) | $(CARGO_RELEASE)/get-categorygraph $@
+	@cat $< | $(call dbquery) | $(CARGO_RELEASE)/get-categorygraph $(DATA_DIR)/$*/categories.parquet $@
 
 # Article-category mapping
 $(DATA_DIR)/%/article_category.parquet: $(QUERIES_DIR)/article-category.sql $(DATA_DIR)/%/articles.parquet
