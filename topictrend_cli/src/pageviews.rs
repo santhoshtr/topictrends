@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("=== Wikipedia Pageviews to Parquet Converter ===");
     println!("Output: {}", output_file);
-    println!("Chunk size: {}\n", chunk_size);
+    println!("Chunk size: {}", chunk_size);
 
     convert_pageviews_to_parquet(output_file, chunk_size)?;
 
