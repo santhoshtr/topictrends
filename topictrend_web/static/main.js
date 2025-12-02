@@ -21,8 +21,8 @@ document.addEventListener("DOMContentLoaded", function () {
   categoryElement.setAttribute("wiki", wikiValue);
 
   initializeChart();
-  populateFormFromQueryParams();
   populateWikiDropdown();
+  populateFormFromQueryParams();
 });
 
 async function onSubmit(event) {
