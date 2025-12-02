@@ -3,7 +3,7 @@ SELECT
     CAST(SUBSTRING(pp_value, 2) AS UNSIGNED) AS qid,
     p.page_title
 FROM
-    PAGE p
+    page p
     JOIN page_props ON pp_page = page_id
     AND pp_propname = 'wikibase_item'
 WHERE

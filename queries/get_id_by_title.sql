@@ -1,7 +1,7 @@
 SELECT
     page_id
 FROM
-    PAGE
+    page
 WHERE
     page_title = ?
     AND page_namespace = ?
