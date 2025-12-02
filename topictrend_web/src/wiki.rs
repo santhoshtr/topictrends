@@ -126,7 +126,7 @@ pub async fn get_titles_by_qids(
     let mut result = HashMap::new();
     for row in rows {
         let qid: u32 = row.try_get("qid")?;
-        let title: String = row.try_get("title")?;
+        let title: String = row.try_get("page_title")?;
         result.insert(qid, title);
     }
 
