@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Debug, Clone)]
 struct PageView {
-    project: String,
+    wiki: String,
     page_id: u32,
     access_method: String,
     daily_views: u32,
@@ -46,7 +46,7 @@ fn parse_line(line: &str) -> Result<PageView, Box<dyn std::error::Error>> {
     }
 
     Ok(PageView {
-        project: parts[0].to_string(),
+        wiki: parts[0].to_string(),
         page_id: parts[2].parse()?,
         access_method: parts[3].to_string(),
         daily_views: parts[4].parse()?,
@@ -56,9 +56,9 @@ fn parse_line(line: &str) -> Result<PageView, Box<dyn std::error::Error>> {
 fn process_chunk(records: Vec<PageView>) -> Result<DataFrame, PolarsError> {
     // We consistantly use projects as enwiki, tawiki etc, however pageview dumps has en.wikipedia,
     // ta.wikipedia. Normalize.
-    let project: Vec<String> = records
+    let wiki: Vec<String> = records
         .iter()
-        .map(|r| r.project.replace(".wikipedia", "wiki"))
+        .map(|r| r.wiki.replace(".wikipedia", "wiki"))
         .collect();
     let page_id: Vec<u32> = records.iter().map(|r| r.page_id).collect();
     // Save some space by mapping the access methods to numbers
@@ -73,7 +73,7 @@ fn process_chunk(records: Vec<PageView>) -> Result<DataFrame, PolarsError> {
     let daily_views: Vec<u32> = records.iter().map(|r| r.daily_views).collect();
 
     DataFrame::new(vec![
-        Column::new("wiki".into(), project),
+        Column::new("wiki".into(), wiki),
         Column::new("page_id".into(), page_id),
         Column::new("access_method".into(), access_method),
         Column::new("daily_views".into(), daily_views),
