@@ -28,11 +28,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let categories_df =
         LazyFrame::scan_parquet(categories_parquet_path, Default::default())?.collect()?;
 
-    let category_qids = categories_df.column("page_id")?.u32()?;
+    let category_ids = categories_df.column("page_id")?.u32()?;
     let category_qids = categories_df.column("qid")?.u32()?;
 
     // Build DirectMap for page_id -> qid conversion
-    let category_qid_to_qid: DirectMap = category_qids
+    let category_id_to_qid: DirectMap = category_ids
         .into_iter()
         .zip(category_qids.into_iter())
         .filter_map(|(id, qid)| Some((id?, qid?)))
@@ -53,8 +53,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let parent_category_qid = parts.next()?.parse::<u32>().ok()?;
 
             // Convert page_ids to qids
-            let category_qid = category_qid_to_qid.get(category_qid)?;
-            let parent_category_qid = category_qid_to_qid.get(parent_category_qid)?;
+            let category_qid = category_id_to_qid.get(category_qid)?;
+            let parent_category_qid = category_id_to_qid.get(parent_category_qid)?;
 
             if lines_count % 1000 == 0 {
                 print!(
