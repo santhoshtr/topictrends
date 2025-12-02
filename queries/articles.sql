@@ -7,12 +7,7 @@ FROM
     JOIN page_props ON pp_page = page_id
     AND pp_propname = 'wikibase_item'
 WHERE
-    p.page_namespace = 14 -- 14 is the namespace for categories
-    AND p.page_id NOT IN (
-        SELECT
-            pp_page
-        FROM
-            page_props
-        WHERE
-            pp_propname = 'hiddencat'
-    );
+    p.page_namespace = 0 
+    AND p.page_is_redirect = 0
+    AND p.page_is_new = 0
+
