@@ -1,6 +1,6 @@
 import { autocomp } from "./autocomp.js";
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
   document.getElementById("trend-form").addEventListener("submit", onSubmit);
 
   // Set up wiki selector change handler
@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", function () {
   categoryElement.setAttribute("wiki", wikiValue);
 
   initializeChart();
-  populateWikiDropdown();
+  await populateWikiDropdown();
   populateFormFromQueryParams();
 });
 
