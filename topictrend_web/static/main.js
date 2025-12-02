@@ -22,6 +22,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   initializeChart();
   populateFormFromQueryParams();
+  populateWikiDropdown();
 });
 
 async function onSubmit(event) {
@@ -343,5 +344,39 @@ function populateFormFromQueryParams() {
 
   if (type && wiki && startDate && endDate) {
     onSubmit(new Event("submit"));
+  }
+}
+
+async function populateWikiDropdown() {
+  try {
+    const response = await fetch("/static/wikis.json");
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const wikis = await response.json();
+    const wikiSelect = document.getElementById("wiki");
+
+    // Clear existing options
+    wikiSelect.innerHTML = "";
+
+    // Add options to dropdown
+    wikis.forEach((wiki) => {
+      const option = document.createElement("option");
+      option.value = wiki.code;
+      // Show both English and native name if different
+      const displayName =
+        wiki.name !== wiki.localname
+          ? `${wiki.name} (${wiki.localname})`
+          : wiki.name;
+      option.textContent = displayName;
+      wikiSelect.appendChild(option);
+    });
+
+    console.log(`Loaded ${wikis.length} wikis to dropdown`);
+  } catch (error) {
+    console.error("Failed to load wiki list:", error);
+    // Fallback to current hardcoded options
+    console.log("📋 Using fallback wiki list");
   }
 }
