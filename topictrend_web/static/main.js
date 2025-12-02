@@ -163,7 +163,7 @@ async function renderSubCategories(wiki, category) {
   const apiUrl = `/api/list/sub_categories?wiki=${wiki}&category=${category}`;
 
   const response = await fetch(apiUrl);
-  const subcategoryIds = await response.json();
+  const subcategories = await response.json();
   if (!response.ok) {
     throw new Error("Failed to fetch data");
   }
@@ -176,21 +176,7 @@ async function renderSubCategories(wiki, category) {
 
   const ul = document.createElement("ul");
 
-  // Process subcategories in batches of 50
-  const batchSize = 50;
-  const allSubcategories = new Map();
-
-  for (let i = 0; i < subcategoryIds.length; i += batchSize) {
-    const batch = subcategoryIds.slice(i, i + batchSize);
-    const batchTitles = await getTitlesFromIds(batch, wiki);
-
-    // Merge batch results into the main map
-    batchTitles.forEach((title, id) => {
-      allSubcategories.set(id, title);
-    });
-  }
-
-  allSubcategories.forEach((title, id) => {
+  subcategories.forEach((title, id) => {
     title = title.replace(/^.*:\s*/, "");
     const li = document.createElement("li");
     li.id = id;
@@ -239,37 +225,6 @@ async function renderSubCategories(wiki, category) {
   });
 
   categoryListContainer.appendChild(ul);
-}
-
-async function getTitlesFromIds(ids, wikicode) {
-  const pageIds = ids.join("|");
-  const apiUrl = `https://${wikicode.replaceAll("wiki", "")}.wikipedia.org/w/api.php?action=query&prop=info&pageids=${pageIds}&format=json&formatversion=2&origin=*`;
-
-  try {
-    const response = await fetch(apiUrl, {
-      headers: {
-        "User-Agent": "TopicTrend/1.0 (https://topictrends.wmcloud.org)",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const titlesMap = new Map();
-
-    if (data.query && data.query.pages) {
-      data.query.pages.forEach((page) => {
-        titlesMap.set(page.pageid, page.title);
-      });
-    }
-
-    return titlesMap;
-  } catch (error) {
-    console.error("Error fetching titles:", error);
-    return new Map();
-  }
 }
 
 document.addEventListener("DOMContentLoaded", function () {
