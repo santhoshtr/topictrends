@@ -364,11 +364,7 @@ async function populateWikiDropdown() {
     wikis.forEach((wiki) => {
       const option = document.createElement("option");
       option.value = wiki.code;
-      // Show both English and native name if different
-      const displayName =
-        wiki.name !== wiki.localname
-          ? `${wiki.name} (${wiki.localname})`
-          : wiki.name;
+      const displayName = `${wiki.code} - ${wiki.name}`;
       option.textContent = displayName;
       wikiSelect.appendChild(option);
     });
