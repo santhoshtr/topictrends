@@ -3,9 +3,13 @@ SHELL := /bin/bash
 .ONESHELL:
 .SHELLFLAGS := -euo pipefail -c
 export $(shell sed 's/=.*//' .env)
-YEAR := $(shell date -d "yesterday" +%Y)
-MONTH := $(shell date -d "yesterday" +%m)
-DAY := $(shell date -d "yesterday" +%d)
+
+# Date parsing - use DATE environment variable if set, otherwise use yesterday
+DATE ?= $(shell date -d "yesterday" +%Y-%m-%d)
+YEAR := $(shell echo $(DATE) | cut -d'-' -f1)
+MONTH := $(shell echo $(DATE) | cut -d'-' -f2)
+DAY := $(shell echo $(DATE) | cut -d'-' -f3)
+
 CARGO := cargo
 CARGO_RELEASE := target/release
 
@@ -27,6 +31,10 @@ help:
 	@echo "  init    - Initialize data directory and wikipedia list"
 	@echo "  clean   - Remove generated data files"
 	@echo "  help    - Show this help message"
+	@echo ""
+	@echo "Environment variables:"
+	@echo "  DATE    - Date to process (YYYY-MM-DD format, defaults to yesterday)"
+	@echo "  Example: make run DATE=2025-01-15"
 
 # Main run target
 run: init $(WIKIS)
