@@ -20,13 +20,14 @@ PAGEVIEWS_DIR := $(DATA_DIR)/pageviews
 
 .DEFAULT_GOAL := run
 
-.PHONY: run init clean help $(WIKIS) qdrant
+.PHONY: run init clean help $(WIKIS) qdrant monthly
 
 # Help target
 help:
 	@echo "This Makefile can only be used in a wmcloud VPS."
 	@echo "Available targets:"
 	@echo "  run     - Process all wikis and run wikigraph cli"
+	@echo "  monthly - Process all wikis for the last 30 days"
 	@echo "  web     - Start webserver"
 	@echo "  init    - Initialize data directory and wikipedia list"
 	@echo "  clean   - Remove generated data files"
@@ -132,6 +133,16 @@ web: init
 qdrant:
 	# Port 6334 is GRPC and that is what rust will use.
 	docker run -d --rm -p 6333:6333 -p 6334:6334 --name qdrant qdrant/qdrant
+
+# Monthly processing target
+monthly: init
+	@echo "Processing last 30 days..."
+	@for i in $$(seq 1 30); do \
+		DATE=$$(date -d "$$i days ago" +%Y-%m-%d); \
+		echo "Processing date: $$DATE"; \
+		$(MAKE) run DATE="$$DATE"; \
+	done
+	@echo "Monthly processing complete!"
 
 # Prevent deletion of intermediate files
 .PRECIOUS: $(DATA_DIR)/%/articles.parquet \
