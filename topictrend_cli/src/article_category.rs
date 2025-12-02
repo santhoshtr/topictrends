@@ -117,6 +117,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     row_group.close().unwrap();
     writer.close().unwrap();
 
-    println!("Successfully wrote data to {}", args[1]);
+    println!("Successfully wrote data to {}", output_file);
     Ok(())
 }
