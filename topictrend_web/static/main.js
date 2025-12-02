@@ -364,7 +364,7 @@ async function populateWikiDropdown() {
     wikis.forEach((wiki) => {
       const option = document.createElement("option");
       option.value = wiki.code;
-      const displayName = `${wiki.code} - ${wiki.name}`;
+      const displayName = `${wiki.langcode} - ${wiki.name}`;
       option.textContent = displayName;
       wikiSelect.appendChild(option);
     });
