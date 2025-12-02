@@ -38,8 +38,8 @@ fn setup_test_data() {
 
     // Create article-category mapping
     let article_category = df![
-        "article_id" => &[1_u32, 2_u32, 3_u32],
-        "category_id" => &[1_u32, 1_u32, 2_u32]
+        "article_qid" => &[1_u32, 2_u32, 3_u32],
+        "category_qid" => &[1_u32, 1_u32, 2_u32]
     ]
     .unwrap();
     create_parquet_file(article_category, "data/testwiki/article_category.parquet");

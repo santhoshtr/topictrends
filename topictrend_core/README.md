@@ -1,1 +1,4 @@
-This crate does not know about titles at all. It uses integers for all operations.
+## Architecture principles
+
+* This crate does not know about titles at all. It uses integers for all operations.
+* All Ids are Wikidata Qids

@@ -41,10 +41,6 @@ impl GraphBuilder {
         let num_arts: usize = art_dense_to_original.len();
         println!("\r  Loaded {} articles.", num_arts);
 
-        // C. Initialize Structure Containers
-        let mut cat_articles = vec![RoaringBitmap::new(); num_cats];
-        let article_cats = vec![Vec::new(); num_arts];
-
         // D. Load Relations: Category Parent -> Child
         // Note: User provided 'cat_parents.parquet' (parent, child)
         print!("  Loading Category Hierarchy...");
@@ -81,20 +77,19 @@ impl GraphBuilder {
         // Drop temp vectors explicitly (optional, Rust does this automatically)
         drop(forward_edges);
         drop(backward_edges);
+
         println!("\r  Loaded Category Hierarchy");
         // Load Article -> Category
         print!("  Loading Article-Category definitions...");
         let path: PlPath = PlPath::Local(Arc::from(Path::new(
             format!("{}/{}/article_category.parquet", data_dir, self.wiki).as_str(),
         )));
+        let mut cat_articles = vec![RoaringBitmap::new(); num_cats];
+        let mut article_cats_vec: Vec<(u32, u32)> = Vec::with_capacity(num_arts);
 
-        let df_art_cat = LazyFrame::scan_parquet(path, Default::default())?
-            .select([col("article_id"), col("category_id")])
-            .with_new_streaming(true)
-            .collect()?;
-
-        let a_col = df_art_cat.column("article_id")?.u32()?;
-        let c_col_ac = df_art_cat.column("category_id")?.u32()?;
+        let df_art_cat = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
+        let a_col = df_art_cat.column("article_qid")?.u32()?;
+        let c_col_ac = df_art_cat.column("category_qid")?.u32()?;
 
         for (opt_a, opt_c) in a_col.into_iter().zip(c_col_ac.into_iter()) {
             if let (Some(a_raw), Some(c_raw)) = (opt_a, opt_c)
@@ -105,12 +100,10 @@ impl GraphBuilder {
             {
                 // Populate RoaringBitmap for Category
                 cat_articles[c_dense as usize].insert(a_dense);
-
-                // Populate Article metadata
-                // FIXME
-                // article_cats[a_dense as usize].push(c_dense);
+                article_cats_vec.push((a_dense, c_dense));
             }
         }
+        let article_cats = CsrAdjacency::from_pairs(num_cats, &article_cats_vec);
 
         println!("\r  Loaded Article-Category definitions");
         println!(
@@ -135,7 +128,7 @@ impl GraphBuilder {
     fn load_nodes(path: String) -> Result<(Vec<u32>, DirectMap)> {
         let path: PlPath = PlPath::Local(Arc::from(Path::new(&path)));
         let df = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
-        let ids = df.column("page_id")?.u32()?;
+        let ids = df.column("qid")?.u32()?;
 
         let max_length = ids.len();
         let mut dense_to_original = Vec::with_capacity(ids.len());

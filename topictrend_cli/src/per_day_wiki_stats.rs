@@ -56,23 +56,23 @@ pub fn get_daily_pageviews(wiki: &str, year: &i16, month: &i8, day: &i8) -> Vec<
         .collect()
         .expect("Failed to collect DataFrame");
 
-    // 2. Find all records where project == wiki
+    // 2. Find all records where wiki == wiki
     let filtered_df = df
         .lazy()
-        .filter(col("project").eq(lit(wiki)))
+        .filter(col("wiki").eq(lit(wiki)))
         .collect()
         .expect("Failed to filter DataFrame");
 
     // 3. Calculate page_id : daily_views (aggregate)
     let grouped_df = filtered_df
         .lazy()
-        .group_by([col("page_id")])
+        .group_by([col("qid")])
         .agg([col("daily_views").sum().alias("daily_views")])
         .collect()
         .expect("Failed to group DataFrame");
 
-    let page_ids = grouped_df
-        .column("page_id")
+    let qids = grouped_df
+        .column("qid")
         .expect("Missing column: page_id")
         .u32()
         .unwrap();
@@ -84,9 +84,9 @@ pub fn get_daily_pageviews(wiki: &str, year: &i16, month: &i8, day: &i8) -> Vec<
 
     let mut dense_vector = vec![0u32; graph.art_dense_to_original.len()];
 
-    for (opt_page_id, opt_views) in page_ids.into_iter().zip(daily_views.into_iter()) {
-        if let (Some(page_id), Some(views)) = (opt_page_id, opt_views)
-            && let Some(dense_id) = graph.art_original_to_dense.get(page_id)
+    for (opt_qid, opt_views) in qids.into_iter().zip(daily_views.into_iter()) {
+        if let (Some(qid), Some(views)) = (opt_qid, opt_views)
+            && let Some(dense_id) = graph.art_original_to_dense.get(qid)
         {
             //  With dense_id as vector index, create a u32 dense vector with daily_views value
             dense_vector[dense_id as usize] = views;

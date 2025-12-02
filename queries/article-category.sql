@@ -1,5 +1,5 @@
 SELECT
-    cl.cl_from AS article_id,
+    cl.cl_from AS article_qid,
     p.page_id AS category_page_id
 FROM
     categorylinks cl

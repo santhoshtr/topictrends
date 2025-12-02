@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .short('c')
                         .required(true)
                         .value_parser(clap::value_parser!(u32))
-                        .help("The Wiki ID of the category"),
+                        .help("The Wiki QID of the category"),
                 )
                 .arg(
                     Arg::new("depth")
@@ -44,7 +44,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .short('c')
                         .required(true)
                         .value_parser(clap::value_parser!(u32))
-                        .help("The Wiki ID of the category"),
+                        .help("The Wiki QID of the category"),
                 ),
         )
         .subcommand(
@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .short('c')
                         .required(true)
                         .value_parser(clap::value_parser!(u32))
-                        .help("The Wiki ID of the category"),
+                        .help("The Wiki QID of the category"),
                 )
                 .arg(
                     Arg::new("depth")
@@ -75,19 +75,19 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .short('c')
                         .required(true)
                         .value_parser(clap::value_parser!(u32))
-                        .help("The Wiki ID of the category"),
+                        .help("The Wiki QID of the category"),
                 ),
         )
         .subcommand(
             Command::new("list-article-categories")
                 .about("Retrieve all categories for a specific article")
                 .arg(
-                    Arg::new("article-id")
-                        .long("article-id")
+                    Arg::new("article-qid")
+                        .long("article-qid")
                         .short('a')
                         .required(true)
                         .value_parser(clap::value_parser!(u32))
-                        .help("The Wiki ID of the article"),
+                        .help("The Wiki QID of the article"),
                 ),
         )
         .subcommand(
@@ -99,7 +99,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .short('c')
                         .required(true)
                         .value_parser(clap::value_parser!(u32))
-                        .help("The ID of the category in the wiki"),
+                        .help("The QID of the category in the wiki"),
                 )
                 .arg(
                     Arg::new("depth")
@@ -166,10 +166,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn handle_get_articles(graph: &wikigraph::WikiGraph, matches: &ArgMatches) {
-    let category_id: &u32 = matches.get_one::<u32>("category").unwrap();
+    let category_qid: &u32 = matches.get_one::<u32>("category").unwrap();
     let depth: &u8 = matches.get_one::<u8>("depth").unwrap();
 
-    let articles = match graph.get_articles_in_category(*category_id, *depth) {
+    let articles = match graph.get_articles_in_category(*category_qid, *depth) {
         Ok(articles) => articles,
         Err(err) => {
             eprintln!("Error: {}", err);
@@ -179,19 +179,19 @@ fn handle_get_articles(graph: &wikigraph::WikiGraph, matches: &ArgMatches) {
     println!(
         "Found {} articles in category {} (depth {}).",
         articles.len(),
-        category_id,
+        category_qid,
         depth
     );
 
-    for article_id in articles.iter().take(10) {
-        println!(" - {}", article_id);
+    for article_qid in articles.iter().take(10) {
+        println!(" - {}", article_qid);
     }
 }
 
 fn handle_get_child_categories(graph: &wikigraph::WikiGraph, matches: &ArgMatches) {
-    let category_id: &u32 = matches.get_one::<u32>("category").unwrap();
+    let category_qid: &u32 = matches.get_one::<u32>("category").unwrap();
 
-    let children = match graph.get_child_categories(*category_id) {
+    let children = match graph.get_child_categories(*category_qid) {
         Ok(children) => children,
         Err(err) => {
             eprintln!("Error: {}", err);
@@ -201,19 +201,19 @@ fn handle_get_child_categories(graph: &wikigraph::WikiGraph, matches: &ArgMatche
     println!(
         "Found {} child categories for category {}.",
         children.len(),
-        category_id
+        category_qid
     );
 
-    for id in children {
-        println!(" - {}", id);
+    for qid in children {
+        println!(" - {}", qid);
     }
 }
 
 fn handle_get_descendant_categories(graph: &wikigraph::WikiGraph, matches: &ArgMatches) {
-    let category_id: &u32 = matches.get_one::<u32>("category").unwrap();
+    let category_qid: &u32 = matches.get_one::<u32>("category").unwrap();
     let depth: &u8 = matches.get_one::<u8>("depth").unwrap();
 
-    let descendants = match graph.get_descendant_categories(*category_id, *depth) {
+    let descendants = match graph.get_descendant_categories(*category_qid, *depth) {
         Ok(descendants) => descendants,
         Err(err) => {
             eprintln!("Error: {}", err);
@@ -223,7 +223,7 @@ fn handle_get_descendant_categories(graph: &wikigraph::WikiGraph, matches: &ArgM
     println!(
         "Found {} descendant categories for category {} (depth {}).",
         descendants.len(),
-        category_id,
+        category_qid,
         depth
     );
 
@@ -233,9 +233,9 @@ fn handle_get_descendant_categories(graph: &wikigraph::WikiGraph, matches: &ArgM
 }
 
 fn handle_get_parent_categories(graph: &wikigraph::WikiGraph, matches: &ArgMatches) {
-    let category_id: &u32 = matches.get_one::<u32>("category").unwrap();
+    let category_qid: &u32 = matches.get_one::<u32>("category").unwrap();
 
-    let parents = match graph.get_parent_categories(*category_id) {
+    let parents = match graph.get_parent_categories(*category_qid) {
         Ok(parents) => parents,
         Err(err) => {
             eprintln!("Error: {}", err);
@@ -245,7 +245,7 @@ fn handle_get_parent_categories(graph: &wikigraph::WikiGraph, matches: &ArgMatch
     println!(
         "Found {} parent categories for category {}.",
         parents.len(),
-        category_id
+        category_qid
     );
 
     for id in parents {
@@ -254,9 +254,9 @@ fn handle_get_parent_categories(graph: &wikigraph::WikiGraph, matches: &ArgMatch
 }
 
 fn handle_get_article_categories(graph: &wikigraph::WikiGraph, matches: &ArgMatches) {
-    let article_id: &u32 = matches.get_one::<u32>("article-id").unwrap();
+    let article_qid: &u32 = matches.get_one::<u32>("article-id").unwrap();
 
-    let categories = match graph.get_categories_for_article(*article_id) {
+    let categories = match graph.get_categories_for_article(*article_qid) {
         Ok(categories) => categories,
         Err(err) => {
             eprintln!("Error: {}", err);
@@ -266,7 +266,7 @@ fn handle_get_article_categories(graph: &wikigraph::WikiGraph, matches: &ArgMatc
     println!(
         "Found {} categories for article {}.",
         categories.len(),
-        article_id
+        article_qid
     );
 
     for id in categories {

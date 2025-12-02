@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let stdin = io::stdin();
 
     // Before we write this to parquet file, we want to do a filtering
-    // Check if article_id is present in articles.parquet (column is  page_id)
+    // Check if article_qid is present in articles.parquet (column is  page_id)
     // This is because the article category mapping can contain articles in any namespace
     // but we are interested in 0 (main) namespace. Filtering out in sql query is very slow
     // for English wikipedia due to multiple joins.
@@ -35,32 +35,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let articles_parquet_path: PlPath = PlPath::Local(Arc::from(Path::new(&articles_parquet)));
     let articles_df =
         LazyFrame::scan_parquet(articles_parquet_path, Default::default())?.collect()?;
-    let article_ids = articles_df.column("page_id")?.u32()?;
+    let article_qids = articles_df.column("page_id")?.u32()?;
     let article_qids = articles_df.column("qid")?.u32()?;
 
-    let article_id_to_qid: DirectMap = article_ids
+    let article_qid_to_qid: DirectMap = article_qids
         .into_iter()
         .zip(article_qids.into_iter())
         .filter_map(|(id, qid)| Some((id?, qid?)))
         .collect();
 
-    let valid_article_ids_set: HashSet<u32> = article_id_to_qid.keys().into_iter().collect();
+    let valid_article_qids_set: HashSet<u32> = article_qid_to_qid.keys().into_iter().collect();
 
     let categories_parquet_path: PlPath = PlPath::Local(Arc::from(Path::new(&categories_parquet)));
     let categories_df =
         LazyFrame::scan_parquet(categories_parquet_path, Default::default())?.collect()?;
 
-    let category_ids = categories_df.column("page_id")?.u32()?;
+    let category_qids = categories_df.column("page_id")?.u32()?;
     let category_qids = categories_df.column("qid")?.u32()?;
 
-    let category_id_to_qid: DirectMap = category_ids
+    let category_qid_to_qid: DirectMap = category_qids
         .into_iter()
         .zip(category_qids.into_iter())
         .filter_map(|(id, qid)| Some((id?, qid?)))
         .collect();
 
-    let valid_category_ids_set: std::collections::HashSet<u32> =
-        category_id_to_qid.keys().into_iter().collect();
+    let valid_category_qids_set: std::collections::HashSet<u32> =
+        category_qid_to_qid.keys().into_iter().collect();
 
     let mut record_count = 0;
     let mut lines_count = 0;
@@ -71,11 +71,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let line = line.ok()?;
             lines_count += 1;
             let mut parts = line.split('\t');
-            let article_id = parts.next()?.parse::<u32>().ok()?;
-            let category_id = parts.next()?.parse::<u32>().ok()?;
+            let article_qid = parts.next()?.parse::<u32>().ok()?;
+            let category_qid = parts.next()?.parse::<u32>().ok()?;
 
-            let article_qid = article_id_to_qid.get(article_id)?.clone();
-            let category_qid = category_id_to_qid.get(category_id)?.clone();
+            let article_qid = article_qid_to_qid.get(article_qid)?.clone();
+            let category_qid = category_qid_to_qid.get(category_qid)?.clone();
             if lines_count % 1000 == 0 {
                 print!(
                     "\rRetrieved {} records from {} query results",
@@ -83,8 +83,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 );
             }
 
-            if valid_article_ids_set.contains(&article_id)
-                && valid_category_ids_set.contains(&category_id)
+            if valid_article_qids_set.contains(&article_qid)
+                && valid_category_qids_set.contains(&category_qid)
             {
                 record_count += 1;
                 Some(ArticleCategory {

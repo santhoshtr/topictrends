@@ -1,7 +1,7 @@
 ##  WikiGraph Struct:
 
-- children: Vec<Vec<u32>>: This is our primary navigation tool. It maps Dense_Category_ID -> List<Dense_Category_ID>. Access is O(1)O(1).
-- cat_articles: Vec<RoaringBitmap>: This maps Dense_Category_ID -> CompressedSet<Dense_Article_ID>. This is the secret sauce.
+- children: Vec<Vec<u32>>: This is our primary navigation tool. It maps Dense_category_qid -> List<Dense_category_qid>. Access is O(1)O(1).
+- cat_articles: Vec<RoaringBitmap>: This maps Dense_category_qid -> CompressedSet<Dense_article_qid>. This is the secret sauce.
 - *_original_to_dense: This HashMap is used only at the boundary (when we receive a request with a Wiki Page ID). Internally, the graph never touches this map, ensuring pure integer speed.
 
 ## GraphBuilder::build:

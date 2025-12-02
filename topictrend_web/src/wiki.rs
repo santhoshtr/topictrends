@@ -39,16 +39,37 @@ pub async fn get_id_by_title(
 ) -> Result<u32, sqlx::Error> {
     let pool = get_or_create_db_pool(state, wiki).await?;
 
-    let row =
-        sqlx::query("SELECT page_id FROM page WHERE page_title = ? AND page_namespace= ? LIMIT 1")
-            .bind(title)
-            .bind(namespace)
-            .fetch_optional(&pool)
-            .await?;
+    let row = sqlx::query(include_str!("../../queries/get_id_by_title.sql"))
+        .bind(title)
+        .bind(namespace)
+        .fetch_optional(&pool)
+        .await?;
 
     if let Some(row) = row {
         let page_id: u32 = row.try_get("page_id")?;
         return Ok(page_id);
+    }
+
+    Err(sqlx::Error::RowNotFound)
+}
+
+pub async fn get_qid_by_title(
+    state: Arc<AppState>,
+    wiki: &str,
+    title: &str,
+    namespace: &i8,
+) -> Result<u32, sqlx::Error> {
+    let pool = get_or_create_db_pool(state, wiki).await?;
+
+    let row = sqlx::query(include_str!("../../queries/get_qid_by_title.sql"))
+        .bind(title)
+        .bind(namespace)
+        .fetch_optional(&pool)
+        .await?;
+
+    if let Some(row) = row {
+        let qid: u32 = row.try_get("qid")?;
+        return Ok(qid);
     }
 
     Err(sqlx::Error::RowNotFound)

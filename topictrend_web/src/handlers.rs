@@ -9,7 +9,7 @@ use std::{
 use topictrend::pageview_engine::PageViewEngine;
 
 use crate::models::{AppState, ArticleTrendParams, CategoryTrendParams, SubCategoryParams};
-use crate::{models::TrendResponse, wiki::get_id_by_title};
+use crate::{models::TrendResponse, wiki::get_qid_by_title};
 
 pub async fn get_category_trend_handler(
     Query(params): Query<CategoryTrendParams>,
@@ -23,9 +23,9 @@ pub async fn get_category_trend_handler(
         .end_date
         .unwrap_or_else(|| chrono::Local::now().date_naive());
 
-    let category_id =
-        match get_id_by_title(Arc::clone(&state), &params.wiki, &params.category, &14_i8).await {
-            Ok(id) => id,
+    let category_qid =
+        match get_qid_by_title(Arc::clone(&state), &params.wiki, &params.category, &14_i8).await {
+            Ok(qid) => qid,
             Err(_) => return Json(vec![]),
         };
 
@@ -38,7 +38,7 @@ pub async fn get_category_trend_handler(
     // Acquire a write lock to access the engine mutably
     let raw_data = {
         let mut engine_lock = engine.write().unwrap();
-        engine_lock.get_category_trend(category_id, depth, start, end)
+        engine_lock.get_category_trend(category_qid, depth, start, end)
     };
     let response = raw_data
         .into_iter()
@@ -59,8 +59,8 @@ pub async fn get_article_trend_handler(
         .end_date
         .unwrap_or_else(|| chrono::Local::now().date_naive());
 
-    let article_id =
-        match get_id_by_title(Arc::clone(&state), &params.wiki, &params.article, &0_i8).await {
+    let article_qid =
+        match get_qid_by_title(Arc::clone(&state), &params.wiki, &params.article, &0_i8).await {
             Ok(id) => id,
             Err(_) => return Json(vec![]),
         };
@@ -72,7 +72,7 @@ pub async fn get_article_trend_handler(
     // Acquire a write lock to access the engine mutably
     let raw_data = {
         let mut engine_lock = engine.write().unwrap();
-        engine_lock.get_article_trend(article_id, start, end)
+        engine_lock.get_article_trend(article_qid, start, end)
     };
     let response = raw_data
         .into_iter()
@@ -103,8 +103,8 @@ pub async fn get_sub_categories(
     Query(params): Query<SubCategoryParams>,
     State(state): State<Arc<AppState>>,
 ) -> Json<Vec<u32>> {
-    let category_id =
-        match get_id_by_title(Arc::clone(&state), &params.wiki, &params.category, &14_i8).await {
+    let category_qid =
+        match get_qid_by_title(Arc::clone(&state), &params.wiki, &params.category, &14_i8).await {
             Ok(id) => id,
             Err(_) => return Json(vec![]),
         };
@@ -116,7 +116,7 @@ pub async fn get_sub_categories(
 
         engine_lock
             .get_wikigraph()
-            .get_child_categories(category_id)
+            .get_child_categories(category_qid)
     };
 
     match results {
