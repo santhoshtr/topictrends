@@ -43,8 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .zip(article_qids.into_iter())
         .filter_map(|(id, qid)| Some((id?, qid?)))
         .collect();
-
-    let valid_article_qids_set: HashSet<u32> = article_id_to_qid.keys().into_iter().collect();
+    let valid_article_ids_set: HashSet<u32> = article_id_to_qid.keys().into_iter().collect();
 
     let categories_parquet_path: PlPath = PlPath::Local(Arc::from(Path::new(&categories_parquet)));
     let categories_df =
@@ -59,8 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .filter_map(|(id, qid)| Some((id?, qid?)))
         .collect();
 
-    let valid_category_qids_set: std::collections::HashSet<u32> =
-        category_id_to_qid.keys().into_iter().collect();
+    let valid_category_ids_set: HashSet<u32> = category_id_to_qid.keys().into_iter().collect();
 
     let mut record_count = 0;
     let mut lines_count = 0;
@@ -71,11 +69,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let line = line.ok()?;
             lines_count += 1;
             let mut parts = line.split('\t');
-            let article_qid = parts.next()?.parse::<u32>().ok()?;
-            let category_qid = parts.next()?.parse::<u32>().ok()?;
+            let article_id = parts.next()?.parse::<u32>().ok()?;
+            let category_id = parts.next()?.parse::<u32>().ok()?;
 
-            let article_qid = article_id_to_qid.get(article_qid)?.clone();
-            let category_qid = category_id_to_qid.get(category_qid)?.clone();
+            if !valid_article_ids_set.contains(&article_id)
+                || !valid_category_ids_set.contains(&category_id)
+            {
+                return None;
+            }
+            let article_qid = article_id_to_qid.get(article_id)?.clone();
+            let category_qid = category_id_to_qid.get(category_id)?.clone();
             if lines_count % 1000 == 0 {
                 print!(
                     "\rRetrieved {} records from {} query results",
@@ -83,22 +86,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 );
             }
 
-            if valid_article_qids_set.contains(&article_qid)
-                && valid_category_qids_set.contains(&category_qid)
-            {
-                record_count += 1;
-                Some(ArticleCategory {
-                    article_qid,
-                    category_qid,
-                })
-            } else {
-                None
-            }
+            record_count += 1;
+            Some(ArticleCategory {
+                article_qid,
+                category_qid,
+            })
         })
         .collect();
 
     println!(
-        "\nRetrieved {} records from {} query results",
+        "\rRetrieved {} records from {} query results\n",
         results.len(),
         lines_count
     );
