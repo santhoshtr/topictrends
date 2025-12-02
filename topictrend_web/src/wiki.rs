@@ -114,7 +114,7 @@ pub async fn get_titles_by_qids(
     let query_template = include_str!("../../queries/get_titles_by_qids.sql");
     let query = query_template.replace("{}", &placeholders_str);
 
-    let mut query_builder = sqlx::query(&query).bind(wiki);
+    let mut query_builder = sqlx::query(&query);
 
     // Bind each QID
     for qid in &qids {
@@ -126,7 +126,9 @@ pub async fn get_titles_by_qids(
     let mut result = HashMap::new();
     for row in rows {
         let qid: u32 = row.try_get("qid")?;
-        let title: String = row.try_get("page_title")?;
+        // Get page_title as Vec<u8> and convert to String
+        let title_bytes: Vec<u8> = row.try_get("page_title")?;
+        let title = String::from_utf8_lossy(&title_bytes).to_string();
         result.insert(qid, title);
     }
 
