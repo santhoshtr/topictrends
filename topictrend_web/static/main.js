@@ -175,9 +175,7 @@ async function renderSubCategories(wiki, category) {
   categoryListContainer.appendChild(subheading);
 
   const ul = document.createElement("ul");
-
-  subcategories.forEach((title, id) => {
-    title = title.replace(/^.*:\s*/, "");
+  Object.entries(subcategories).forEach(([id, title]) => {
     const li = document.createElement("li");
     li.id = id;
     const categoryLabel = document.createElement("span");
