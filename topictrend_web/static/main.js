@@ -33,7 +33,7 @@ async function onSubmit(event) {
   const wiki = document.getElementById("wiki").value;
   const startDate = document.getElementById("start_date").value;
   const endDate = document.getElementById("end_date").value;
-  const depth = 2;
+  const depth = 20;
 
   params.append("type", type);
   params.append("wiki", wiki);
@@ -196,7 +196,7 @@ async function renderSubCategories(wiki, category) {
       event.preventDefault();
       const startDate = document.getElementById("start_date").value;
       const endDate = document.getElementById("end_date").value;
-      const depth = 2;
+      const depth = 20;
 
       fetchCategoryPageviews(wiki, title, startDate, endDate, depth);
     });
