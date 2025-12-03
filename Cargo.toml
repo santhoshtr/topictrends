@@ -4,19 +4,29 @@ members = [
   "topictrend_core",
   "topictrend_cli",
   "topictrend_web",
-  "topictrend_taxonomy"
+  "topictrend_taxonomy",
 ]
 
 [workspace.dependencies]
 parquet = "57"
 parquet_derive = "57.0"
 dotenv = "0.15"
-polars = { version = "0.52", features=["lazy","parquet", "dtype-full", "strings", "timezones"] }
-roaring = { version = "0.11", features=[] }
+polars = { version = "0.52", features = [
+  "lazy",
+  "parquet",
+  "dtype-full",
+  "strings",
+  "timezones",
+] }
+roaring = { version = "0.11", features = [] }
 anyhow = "1.0"
 ahash = "0.8"
 clap = { version = "4", features = ["derive"] }
-chrono = "0.4.42"
+chrono = { version = "0.4.42", features = ["serde"] }
 rayon = "1.11"
 byteorder = "1.5"
-sqlx = { version = "0.8", features = ["mysql", "runtime-tokio-rustls", "chrono"] }
+sqlx = { version = "0.8", features = [
+  "mysql",
+  "runtime-tokio-rustls",
+  "chrono",
+] }

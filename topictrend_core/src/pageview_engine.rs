@@ -1,12 +1,11 @@
 use crate::{graphbuilder::GraphBuilder, wikigraph::WikiGraph};
 use chrono::{Datelike, NaiveDate};
 use roaring::RoaringBitmap;
-use serde::Serialize;
 use std::fmt;
 use std::io::Read;
 use std::{collections::HashMap, error::Error, fs::File};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct ArticleRank {
     pub article_id: u32,
     pub total_views: u64,
@@ -22,7 +21,7 @@ impl fmt::Display for ArticleRank {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct CategoryRank {
     pub category_id: u32,
     pub total_views: u64,

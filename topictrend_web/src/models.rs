@@ -66,3 +66,23 @@ pub struct TrendResponse {
     pub date: NaiveDate,
     pub views: u64,
 }
+
+#[derive(Serialize)]
+pub struct TopArticle {
+    pub qid: u32,
+    pub title: String,
+    pub views: u32,
+}
+
+#[derive(Serialize)]
+pub struct TopCategory {
+    pub qid: u32,
+    pub title: String,
+    pub views: u32,
+    pub top_articles: Vec<TopArticle>,
+}
+
+#[derive(Serialize)]
+pub struct CategoryRankResponse {
+    pub categories: Vec<TopCategory>,
+}

@@ -4,15 +4,17 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use axum_macros::debug_handler;
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
     time::Instant,
 };
-use topictrend::pageview_engine::{CategoryRank, PageViewEngine};
+use topictrend::pageview_engine::PageViewEngine;
 
 use crate::models::{
-    AppState, ArticleTrendParams, CategoryTrendParams, SubCategoryParams, TopCategoriesParams,
+    AppState, ArticleTrendParams, CategoryRankResponse, CategoryTrendParams, SubCategoryParams,
+    TopArticle, TopCategoriesParams, TopCategory,
 };
 use crate::{
     models::TrendResponse,
@@ -183,10 +185,11 @@ pub async fn get_sub_categories(
     }
 }
 
+#[debug_handler]
 pub async fn get_top_categories_handler(
     Query(params): Query<TopCategoriesParams>,
     State(state): State<Arc<AppState>>,
-) -> Result<Json<Vec<CategoryRank>>, ApiError> {
+) -> Result<Json<CategoryRankResponse>, ApiError> {
     let top_n = params.top_n.unwrap_or(10);
 
     let start = params
@@ -200,19 +203,70 @@ pub async fn get_top_categories_handler(
         .await
         .map_err(|e| ApiError::InternalError(format!("Failed to build engine: {}", e)))?;
 
-    let top_categories = {
+    // Do the blocking operation first
+    let categories = {
         let mut engine_lock = engine
             .write()
-            .map_err(|e| ApiError::InternalError(format!("Failed to acquire read lock: {}", e)))?;
+            .map_err(|e| ApiError::InternalError(format!("Failed to acquire write lock: {}", e)))?;
 
-        engine_lock.get_top_categories(start, end, top_n as usize)
+        engine_lock
+            .get_top_categories(start, end, top_n as usize)
+            .map_err(|e| ApiError::EngineError(format!("Failed to get top categories: {}", e)))?
     };
 
-    match top_categories {
-        Ok(categories) => Ok(Json(categories)),
-        Err(e) => Err(ApiError::EngineError(format!(
-            "Failed to get wiki top categories: {}",
-            e
-        ))),
+    // Now collect QIDs and fetch titles asynchronously
+    let mut all_qids = Vec::new();
+
+    for category in &categories {
+        all_qids.push(category.category_id);
+        for article in &category.top_articles {
+            all_qids.push(article.article_id);
+        }
     }
+
+    // Fetch all titles in one batch (this is async and outside the blocking section)
+    let titles_map = get_titles_by_qids(Arc::clone(&state), &params.wiki, all_qids)
+        .await
+        .map_err(|e| ApiError::DatabaseError(e))?;
+
+    // Transform CategoryRank to TopCategory with titles
+    let top_categories_with_titles: Vec<TopCategory> = categories
+        .into_iter()
+        .map(|cat| {
+            let category_title = titles_map
+                .get(&cat.category_id)
+                .cloned()
+                .unwrap_or_else(|| format!("Q{}", cat.category_id));
+
+            let top_articles: Vec<TopArticle> = cat
+                .top_articles
+                .into_iter()
+                .map(|art| {
+                    let article_title = titles_map
+                        .get(&art.article_id)
+                        .cloned()
+                        .unwrap_or_else(|| format!("Q{}", art.article_id));
+
+                    TopArticle {
+                        qid: art.article_id,
+                        title: article_title,
+                        views: art.total_views as u32,
+                    }
+                })
+                .collect();
+
+            TopCategory {
+                qid: cat.category_id,
+                title: category_title,
+                views: cat.total_views as u32,
+                top_articles,
+            }
+        })
+        .collect();
+
+    let response = CategoryRankResponse {
+        categories: top_categories_with_titles,
+    };
+
+    Ok(Json(response))
 }
