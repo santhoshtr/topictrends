@@ -117,7 +117,7 @@ $(DATA_DIR)/wikipedia.list: | $(DATA_DIR)
 		| grep -E 'wiki$$' \
 		| grep -v '^#' \
 		| grep -v -f closed.dblist > $@
-	@sed -i '/^arbcom/d; /^sysop/d; /^wg_en/d; /^cebwiki/d; /^warwiki/d; /^be_x_old/d' $@
+	@sed -i '/^arbcom/d; /^test/d; /^sysop/d; /^wg_en/d; /^cebwiki/d; /^warwiki/d; /^be_x_old/d' $@
 	@rm -f closed.dblist
 
 # Clean target
