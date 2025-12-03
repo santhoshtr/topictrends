@@ -21,16 +21,27 @@
     <div class="sidebar">
       <h2>TopicTrend</h2>
       <form id="trend-form">
-        <div class="form-item">
-          <label for="wiki">Wiki</label>
-          <select id="wiki" class="cdx-select">
-            <option value="enwiki">English</option>
-            <option value="hiwiki">Hindi</option>
-            <option value="idwiki">Indonesian</option>
-            <option value="mlwiki">Malayalam</option>
-            <option value="eswiki">Spanish</option>
-            <option value="tawiki">Tamil</option>
-          </select>
+        <div class="form-item ">
+          <div class="form-item ">
+            <label for="wiki">Wiki</label>
+          </div>
+          <div class="form-item row">
+            <select id="wiki" class="cdx-select">
+              <option value="enwiki">English</option>
+              <option value="hiwiki">Hindi</option>
+              <option value="idwiki">Indonesian</option>
+              <option value="mlwiki">Malayalam</option>
+              <option value="eswiki">Spanish</option>
+              <option value="tawiki">Tamil</option>
+            </select>
+            <button class="cdx-button cdx-button--action-progressive cdx-button--weight-primary" id="wikitrends-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                fill="currentColor">
+                <path
+                  d="m296-320 122-122 80 80 142-141v63h80v-200H520v80h63l-85 85-80-80-178 179 56 56Zm-96 200q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm0-560v560-560Z" />
+              </svg>
+            </button>
+          </div>
         </div>
         <div class="form-item">
           <input type="radio" id="tab-category" name="type" value="category" checked />
@@ -77,6 +88,7 @@
     <script src="/static/main.js" type="module"></script>
     <script src="/static/wikiarticleselector.js" type="module"></script>
     <script src="/static/wikicategoryselector.js" type="module"></script>
+    <script src="/static/components/wiki-trends.js" type="module"></script>
 </body>
 
 </html>

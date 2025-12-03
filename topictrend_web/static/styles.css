@@ -10,8 +10,6 @@
     padding: 0;
   }
 
-
-
 }
 
 @layer base {
@@ -79,6 +77,10 @@
         font-size: var(--font-size-sm);
         color: var(--color-subtle);
         padding: 0.25em 0;
+      }
+
+      #wikitrends-btn {
+        align-self: bottom;
       }
 
       #tab-category:checked~.tab label:nth-child(1),
@@ -179,10 +181,12 @@
   justify-content: center;
   align-items: start;
   width: 100%;
+  overflow-y: auto;
 
   .chart {
     width: calc(100vw - 400px);
     height: 66dvh;
+    display: none;
   }
 
   footer {
@@ -190,4 +194,3 @@
   }
 
 }
-

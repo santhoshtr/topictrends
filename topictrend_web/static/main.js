@@ -1,6 +1,6 @@
 import { autocomp } from "./autocomp.js";
 
-document.addEventListener("DOMContentLoaded", async function () {
+document.addEventListener("DOMContentLoaded", async function() {
   document.getElementById("trend-form").addEventListener("submit", onSubmit);
 
   // Set up wiki selector change handler
@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   const articleElement = document.getElementById("article");
   const categoryElement = document.getElementById("category");
 
-  wikiSelector.addEventListener("change", function () {
+  wikiSelector.addEventListener("change", function() {
     const wikiValue = this.value.replaceAll("wiki", "");
     articleElement?.setAttribute("wiki", wikiValue);
     categoryElement?.setAttribute("wiki", wikiValue);
@@ -20,7 +20,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   articleElement.setAttribute("wiki", wikiValue);
   categoryElement.setAttribute("wiki", wikiValue);
 
-  initializeChart();
   await populateWikiDropdown();
   populateFormFromQueryParams();
 });
@@ -76,7 +75,7 @@ function initializeChart() {
   const theme = window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";
-
+  document.getElementById("chart").style.display = "block";
   chartInstance = echarts.init(document.getElementById("chart"), theme, {
     renderer: "svg",
   });
@@ -132,6 +131,10 @@ function initializeChart() {
 }
 
 function updateChart(data, label) {
+  if (!chartInstance) {
+    initializeChart();
+  }
+
   const existingOption = chartInstance.getOption();
 
   // Update xAxis data if new dates are present
@@ -226,7 +229,7 @@ async function renderSubCategories(wiki, category) {
   categoryListContainer.appendChild(ul);
 }
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", function() {
   const startDatePicker = document.getElementById("start_date");
   const endDatePicker = document.getElementById("end_date");
   const today = new Date();
@@ -376,3 +379,27 @@ async function populateWikiDropdown() {
     console.log("📋 Using fallback wiki list");
   }
 }
+
+// Setup controls
+document.addEventListener("DOMContentLoaded", () => {
+  const loadButton = document.getElementById("wikitrends-btn");
+
+  loadButton.addEventListener("click", () => {
+    let topicTrends = document.querySelector("wiki-trends");
+
+    const selectedWiki = wiki.value;
+    if (!topicTrends) {
+      let topicTrendsEl = document.createElement("wiki-trends");
+      document.querySelector(".main").appendChild(topicTrendsEl);
+      topicTrends = document.querySelector("wiki-trends");
+    }
+
+    topicTrends.setAttribute("wiki", selectedWiki);
+    loadButton.disabled = true;
+
+    // Re-enable button after a short delay to prevent rapid clicking
+    setTimeout(() => {
+      loadButton.disabled = false;
+    }, 1000);
+  });
+});
