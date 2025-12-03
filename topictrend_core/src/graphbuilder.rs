@@ -103,7 +103,7 @@ impl GraphBuilder {
                 article_cats_vec.push((a_dense, c_dense));
             }
         }
-        let article_cats = CsrAdjacency::from_pairs(num_cats, &article_cats_vec);
+        let article_cats = CsrAdjacency::from_pairs(num_arts, &article_cats_vec);
 
         println!("\r  Loaded Article-Category definitions");
         println!(
