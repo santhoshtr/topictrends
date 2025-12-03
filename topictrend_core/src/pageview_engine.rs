@@ -4,6 +4,13 @@ use roaring::RoaringBitmap;
 use std::io::Read;
 use std::{collections::HashMap, error::Error, fs::File};
 
+#[derive(Debug)]
+pub struct CategoryRank {
+    pub category_id: u32,
+    pub total_views: u64,
+}
+
+#[derive(Debug)]
 pub struct PageViewEngine {
     // Map Date -> Vector of pageviews (Index is Dense Article ID)
     // We use Arc to make it cheap to clone/share across web threads
@@ -61,7 +68,10 @@ impl PageViewEngine {
         end_date: NaiveDate,
     ) -> Vec<(NaiveDate, u64)> {
         let mut results = Vec::new();
-        let article_mask = match self.wikigraph.get_articles_in_category(category_qid, depth) {
+        let article_mask = match self
+            .wikigraph
+            .get_articles_in_category_as_dense(category_qid, depth)
+        {
             Ok(mask) => mask,
             Err(err) => {
                 eprintln!("Error: {}", err);
@@ -78,10 +88,11 @@ impl PageViewEngine {
             return vec![];
         }
         println!(
-            "Found {} articles in category {}/{}",
+            "Found {} articles in category {}/{} at depth {}",
             article_mask.len(),
             self.wiki,
-            &category_qid
+            &category_qid,
+            depth
         );
 
         self.load_history_for_date_range(start_date, end_date)
@@ -229,5 +240,74 @@ impl PageViewEngine {
         );
 
         Ok(Some(day_vec))
+    }
+
+    /// Returns top N categories by DIRECT article views for a date range.
+    pub fn get_top_categories(
+        &self,
+        start: NaiveDate,
+        end: NaiveDate,
+        top_n: usize,
+    ) -> Vec<CategoryRank> {
+        let num_articles = self.wikigraph.art_dense_to_original.len(); // Approx 7M for
+        // enwiki
+        let num_cats = self.wikigraph.cat_dense_to_original.len(); // Approx 2.5M for enwiki
+
+        // Phase 1: Aggregation (Sum relevant days)
+        // We create a temporary view vector for the range.
+        // We can parallelize this sum if the range is huge, but usually linear is fine.
+        let mut article_views = vec![0u32; num_articles];
+
+        let mut curr = start;
+        while curr <= end {
+            if let Some(day_vec) = self.daily_views.get(&curr) {
+                // Vectorized addition (compiler auto-vectorizes this loop)
+                for (i, &views) in day_vec.iter().enumerate() {
+                    article_views[i] += views;
+                }
+            }
+            curr = curr.succ_opt().unwrap();
+        }
+
+        // Phase 2: Scatter (Article -> Category)
+        // We need an atomic accumulator or thread-local storage for parallel write.
+        // For simplicity/speed balance, a single-threaded scatter is often fast enough
+        // because it avoids synchronization overhead.
+        let mut cat_scores = vec![0u64; num_cats];
+
+        for (art_dense_id, &views) in article_views.iter().enumerate() {
+            if views == 0 {
+                continue;
+            }
+
+            // Use the Article->Category CSR
+            let article_categories = self.wikigraph.article_cats.get(art_dense_id as u32);
+
+            for &cat_dense_id in article_categories {
+                // Safety: cat_dense_id is guaranteed valid by graph construction
+                unsafe {
+                    *cat_scores.get_unchecked_mut(cat_dense_id as usize) += views as u64;
+                }
+            }
+        }
+
+        // Phase 3: Sort & Top N
+        // Create a list of indices to sort
+        let mut ranked: Vec<usize> = (0..num_cats).collect();
+
+        // Parallel sort is overkill for 2.5M integers, standard sort is fine.
+        // We sort by score descending.
+        ranked.sort_by(|&a, &b| cat_scores[b].cmp(&cat_scores[a]));
+
+        //  Transform to Output
+        ranked
+            .into_iter()
+            .take(top_n)
+            .filter(|&idx| cat_scores[idx] > 0) // Filter out zero view categories
+            .map(|idx| CategoryRank {
+                category_id: self.wikigraph.cat_dense_to_original[idx],
+                total_views: cat_scores[idx],
+            })
+            .collect()
     }
 }
