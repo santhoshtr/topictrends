@@ -1,12 +1,24 @@
 use crate::{graphbuilder::GraphBuilder, wikigraph::WikiGraph};
 use chrono::{Datelike, NaiveDate};
 use roaring::RoaringBitmap;
+use std::fmt;
 use std::io::Read;
 use std::{collections::HashMap, error::Error, fs::File};
+
 #[derive(Debug)]
 pub struct ArticleRank {
     pub article_id: u32,
     pub total_views: u64,
+}
+
+impl fmt::Display for ArticleRank {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Article: Q{} - Views: {}",
+            self.article_id, self.total_views
+        )
+    }
 }
 
 #[derive(Debug)]
@@ -14,6 +26,18 @@ pub struct CategoryRank {
     pub category_id: u32,
     pub total_views: u64,
     pub top_articles: Vec<ArticleRank>,
+}
+
+impl fmt::Display for CategoryRank {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Category: Q{}", self.category_id)?;
+        writeln!(f, "Total Views: {}", self.total_views)?;
+        writeln!(f, "Top Articles:")?;
+        for (i, article) in self.top_articles.iter().enumerate() {
+            writeln!(f, "{:>2}. {}", i + 1, article)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -283,6 +307,7 @@ impl PageViewEngine {
         // For simplicity/speed balance, a single-threaded scatter is often fast enough
         // because it avoids synchronization overhead.
         let mut cat_scores = vec![0u64; num_cats];
+        let mut cat_articles: Vec<Vec<(u32, u32)>> = vec![Vec::new(); num_cats];
 
         for (art_dense_id, &views) in article_views.iter().enumerate() {
             if views == 0 {
@@ -297,6 +322,7 @@ impl PageViewEngine {
                 unsafe {
                     *cat_scores.get_unchecked_mut(cat_dense_id as usize) += views as u64;
                 }
+                cat_articles[cat_dense_id as usize].push((art_dense_id as u32, views));
             }
         }
 
@@ -313,9 +339,25 @@ impl PageViewEngine {
             .into_iter()
             .take(top_n)
             .filter(|&idx| cat_scores[idx] > 0) // Filter out zero view categories
-            .map(|idx| CategoryRank {
-                category_id: self.wikigraph.cat_dense_to_original[idx],
-                total_views: cat_scores[idx],
+            .map(|cat_dense_id| {
+                // Sort articles for this category by views
+                let mut articles = cat_articles[cat_dense_id].clone();
+                articles.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+
+                let top_articles: Vec<ArticleRank> = articles
+                    .into_iter()
+                    .take(top_n)
+                    .map(|(art_dense_id, views)| ArticleRank {
+                        article_id: self.wikigraph.art_dense_to_original[art_dense_id as usize],
+                        total_views: views as u64,
+                    })
+                    .collect();
+
+                CategoryRank {
+                    category_id: self.wikigraph.cat_dense_to_original[cat_dense_id],
+                    total_views: cat_scores[cat_dense_id],
+                    top_articles,
+                }
             })
             .collect()
     }
