@@ -22,6 +22,21 @@ impl WikiGraph {
         &self,
         category_qid: u32,
         max_depth: u8,
+    ) -> Result<Vec<u32>, String> {
+        let articles_dense = self
+            .get_articles_in_category_as_dense(category_qid, max_depth)
+            .unwrap();
+        // Map back to QID
+        Ok(articles_dense
+            .iter()
+            .map(|dense_id| self.art_dense_to_original[dense_id as usize])
+            .collect())
+    }
+
+    pub fn get_articles_in_category_as_dense(
+        &self,
+        category_qid: u32,
+        max_depth: u8,
     ) -> Result<RoaringBitmap, String> {
         // Translate External ID -> Internal Dense ID
         let start_node = match self.cat_original_to_dense.get(category_qid) {
@@ -56,14 +71,7 @@ impl WikiGraph {
                 }
             }
         }
-        // Map back to QID
-        Ok(articles_dense
-            .iter()
-            .map(|article_dense| {
-                let idx = article_dense as usize;
-                self.art_dense_to_original[idx]
-            })
-            .collect())
+        Ok(articles_dense)
     }
 
     /// Get immediate subcategories (Depth 1)
