@@ -17,4 +17,4 @@ ahash = { workspace = true }
 clap = { workspace = true }
 chrono = { workspace = true }
 byteorder = { workspace = true }
-
+serde = "1.0"

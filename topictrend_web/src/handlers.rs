@@ -9,9 +9,11 @@ use std::{
     sync::{Arc, RwLock},
     time::Instant,
 };
-use topictrend::pageview_engine::PageViewEngine;
+use topictrend::pageview_engine::{CategoryRank, PageViewEngine};
 
-use crate::models::{AppState, ArticleTrendParams, CategoryTrendParams, SubCategoryParams};
+use crate::models::{
+    AppState, ArticleTrendParams, CategoryTrendParams, SubCategoryParams, TopCategoriesParams,
+};
 use crate::{
     models::TrendResponse,
     wiki::{get_qid_by_title, get_titles_by_qids},
@@ -176,6 +178,40 @@ pub async fn get_sub_categories(
         }
         Err(e) => Err(ApiError::EngineError(format!(
             "Failed to get child categories: {}",
+            e
+        ))),
+    }
+}
+
+pub async fn get_top_categories_handler(
+    Query(params): Query<TopCategoriesParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<CategoryRank>>, ApiError> {
+    let top_n = params.top_n.unwrap_or(10);
+
+    let start = params
+        .start_date
+        .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
+    let end = params
+        .end_date
+        .unwrap_or_else(|| chrono::Local::now().date_naive());
+
+    let engine = get_or_build_engine(Arc::clone(&state), &params.wiki)
+        .await
+        .map_err(|e| ApiError::InternalError(format!("Failed to build engine: {}", e)))?;
+
+    let top_categories = {
+        let mut engine_lock = engine
+            .write()
+            .map_err(|e| ApiError::InternalError(format!("Failed to acquire read lock: {}", e)))?;
+
+        engine_lock.get_top_categories(start, end, top_n as usize)
+    };
+
+    match top_categories {
+        Ok(categories) => Ok(Json(categories)),
+        Err(e) => Err(ApiError::EngineError(format!(
+            "Failed to get wiki top categories: {}",
             e
         ))),
     }

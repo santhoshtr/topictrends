@@ -55,6 +55,10 @@ async fn main() {
             "/api/list/sub_categories",
             get(handlers::get_sub_categories),
         )
+        .route(
+            "/api/list/top_categories",
+            get(handlers::get_top_categories_handler),
+        )
         .with_state(state)
         .layer(cors);
 

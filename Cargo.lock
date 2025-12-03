@@ -4603,6 +4603,7 @@ dependencies = [
  "parquet_derive",
  "polars",
  "roaring",
+ "serde",
 ]
 
 [[package]]

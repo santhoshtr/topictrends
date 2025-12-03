@@ -52,6 +52,14 @@ pub struct SubCategoryParams {
     pub category: String,
 }
 
+#[derive(Deserialize)]
+pub struct TopCategoriesParams {
+    pub wiki: String,
+    pub start_date: Option<NaiveDate>,
+    pub end_date: Option<NaiveDate>,
+    pub top_n: Option<u8>,
+}
+
 // --- Response DTO ---
 #[derive(Serialize)]
 pub struct TrendResponse {

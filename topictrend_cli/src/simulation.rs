@@ -109,11 +109,13 @@ fn verify() {
 
     assert_eq!(category_views.len(), 1);
     assert_eq!(category_views[0].1, 800); // Total views for Category 1 (Article 1 + Article 2)
-    let top_categories = engine.get_top_categories(
-        "2032-10-12".parse().unwrap(),
-        "2032-10-12".parse().unwrap(),
-        10,
-    );
+    let top_categories = engine
+        .get_top_categories(
+            "2032-10-12".parse().unwrap(),
+            "2032-10-12".parse().unwrap(),
+            10,
+        )
+        .unwrap();
     assert_eq!(top_categories[0].category_id, 2);
     assert_eq!(top_categories[0].total_views, 1700);
     assert_eq!(top_categories[1].category_id, 3);

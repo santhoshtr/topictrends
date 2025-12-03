@@ -1,11 +1,12 @@
 use crate::{graphbuilder::GraphBuilder, wikigraph::WikiGraph};
 use chrono::{Datelike, NaiveDate};
 use roaring::RoaringBitmap;
+use serde::Serialize;
 use std::fmt;
 use std::io::Read;
 use std::{collections::HashMap, error::Error, fs::File};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct ArticleRank {
     pub article_id: u32,
     pub total_views: u64,
@@ -21,7 +22,7 @@ impl fmt::Display for ArticleRank {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct CategoryRank {
     pub category_id: u32,
     pub total_views: u64,
@@ -278,7 +279,7 @@ impl PageViewEngine {
         start_date: NaiveDate,
         end_date: NaiveDate,
         top_n: usize,
-    ) -> Vec<CategoryRank> {
+    ) -> Result<Vec<CategoryRank>, Box<dyn Error>> {
         let num_articles = self.wikigraph.art_dense_to_original.len(); // Approx 7M for
         // enwiki
         let num_cats = self.wikigraph.cat_dense_to_original.len(); // Approx 2.5M for enwiki
@@ -335,7 +336,7 @@ impl PageViewEngine {
         ranked.sort_by(|&a, &b| cat_scores[b].cmp(&cat_scores[a]));
 
         //  Transform to Output
-        ranked
+        let results = ranked
             .into_iter()
             .take(top_n)
             .filter(|&idx| cat_scores[idx] > 0) // Filter out zero view categories
@@ -359,6 +360,7 @@ impl PageViewEngine {
                     top_articles,
                 }
             })
-            .collect()
+            .collect();
+        Ok(results)
     }
 }
