@@ -13,8 +13,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "2025-12-01".parse().unwrap(),
         top_n,
     );
-    for cat in top_cats {
-        println!("Category {} - {} views", cat.category_id, cat.total_views);
+    for category_rank in top_cats {
+        println!("{}", category_rank);
     }
     println!("Time Taken: {:.2?}", start.elapsed());
     Ok(())
