@@ -48,8 +48,8 @@ fn setup_test_data() {
 
     // Create category-graph
     let category_graph = df![
-        "parent_qid" => &[1_u32, 2_u32],
-        "child_qid" => &[2_u32, 3_u32]
+        "parent_qid" => &[1_u32, 2_u32, 3_u32],
+        "child_qid" => &[2_u32, 3_u32, 1_u32]
     ]
     .unwrap();
     create_parquet_file(category_graph, "data/testwiki/category_graph.parquet");
@@ -108,8 +108,13 @@ fn verify() {
         "2032-10-12".parse().unwrap(),
         10,
     );
+    dbg!(&top_categories);
     assert_eq!(top_categories[0].category_id, 1);
-    assert_eq!(top_categories[0].total_views, 800);
+    assert_eq!(top_categories[0].total_views, 1100);
+    assert_eq!(top_categories[1].category_id, 2);
+    assert_eq!(top_categories[1].total_views, 900);
+    assert_eq!(top_categories[2].category_id, 3);
+    assert_eq!(top_categories[2].total_views, 600);
 }
 
 fn main() {

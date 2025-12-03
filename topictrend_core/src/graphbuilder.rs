@@ -139,7 +139,6 @@ impl GraphBuilder {
         for opt_id in ids.into_iter() {
             if let Some(id) = opt_id {
                 dense_to_original.push(id);
-                //                names.push(title.to_string());
                 mapper.insert(id, dense_counter);
                 dense_counter += 1;
             }

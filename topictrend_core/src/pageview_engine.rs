@@ -290,8 +290,23 @@ impl PageViewEngine {
                 }
             }
         }
+        // Phase 3:  Propagate scores up (Optional)
+        // Warning: This is tricky with cycles.
+        // A simplified approach is "1-Level Propagation" which is often sufficient for trends.
 
-        // Phase 3: Sort & Top N
+        // Iterate all categories
+        for cat_id in 0..num_cats {
+            let score = cat_scores[cat_id];
+            if score > 0 {
+                // Add my score to my parents
+                let parents = self.wikigraph.parents.get(cat_id as u32);
+                for &parent_id in parents {
+                    cat_scores[parent_id as usize] += score;
+                }
+            }
+        }
+
+        // Phase 4: Sort & Top N
         // Create a list of indices to sort
         let mut ranked: Vec<usize> = (0..num_cats).collect();
 
