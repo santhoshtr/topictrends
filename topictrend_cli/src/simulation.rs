@@ -1,8 +1,6 @@
 use polars::prelude::*;
 use std::fs::{self, File};
-use topictrend::{
-    graphbuilder::GraphBuilder, pageview_engine::PageViewEngine, wikigraph::WikiGraph,
-};
+use topictrend::pageview_engine::PageViewEngine;
 
 use crate::per_day_wiki_stats::{generate_bin_dump, get_daily_pageviews};
 mod per_day_wiki_stats;
@@ -20,44 +18,48 @@ fn setup_test_data() {
     fs::create_dir_all("data/testwiki/pageviews/2032/10")
         .expect("Failed to create test data directory");
 
+    fs::create_dir_all("data/pageviews/2032/10").expect("Failed to create test data directory");
+
     // Create articles.parquet
     let articles = df![
-        "page_id" => &[1_u32, 2_u32, 3_u32],
-        "page_title" => &["Article 1", "Article 2", "Article 3"]
+        "page_id" => &[1_u32, 2_u32, 3_u32,4_u32],
+        "qid" => &[1_u32, 2_u32, 3_u32, 4_u32],
+        "page_title" => &["Article 1", "Article 2", "Article 3", "Article_4"]
     ]
     .unwrap();
     create_parquet_file(articles, "data/testwiki/articles.parquet");
 
     // Create categories.parquet
     let categories = df![
-        "page_id" => &[1_u32, 2_u32],
-        "page_title" => &["Category 1", "Category 2"]
+        "page_id" => &[1_u32, 2_u32, 3_u32],
+        "qid" => &[1_u32, 2_u32, 3_u32],
+        "page_title" => &["Category 1", "Category 2", "Category 3"]
     ]
     .unwrap();
     create_parquet_file(categories, "data/testwiki/categories.parquet");
 
     // Create article-category mapping
     let article_category = df![
-        "article_qid" => &[1_u32, 2_u32, 3_u32],
-        "category_qid" => &[1_u32, 1_u32, 2_u32]
+        "article_qid" => &[1_u32, 2_u32, 3_u32, 4_u32],
+        "category_qid" => &[1_u32, 1_u32, 2_u32, 3_u32]
     ]
     .unwrap();
     create_parquet_file(article_category, "data/testwiki/article_category.parquet");
 
     // Create category-graph
     let category_graph = df![
-        "parent" => &[1_u32],
-        "child" => &[2_u32]
+        "parent_qid" => &[1_u32, 2_u32],
+        "child_qid" => &[2_u32, 3_u32]
     ]
     .unwrap();
     create_parquet_file(category_graph, "data/testwiki/category_graph.parquet");
 
     // Create pageviews.parquet
     let pageviews = df![
-        "project" => &["testwiki", "testwiki", "testwiki", "testwiki"],
-        "page_id" => &[1_u32, 2_u32, 3_u32, 2_u32],
-        "access_method" => &["desktop", "desktop", "desktop", "mobile-web"],
-        "daily_views" => &[100_u32, 200_u32, 300_u32, 500_u32]
+        "wiki" => &["testwiki", "testwiki", "testwiki", "testwiki", "testwiki"],
+        "page_id" => &[1_u32, 2_u32, 3_u32, 2_u32, 4_u32],
+        "access_method" => &["desktop", "desktop", "desktop", "mobile-web", "desktop"],
+        "daily_views" => &[100_u32, 200_u32, 300_u32, 500_u32, 600_u32]
     ]
     .unwrap();
     create_parquet_file(pageviews, "data/pageviews/2032/10/12.parquet");
@@ -78,13 +80,22 @@ fn generate_pageview_binary() {
     .expect("Fail")
 }
 
-fn verify_pageviews() {
-    let graph_builder = GraphBuilder::new("testwiki");
-    let graph: WikiGraph = graph_builder.build().expect("Failed to build graph");
-
+fn verify() {
     let mut engine = PageViewEngine::new("testwiki");
+    let articles_in_cat = engine
+        .get_wikigraph()
+        .get_articles_in_category(1, 0)
+        .unwrap();
+    assert_eq!(articles_in_cat.len(), 2);
+
+    let articles_in_cat = engine
+        .get_wikigraph()
+        .get_articles_in_category(1, 1)
+        .unwrap();
+    assert_eq!(articles_in_cat.len(), 3);
+
     let category_views = engine.get_category_trend(
-        &("Category 1".to_string()),
+        1,
         0,
         "2032-10-12".parse().unwrap(),
         "2032-10-12".parse().unwrap(),
@@ -92,11 +103,18 @@ fn verify_pageviews() {
 
     assert_eq!(category_views.len(), 1);
     assert_eq!(category_views[0].1, 800); // Total views for Category 1 (Article 1 + Article 2)
+    let top_categories = engine.get_top_categories(
+        "2032-10-12".parse().unwrap(),
+        "2032-10-12".parse().unwrap(),
+        10,
+    );
+    assert_eq!(top_categories[0].category_id, 1);
+    assert_eq!(top_categories[0].total_views, 800);
 }
 
 fn main() {
     setup_test_data();
     generate_pageview_binary();
-    verify_pageviews();
+    verify();
     println!("All tests passed!");
 }

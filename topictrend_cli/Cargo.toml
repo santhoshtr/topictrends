@@ -32,9 +32,9 @@ path = "src/per_day_wiki_stats.rs"
 name = "wikigraph"
 path = "src/main.rs"
 
-# [[bin]]
-# name = "test"
-# path = "src/test.rs"
+[[bin]]
+name = "simulation"
+path = "src/simulation.rs"
 
 [dependencies]
 topictrend_core = { path = "../topictrend_core" }
