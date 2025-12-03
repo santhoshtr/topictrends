@@ -1,6 +1,6 @@
 use crate::{csr_adjacency::CsrAdjacency, direct_map::DirectMap};
 use roaring::RoaringBitmap;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
 /// The core high-performance graph structure.
 /// All internal logic uses "Dense IDs" (0..N), not the raw Wikipedia Page QIDs.
@@ -174,5 +174,83 @@ impl WikiGraph {
                 self.cat_dense_to_original[idx]
             })
             .collect())
+    }
+
+    /// Calculates the depth of every category starting from a specific Root.
+    /// Returns:
+    /// 1. Max Depth found
+    /// 2. Average Depth
+    /// 3. Histogram: Map<Depth, Count_of_Categories>
+    /// 4. Unreachable Count (Islands)
+    pub fn analyze_depth_from_root(&self, root_qid: u32) -> (u32, f64, HashMap<u32, u32>, u32) {
+        println!("Analyzing graph depth starting from '{}'...", root_qid);
+        // 1. Find Root Dense ID
+        // Note: In some dumps the namespace "Category:" is part of the title, in others it is not.
+        // Adjust the string lookup based on your specific dump format.
+        let root_id = self.cat_original_to_dense.get(root_qid);
+
+        let root_id = match root_id {
+            Some(id) => id,
+            None => {
+                println!("Error: Root category '{}' not found!", root_qid);
+                return (0, 0.0, HashMap::new(), 0);
+            }
+        };
+
+        //  BFS State
+        let num_cats = self.cat_dense_to_original.len();
+
+        // Store depth for every node. u32::MAX represents "Unvisited/Unreachable".
+        let mut depths = vec![u32::MAX; num_cats];
+        let mut queue = VecDeque::new();
+
+        // 3. Initialize BFS
+        depths[root_id as usize] = 0;
+        queue.push_back(root_id);
+
+        let mut max_depth = 0;
+        let mut visited_count = 0;
+        let mut total_depth_sum: u64 = 0;
+
+        // 4. Run BFS
+        while let Some(curr) = queue.pop_front() {
+            let curr_depth = depths[curr as usize];
+
+            if curr_depth > max_depth {
+                max_depth = curr_depth;
+            }
+
+            visited_count += 1;
+            total_depth_sum += curr_depth as u64;
+
+            // Iterate Children (using CSR)
+            let children = self.children.get(curr);
+
+            for &child in children {
+                // Only visit if we haven't found a shorter path to this node yet
+                if depths[child as usize] == u32::MAX {
+                    depths[child as usize] = curr_depth + 1;
+                    queue.push_back(child);
+                }
+            }
+        }
+
+        // 5. Build Histogram
+        let mut histogram = HashMap::new();
+        for &d in &depths {
+            if d != u32::MAX {
+                *histogram.entry(d).or_insert(0) += 1;
+            }
+        }
+
+        let avg_depth = if visited_count > 0 {
+            total_depth_sum as f64 / visited_count as f64
+        } else {
+            0.0
+        };
+
+        let unreachable = num_cats as u32 - visited_count;
+
+        (max_depth, avg_depth, histogram, unreachable)
     }
 }

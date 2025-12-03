@@ -3,11 +3,17 @@ use chrono::{Datelike, NaiveDate};
 use roaring::RoaringBitmap;
 use std::io::Read;
 use std::{collections::HashMap, error::Error, fs::File};
+#[derive(Debug)]
+pub struct ArticleRank {
+    pub article_id: u32,
+    pub total_views: u64,
+}
 
 #[derive(Debug)]
 pub struct CategoryRank {
     pub category_id: u32,
     pub total_views: u64,
+    pub top_articles: Vec<ArticleRank>,
 }
 
 #[derive(Debug)]
@@ -244,9 +250,9 @@ impl PageViewEngine {
 
     /// Returns top N categories by DIRECT article views for a date range.
     pub fn get_top_categories(
-        &self,
-        start: NaiveDate,
-        end: NaiveDate,
+        &mut self,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
         top_n: usize,
     ) -> Vec<CategoryRank> {
         let num_articles = self.wikigraph.art_dense_to_original.len(); // Approx 7M for
@@ -258,12 +264,15 @@ impl PageViewEngine {
         // We can parallelize this sum if the range is huge, but usually linear is fine.
         let mut article_views = vec![0u32; num_articles];
 
-        let mut curr = start;
-        while curr <= end {
+        self.load_history_for_date_range(start_date, end_date)
+            .expect("Error in loading pageview history");
+
+        let mut curr = start_date;
+        while curr <= end_date {
             if let Some(day_vec) = self.daily_views.get(&curr) {
                 // Vectorized addition (compiler auto-vectorizes this loop)
-                for (i, &views) in day_vec.iter().enumerate() {
-                    article_views[i] += views;
+                for (article_dense_id, &views) in day_vec.iter().enumerate() {
+                    article_views[article_dense_id] += views;
                 }
             }
             curr = curr.succ_opt().unwrap();
@@ -290,23 +299,8 @@ impl PageViewEngine {
                 }
             }
         }
-        // Phase 3:  Propagate scores up (Optional)
-        // Warning: This is tricky with cycles.
-        // A simplified approach is "1-Level Propagation" which is often sufficient for trends.
 
-        // Iterate all categories
-        for cat_id in 0..num_cats {
-            let score = cat_scores[cat_id];
-            if score > 0 {
-                // Add my score to my parents
-                let parents = self.wikigraph.parents.get(cat_id as u32);
-                for &parent_id in parents {
-                    cat_scores[parent_id as usize] += score;
-                }
-            }
-        }
-
-        // Phase 4: Sort & Top N
+        // Phase 3: Sort & Top N
         // Create a list of indices to sort
         let mut ranked: Vec<usize> = (0..num_cats).collect();
 

@@ -94,6 +94,12 @@ fn verify() {
         .unwrap();
     assert_eq!(articles_in_cat.len(), 3);
 
+    let articles_in_cat = engine
+        .get_wikigraph()
+        .get_articles_in_category(1, u8::MAX)
+        .unwrap();
+    assert_eq!(articles_in_cat.len(), 4);
+
     let category_views = engine.get_category_trend(
         1,
         0,
@@ -108,13 +114,12 @@ fn verify() {
         "2032-10-12".parse().unwrap(),
         10,
     );
-    dbg!(&top_categories);
-    assert_eq!(top_categories[0].category_id, 1);
-    assert_eq!(top_categories[0].total_views, 1100);
-    assert_eq!(top_categories[1].category_id, 2);
-    assert_eq!(top_categories[1].total_views, 900);
-    assert_eq!(top_categories[2].category_id, 3);
-    assert_eq!(top_categories[2].total_views, 600);
+    assert_eq!(top_categories[0].category_id, 2);
+    assert_eq!(top_categories[0].total_views, 1700);
+    assert_eq!(top_categories[1].category_id, 3);
+    assert_eq!(top_categories[1].total_views, 1400);
+    assert_eq!(top_categories[2].category_id, 1);
+    assert_eq!(top_categories[2].total_views, 1100);
 }
 
 fn main() {

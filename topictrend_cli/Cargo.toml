@@ -36,6 +36,15 @@ path = "src/main.rs"
 name = "simulation"
 path = "src/simulation.rs"
 
+[[bin]]
+name = "catanalysis"
+path = "src/catanalysis.rs"
+
+
+[[bin]]
+name = "top-categories"
+path = "src/top_categories.rs"
+
 [dependencies]
 topictrend_core = { path = "../topictrend_core" }
 parquet = { workspace = true }
