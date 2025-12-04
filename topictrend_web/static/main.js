@@ -1,6 +1,6 @@
 import { autocomp } from "./autocomp.js";
 
-document.addEventListener("DOMContentLoaded", async function() {
+document.addEventListener("DOMContentLoaded", async function () {
   document.getElementById("trend-form").addEventListener("submit", onSubmit);
 
   // Set up wiki selector change handler
@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", async function() {
   const articleElement = document.getElementById("article");
   const categoryElement = document.getElementById("category");
 
-  wikiSelector.addEventListener("change", function() {
+  wikiSelector.addEventListener("change", function () {
     const wikiValue = this.value.replaceAll("wiki", "");
     articleElement?.setAttribute("wiki", wikiValue);
     categoryElement?.setAttribute("wiki", wikiValue);
@@ -32,6 +32,8 @@ async function onSubmit(event) {
   const wiki = document.getElementById("wiki").value;
   const startDate = document.getElementById("start_date").value;
   const endDate = document.getElementById("end_date").value;
+  const category_qid = document.getElementById("category_qid").value;
+  const article_qid = document.getElementById("article_qid").value;
   const depth = 20;
 
   params.append("type", type);
@@ -39,6 +41,12 @@ async function onSubmit(event) {
   params.append("start_date", startDate);
   params.append("end_date", endDate);
   params.append("depth", depth);
+  if (category_qid) {
+    params.append("category_qid", category_qid);
+  }
+  if (article_qid) {
+    params.append("article_qid", article_qid);
+  }
   try {
     if (type === "category") {
       const category = document
@@ -216,6 +224,7 @@ async function renderSubCategories(wiki, category) {
       event.preventDefault();
       const urlParams = new URLSearchParams(window.location.search);
       urlParams.set("category", title);
+      urlParams.set("category_qid", id);
       urlParams.set("type", "category");
       const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
       window.location.href = newUrl;
@@ -229,7 +238,7 @@ async function renderSubCategories(wiki, category) {
   categoryListContainer.appendChild(ul);
 }
 
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function () {
   const startDatePicker = document.getElementById("start_date");
   const endDatePicker = document.getElementById("end_date");
   const today = new Date();
@@ -323,7 +332,8 @@ function populateFormFromQueryParams() {
   const startDate = urlParams.get("start_date");
   const endDate = urlParams.get("end_date");
   const category = urlParams.get("category");
-  const article = urlParams.get("article");
+  const category_qid = urlParams.get("category_qid");
+  const article_qid = urlParams.get("article_qid");
 
   if (type) {
     document.querySelector(`input[name="type"][value="${type}"]`).checked =
@@ -340,9 +350,15 @@ function populateFormFromQueryParams() {
   }
   if (type === "category" && category) {
     document.getElementById("category").value = category.replaceAll("_", " ");
+    if (category_qid) {
+      document.getElementById("category_qid").value = category_qid;
+    }
   }
   if (type === "article" && article) {
     document.getElementById("article").value = article.replaceAll("_", " ");
+    if (article_qid) {
+      document.getElementById("article_qid").value = article_qid;
+    }
   }
 
   if (type && wiki && startDate && endDate) {

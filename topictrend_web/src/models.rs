@@ -35,6 +35,7 @@ pub struct CategoryTrendParams {
     pub wiki: String,
     pub category: String,
     pub depth: Option<u8>,
+    pub category_qid: Option<u32>,
     pub start_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
 }
@@ -42,6 +43,7 @@ pub struct CategoryTrendParams {
 pub struct ArticleTrendParams {
     pub wiki: String,
     pub article: String,
+    pub article_qid: Option<u32>,
     pub start_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
 }
@@ -50,6 +52,7 @@ pub struct ArticleTrendParams {
 pub struct SubCategoryParams {
     pub wiki: String,
     pub category: String,
+    pub category_qid: Option<u32>,
 }
 
 #[derive(Deserialize)]

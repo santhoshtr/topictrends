@@ -3,6 +3,7 @@ mod models;
 mod wiki;
 
 use crate::models::AppState;
+use axum::http::header::{CACHE_CONTROL, HeaderValue};
 use axum::{
     Router,
     http::{Method, StatusCode, header::*},
@@ -10,6 +11,7 @@ use axum::{
     routing::{get, get_service},
 };
 use std::{net::SocketAddr, sync::Arc};
+use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::{cors::CorsLayer, services::ServeDir};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -60,7 +62,12 @@ async fn main() {
             get(handlers::get_top_categories_handler),
         )
         .with_state(state)
-        .layer(cors);
+        .layer(cors)
+        .layer(SetResponseHeaderLayer::if_not_present(
+            CACHE_CONTROL,
+            HeaderValue::from_static("public, max-age=3600"),
+            // 1 hour
+        ));
 
     println!("🚀 Server started successfully on port {}", port);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));

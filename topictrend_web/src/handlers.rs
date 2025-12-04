@@ -64,9 +64,13 @@ pub async fn get_category_trend_handler(
         .end_date
         .unwrap_or_else(|| chrono::Local::now().date_naive());
 
-    let category_qid = get_qid_by_title(Arc::clone(&state), &params.wiki, &params.category, &14_i8)
-        .await
-        .map_err(|e| ApiError::DatabaseError(e))?;
+    let category_qid = if let Some(qid) = params.category_qid {
+        qid
+    } else {
+        get_qid_by_title(Arc::clone(&state), &params.wiki, &params.category, &14_i8)
+            .await
+            .map_err(|e| ApiError::DatabaseError(e))?
+    };
 
     // Wrap the entire blocking operation
     let now = Instant::now();
@@ -102,9 +106,13 @@ pub async fn get_article_trend_handler(
         .end_date
         .unwrap_or_else(|| chrono::Local::now().date_naive());
 
-    let article_qid = get_qid_by_title(Arc::clone(&state), &params.wiki, &params.article, &0_i8)
-        .await
-        .map_err(|e| ApiError::DatabaseError(e))?;
+    let article_qid = if let Some(qid) = params.article_qid {
+        qid
+    } else {
+        get_qid_by_title(Arc::clone(&state), &params.wiki, &params.article, &0_i8)
+            .await
+            .map_err(|e| ApiError::DatabaseError(e))?
+    };
 
     // Wrap the entire blocking operation
     let engine = get_or_build_engine(state, &params.wiki)
@@ -153,9 +161,13 @@ pub async fn get_sub_categories(
     Query(params): Query<SubCategoryParams>,
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<HashMap<u32, String>>, ApiError> {
-    let category_qid = get_qid_by_title(Arc::clone(&state), &params.wiki, &params.category, &14_i8)
-        .await
-        .map_err(|e| ApiError::DatabaseError(e))?;
+    let category_qid = if let Some(qid) = params.category_qid {
+        qid
+    } else {
+        get_qid_by_title(Arc::clone(&state), &params.wiki, &params.category, &14_i8)
+            .await
+            .map_err(|e| ApiError::DatabaseError(e))?
+    };
 
     let engine = get_or_build_engine(Arc::clone(&state), &params.wiki)
         .await
