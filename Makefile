@@ -145,7 +145,7 @@ monthly: init
 	LAST_DAY=$$(date -d "$$YEAR-$$MONTH-01 +1 month -1 day" +%d); \
 	echo "Processing $$YEAR-$$MONTH (1 to $$LAST_DAY)..."; \
 	for DAY in $$(seq 1 $$LAST_DAY); do \
-		PROCESS_DATE=$$(printf "%s-%02d-%02d" $$YEAR $$MONTH $$DAY); \
+		PROCESS_DATE=$$(printf "%s-%02d-%02d" $$YEAR $$((10#$$MONTH)) $$DAY); \
 		echo "Processing date: $$PROCESS_DATE"; \
 		$(MAKE) run DATE="$$PROCESS_DATE" || true; \
 	done; \
