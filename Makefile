@@ -135,14 +135,21 @@ qdrant:
 	docker run -d --rm -p 6333:6333 -p 6334:6334 --name qdrant qdrant/qdrant
 
 # Monthly processing target
+# make monthly END_DATE=2025-08-30  # Processes all dates from 2025-08-01 to 2025-08-31
+# make monthly END_DATE=2025-02-15  # Processes all dates from 2025-02-01 to 2025-02-28
 monthly: init
-	@echo "Processing last 30 days..."
-	@for i in $$(seq 1 30); do \
-		DATE=$$(date -d "$$i days ago" +%Y-%m-%d); \
-		echo "Processing date: $$DATE"; \
-		$(MAKE) run DATE="$$DATE"; \
-	done
-	@echo "Monthly processing complete!"
+	@END_DATE_VAR=$${END_DATE:-$$(date +%Y-%m-%d)}; \
+	echo "Processing month containing END_DATE=$$END_DATE_VAR..."; \
+	YEAR=$$(echo $$END_DATE_VAR | cut -d'-' -f1); \
+	MONTH=$$(echo $$END_DATE_VAR | cut -d'-' -f2); \
+	LAST_DAY=$$(date -d "$$YEAR-$$MONTH-01 +1 month -1 day" +%d); \
+	echo "Processing $$YEAR-$$MONTH (1 to $$LAST_DAY)..."; \
+	for DAY in $$(seq 1 $$LAST_DAY); do \
+		PROCESS_DATE=$$(printf "%s-%02d-%02d" $$YEAR $$MONTH $$DAY); \
+		echo "Processing date: $$PROCESS_DATE"; \
+		$(MAKE) run DATE="$$PROCESS_DATE" || true; \
+	done; \
+	echo "Monthly processing complete for $$YEAR-$$MONTH!"
 
 # Prevent deletion of intermediate files
 .PRECIOUS: $(DATA_DIR)/%/articles.parquet \
