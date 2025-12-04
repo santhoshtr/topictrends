@@ -3,11 +3,12 @@ use chrono::{Datelike, NaiveDate};
 use roaring::RoaringBitmap;
 use std::fmt;
 use std::io::Read;
+use std::time::{Duration, Instant};
 use std::{collections::HashMap, error::Error, fs::File};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ArticleRank {
-    pub article_id: u32,
+    pub article_qid: u32,
     pub total_views: u64,
 }
 
@@ -16,27 +17,112 @@ impl fmt::Display for ArticleRank {
         write!(
             f,
             "Article: Q{} - Views: {}",
-            self.article_id, self.total_views
+            self.article_qid, self.total_views
         )
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CategoryRank {
-    pub category_id: u32,
+    pub category_qid: u32,
     pub total_views: u64,
     pub top_articles: Vec<ArticleRank>,
 }
 
 impl fmt::Display for CategoryRank {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Category: Q{}", self.category_id)?;
+        writeln!(f, "Category: Q{}", self.category_qid)?;
         writeln!(f, "Total Views: {}", self.total_views)?;
         writeln!(f, "Top Articles:")?;
         for (i, article) in self.top_articles.iter().enumerate() {
             writeln!(f, "{:>2}. {}", i + 1, article)?;
         }
         Ok(())
+    }
+}
+
+#[derive(Hash, Eq, PartialEq, Clone, Debug)]
+struct TopCategoriesCacheKey {
+    start: NaiveDate,
+    end: NaiveDate,
+    top_n: usize,
+}
+
+#[derive(Debug)]
+struct TopCategoriesCacheEntry {
+    data: Vec<CategoryRank>,
+    created_at: Instant,
+    ttl: Duration,
+}
+
+impl TopCategoriesCacheEntry {
+    fn is_expired(&self) -> bool {
+        self.created_at.elapsed() > self.ttl
+    }
+}
+
+#[derive(Debug)]
+pub struct TopCategoriesCache {
+    cache: HashMap<TopCategoriesCacheKey, TopCategoriesCacheEntry>,
+    last_cleanup: Instant,
+}
+
+impl TopCategoriesCache {
+    fn new() -> Self {
+        Self {
+            cache: HashMap::new(),
+            last_cleanup: Instant::now(),
+        }
+    }
+
+    fn get_ttl(start_date: NaiveDate, end_date: NaiveDate) -> Duration {
+        let today = chrono::Local::now().date_naive();
+        let days_ago = (today - end_date).num_days();
+
+        // Recent data changes frequently, cache for shorter time
+        if days_ago <= 1 {
+            Duration::from_secs(15 * 60) // 15 minutes
+        } else if days_ago <= 7 {
+            Duration::from_secs(60 * 60) // 1 hour
+        } else if days_ago <= 30 {
+            Duration::from_secs(6 * 60 * 60) // 6 hours
+        } else {
+            Duration::from_secs(24 * 60 * 60) // 24 hours for historical data
+        }
+    }
+
+    fn get(&self, key: &TopCategoriesCacheKey) -> Option<Vec<CategoryRank>> {
+        self.cache.get(key).and_then(|entry| {
+            if entry.is_expired() {
+                None
+            } else {
+                Some(entry.data.clone())
+            }
+        })
+    }
+
+    fn insert(&mut self, key: TopCategoriesCacheKey, data: Vec<CategoryRank>) {
+        let ttl = Self::get_ttl(key.start, key.end);
+        let entry = TopCategoriesCacheEntry {
+            data,
+            created_at: Instant::now(),
+            ttl,
+        };
+        self.cache.insert(key, entry);
+
+        // Cleanup expired entries every 10 minutes
+        if self.last_cleanup.elapsed() > Duration::from_secs(10 * 60) {
+            self.cleanup_expired();
+            self.last_cleanup = Instant::now();
+        }
+    }
+
+    fn cleanup_expired(&mut self) {
+        self.cache.retain(|_, entry| !entry.is_expired());
+    }
+
+    fn clear(&mut self) {
+        self.cache.clear();
     }
 }
 
@@ -47,6 +133,7 @@ pub struct PageViewEngine {
     daily_views: HashMap<NaiveDate, Vec<u32>>,
     wiki: String,
     wikigraph: WikiGraph,
+    top_categories_cache: TopCategoriesCache,
 }
 
 pub fn load_bin_file(path: &str, expected_size: usize) -> Result<Vec<u32>, Box<dyn Error>> {
@@ -82,6 +169,7 @@ impl PageViewEngine {
             wiki: wiki.to_string(),
             daily_views: HashMap::new(),
             wikigraph: graph,
+            top_categories_cache: TopCategoriesCache::new(),
         }
     }
 
@@ -272,6 +360,11 @@ impl PageViewEngine {
         Ok(Some(day_vec))
     }
 
+    /// Clear the top categories cache
+    pub fn clear_top_categories_cache(&mut self) {
+        self.top_categories_cache.clear();
+    }
+
     /// Returns top N categories by DIRECT article views for a date range.
     pub fn get_top_categories(
         &mut self,
@@ -279,6 +372,20 @@ impl PageViewEngine {
         end_date: NaiveDate,
         top_n: usize,
     ) -> Result<Vec<CategoryRank>, Box<dyn Error>> {
+        // Check cache first
+        let cache_key = TopCategoriesCacheKey {
+            start: start_date,
+            end: end_date,
+            top_n,
+        };
+
+        if let Some(cached_result) = self.top_categories_cache.get(&cache_key) {
+            println!("Cache hit for top_categories query: {:?}", cache_key);
+            return Ok(cached_result);
+        }
+
+        println!("Cache miss for top_categories query: {:?}", cache_key);
+
         let num_articles = self.wikigraph.art_dense_to_original.len(); // Approx 7M for
         // enwiki
         let num_cats = self.wikigraph.cat_dense_to_original.len(); // Approx 2.5M for enwiki
@@ -335,7 +442,7 @@ impl PageViewEngine {
         ranked.sort_by(|&a, &b| cat_scores[b].cmp(&cat_scores[a]));
 
         //  Transform to Output
-        let results = ranked
+        let results: Vec<CategoryRank> = ranked
             .into_iter()
             .take(top_n)
             .filter(|&idx| cat_scores[idx] > 0) // Filter out zero view categories
@@ -348,18 +455,22 @@ impl PageViewEngine {
                     .into_iter()
                     .take(top_n)
                     .map(|(art_dense_id, views)| ArticleRank {
-                        article_id: self.wikigraph.art_dense_to_original[art_dense_id as usize],
+                        article_qid: self.wikigraph.art_dense_to_original[art_dense_id as usize],
                         total_views: views as u64,
                     })
                     .collect();
 
                 CategoryRank {
-                    category_id: self.wikigraph.cat_dense_to_original[cat_dense_id],
+                    category_qid: self.wikigraph.cat_dense_to_original[cat_dense_id],
                     total_views: cat_scores[cat_dense_id],
                     top_articles,
                 }
             })
             .collect();
+
+        // Cache the result
+        self.top_categories_cache.insert(cache_key, results.clone());
+
         Ok(results)
     }
 }

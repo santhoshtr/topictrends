@@ -230,9 +230,9 @@ pub async fn get_top_categories_handler(
     let mut all_qids = Vec::new();
 
     for category in &categories {
-        all_qids.push(category.category_id);
+        all_qids.push(category.category_qid);
         for article in &category.top_articles {
-            all_qids.push(article.article_id);
+            all_qids.push(article.article_qid);
         }
     }
 
@@ -246,21 +246,21 @@ pub async fn get_top_categories_handler(
         .into_iter()
         .map(|cat| {
             let category_title = titles_map
-                .get(&cat.category_id)
+                .get(&cat.category_qid)
                 .cloned()
-                .unwrap_or_else(|| format!("Q{}", cat.category_id));
+                .unwrap_or_else(|| format!("Q{}", cat.category_qid));
 
             let top_articles: Vec<TopArticle> = cat
                 .top_articles
                 .into_iter()
                 .map(|art| {
                     let article_title = titles_map
-                        .get(&art.article_id)
+                        .get(&art.article_qid)
                         .cloned()
-                        .unwrap_or_else(|| format!("Q{}", art.article_id));
+                        .unwrap_or_else(|| format!("Q{}", art.article_qid));
 
                     TopArticle {
-                        qid: art.article_id,
+                        qid: art.article_qid,
                         title: article_title,
                         views: art.total_views as u32,
                     }
@@ -268,7 +268,7 @@ pub async fn get_top_categories_handler(
                 .collect();
 
             TopCategory {
-                qid: cat.category_id,
+                qid: cat.category_qid,
                 title: category_title,
                 views: cat.total_views as u32,
                 top_articles,

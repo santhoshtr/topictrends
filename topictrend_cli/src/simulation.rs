@@ -116,11 +116,11 @@ fn verify() {
             10,
         )
         .unwrap();
-    assert_eq!(top_categories[0].category_id, 2);
+    assert_eq!(top_categories[0].category_qid, 2);
     assert_eq!(top_categories[0].total_views, 1700);
-    assert_eq!(top_categories[1].category_id, 3);
+    assert_eq!(top_categories[1].category_qid, 3);
     assert_eq!(top_categories[1].total_views, 1400);
-    assert_eq!(top_categories[2].category_id, 1);
+    assert_eq!(top_categories[2].category_qid, 1);
     assert_eq!(top_categories[2].total_views, 1100);
 }
 
