@@ -34,7 +34,7 @@ async function onSubmit(event) {
   const endDate = document.getElementById("end_date").value;
   const category_qid = document.getElementById("category_qid").value;
   const article_qid = document.getElementById("article_qid").value;
-  const depth = 20;
+  const depth = document.getElementById("depth").value;
 
   params.append("type", type);
   params.append("wiki", wiki);
@@ -59,7 +59,7 @@ async function onSubmit(event) {
       window.history.pushState({}, "", newUrl);
 
       await fetchCategoryPageviews(wiki, category, startDate, endDate, depth);
-      await renderSubCategories(wiki, category);
+      await renderSubCategories(wiki, category, depth);
     } else if (type === "article") {
       const article = document
         .getElementById("article")
@@ -170,7 +170,7 @@ function updateChart(data, label) {
   });
 }
 
-async function renderSubCategories(wiki, category) {
+async function renderSubCategories(wiki, category, depth = 20) {
   const categoryListContainer = document.getElementById("category-list");
   const apiUrl = `/api/list/sub_categories?wiki=${wiki}&category=${category}`;
 
@@ -210,7 +210,6 @@ async function renderSubCategories(wiki, category) {
       event.preventDefault();
       const startDate = document.getElementById("start_date").value;
       const endDate = document.getElementById("end_date").value;
-      const depth = 20;
 
       fetchCategoryPageviews(wiki, title, startDate, endDate, depth);
     });
@@ -345,10 +344,14 @@ function populateFormFromQueryParams() {
   const category = urlParams.get("category");
   const category_qid = urlParams.get("category_qid");
   const article_qid = urlParams.get("article_qid");
+  const depth = urlParams.get("depth");
 
   if (type) {
     document.querySelector(`input[name="type"][value="${type}"]`).checked =
       true;
+  }
+  if (depth) {
+    document.getElementById("depth").value = depth;
   }
   if (wiki) {
     document.getElementById("wiki").value = wiki;
