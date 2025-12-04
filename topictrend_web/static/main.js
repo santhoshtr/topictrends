@@ -276,7 +276,7 @@ async function fetchCategoryPageviews(
     }
 
     const data = await response.json();
-    updateChart(data, label);
+    updateChart(data.views, label);
     const endTime = performance.now();
     const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
     showMessage(`Fetched ${label} in ${timeTaken} seconds.`, "success");
@@ -300,7 +300,7 @@ async function fetchArticlePageviews(wiki, article, startDate, endDate) {
     }
 
     const data = await response.json();
-    updateChart(data, label);
+    updateChart(data.views, label);
     const endTime = performance.now();
     const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
     showMessage(`Fetched ${label} in ${timeTaken} seconds.`, "success");

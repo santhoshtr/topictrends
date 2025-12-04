@@ -13,11 +13,12 @@ use std::{
 use topictrend::pageview_engine::PageViewEngine;
 
 use crate::models::{
-    AppState, ArticleTrendParams, CategoryRankResponse, CategoryTrendParams, SubCategoryParams,
-    TopArticle, TopCategoriesParams, TopCategory,
+    AppState, ArticleTrendParams, CategoryRankResponse, CategoryTrendParams, DailyViews,
+    SubCategoryParams, TopArticle, TopCategoriesParams, TopCategory,
 };
 use crate::{
-    models::TrendResponse,
+    models::ArticleTrendResponse,
+    models::CategoryTrendResponse,
     wiki::{get_qid_by_title, get_titles_by_qids},
 };
 
@@ -55,7 +56,7 @@ impl IntoResponse for ApiError {
 pub async fn get_category_trend_handler(
     Query(params): Query<CategoryTrendParams>,
     State(state): State<Arc<AppState>>,
-) -> Result<Json<Vec<TrendResponse>>, ApiError> {
+) -> Result<Json<CategoryTrendResponse>, ApiError> {
     let depth = params.depth.unwrap_or(0);
     let start = params
         .start_date
@@ -74,31 +75,73 @@ pub async fn get_category_trend_handler(
 
     // Wrap the entire blocking operation
     let now = Instant::now();
-    let engine = get_or_build_engine(state, &params.wiki)
+    let engine = get_or_build_engine(Arc::clone(&state), &params.wiki)
         .await
         .map_err(|e| ApiError::InternalError(format!("Failed to build engine: {}", e)))?;
 
     println!("Engine build completed in {:.2?}s", now.elapsed());
 
     // Acquire a write lock to access the engine mutably
-    let raw_data = {
+    let (raw_data, category_rank) = {
         let mut engine_lock = engine
             .write()
             .map_err(|e| ApiError::InternalError(format!("Failed to acquire write lock: {}", e)))?;
-        engine_lock.get_category_trend(category_qid, depth, start, end)
+
+        let trend_data = engine_lock.get_category_trend(category_qid, depth, start, end);
+        let top_articles = engine_lock
+            .get_top_articles_in_category(category_qid, start, end, depth, 10)
+            .map_err(|e| ApiError::EngineError(format!("Failed to get top articles: {}", e)))?;
+
+        (trend_data, top_articles)
     };
-    let response = raw_data
+
+    let daily_views: Vec<DailyViews> = raw_data
         .into_iter()
-        .map(|(date, views)| TrendResponse { date, views })
+        .map(|(date, views)| DailyViews { date, views })
         .collect();
 
-    Ok(Json(response))
+    // Collect all article QIDs to fetch titles
+    let article_qids: Vec<u32> = category_rank
+        .top_articles
+        .iter()
+        .map(|a| a.article_qid)
+        .collect();
+
+    // Fetch titles for all articles
+    let titles_map = get_titles_by_qids(Arc::clone(&state), &params.wiki, article_qids)
+        .await
+        .map_err(|e| ApiError::DatabaseError(e))?;
+
+    // Transform to TopArticle with titles
+    let top_articles: Vec<TopArticle> = category_rank
+        .top_articles
+        .into_iter()
+        .map(|art| {
+            let article_title = titles_map
+                .get(&art.article_qid)
+                .cloned()
+                .unwrap_or_else(|| format!("Q{}", art.article_qid));
+
+            TopArticle {
+                qid: art.article_qid,
+                title: article_title,
+                views: art.total_views as u32,
+            }
+        })
+        .collect();
+
+    Ok(Json(CategoryTrendResponse {
+        qid: category_qid,
+        title: params.category,
+        views: daily_views,
+        top_articles,
+    }))
 }
 
 pub async fn get_article_trend_handler(
     Query(params): Query<ArticleTrendParams>,
     State(state): State<Arc<AppState>>,
-) -> Result<Json<Vec<TrendResponse>>, ApiError> {
+) -> Result<Json<ArticleTrendResponse>, ApiError> {
     let start = params
         .start_date
         .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
@@ -126,12 +169,16 @@ pub async fn get_article_trend_handler(
             .map_err(|e| ApiError::InternalError(format!("Failed to acquire write lock: {}", e)))?;
         engine_lock.get_article_trend(article_qid, start, end)
     };
-    let response = raw_data
+    let daily_views = raw_data
         .into_iter()
-        .map(|(date, views)| TrendResponse { date, views })
+        .map(|(date, views)| DailyViews { date, views })
         .collect();
 
-    Ok(Json(response))
+    Ok(Json(ArticleTrendResponse {
+        qid: article_qid,
+        title: params.article,
+        views: daily_views,
+    }))
 }
 
 async fn get_or_build_engine(

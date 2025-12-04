@@ -65,9 +65,24 @@ pub struct TopCategoriesParams {
 
 // --- Response DTO ---
 #[derive(Serialize)]
-pub struct TrendResponse {
+pub struct DailyViews {
     pub date: NaiveDate,
     pub views: u64,
+}
+
+#[derive(Serialize)]
+pub struct ArticleTrendResponse {
+    pub qid: u32,
+    pub title: String,
+    pub views: Vec<DailyViews>,
+}
+
+#[derive(Serialize)]
+pub struct CategoryTrendResponse {
+    pub qid: u32,
+    pub title: String,
+    pub views: Vec<DailyViews>,
+    pub top_articles: Vec<TopArticle>,
 }
 
 #[derive(Serialize)]

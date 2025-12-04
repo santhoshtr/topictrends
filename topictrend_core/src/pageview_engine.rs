@@ -177,7 +177,6 @@ impl PageViewEngine {
         &self.wikigraph
     }
 
-    /// Calculate the total pageviews for a set of articles over time.
     pub fn get_category_trend(
         &mut self,
         category_qid: u32,
@@ -472,5 +471,74 @@ impl PageViewEngine {
         self.top_categories_cache.insert(cache_key, results.clone());
 
         Ok(results)
+    }
+
+    pub fn get_top_articles_in_category(
+        &mut self,
+        category_qid: u32,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+        depth: u8,
+        top_n: usize,
+    ) -> Result<CategoryRank, Box<dyn Error>> {
+        // Get all articles in this category (depth 0 for direct children only)
+        let article_mask = self
+            .wikigraph
+            .get_articles_in_category_as_dense(category_qid, depth)?;
+
+        if article_mask.is_empty() {
+            return Ok(CategoryRank {
+                category_qid,
+                total_views: 0,
+                top_articles: vec![],
+            });
+        }
+
+        // Load pageview history for the date range
+        self.load_history_for_date_range(start_date, end_date)?;
+
+        // Aggregate views for each article
+        let mut article_views: Vec<(u32, u64)> = Vec::new();
+
+        for article_dense_id in article_mask.iter() {
+            let mut total_views = 0u64;
+
+            let mut curr = start_date;
+            while curr <= end_date {
+                if let Some(day_data) = self.daily_views.get(&curr) {
+                    if let Some(&views) = day_data.get(article_dense_id as usize) {
+                        total_views += views as u64;
+                    }
+                }
+                curr = curr.succ_opt().unwrap();
+            }
+
+            if total_views > 0 {
+                let article_qid = self.wikigraph.art_dense_to_original[article_dense_id as usize];
+                article_views.push((article_qid, total_views));
+            }
+        }
+
+        // Sort by views descending
+        article_views.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+
+        // Take top N and convert to ArticleRank
+        let top_articles: Vec<ArticleRank> = article_views
+            .into_iter()
+            .take(top_n)
+            .map(|(article_qid, total_views)| ArticleRank {
+                article_qid,
+                total_views,
+            })
+            .collect();
+
+        // Calculate total views for the category
+        let total_views: u64 = top_articles.iter().map(|a| a.total_views).sum();
+
+        Ok(CategoryRank {
+            category_qid,
+            total_views,
+            top_articles,
+        })
     }
 }
