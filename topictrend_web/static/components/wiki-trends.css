@@ -1,5 +1,3 @@
-@import url('https://cdn.jsdelivr.net/npm/@wikimedia/codex-design-tokens/theme-wikimedia-ui-root.css');
-
 :host {
   display: block;
 }
@@ -33,108 +31,8 @@
   background-color: var(--background-color-neutral);
 }
 
-.article-item {
-  background: var(--background-color-base);
-  padding: 15px;
-  display: grid;
-  grid-template-columns: 100px 1fr auto;
-  gap: 15px;
-  align-items: center;
-  transition: background-color 0.2s;
-
-  &:hover {
-    background-color: var(--background-color-interactive-subtle);
-  }
-}
-
-.article-image {
-  width: 100px;
-  height: 100px;
-  object-fit: cover;
-  border-radius: 4px;
-}
-
-.article-content {
-  min-width: 0;
-}
-
-.article-title {
-  font-size: var(--font-size-large);
-  font-weight: 600;
-  margin: 0 0 8px 0;
-  color: var(--color-progressive);
-  cursor: pointer;
-
-  &:hover {
-    text-decoration: underline;
-    color: var(--color-progressive--hover);
-  }
-}
-
-.categories {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-bottom: 8px;
-}
-
-.category-tag {
-  background-color: var(--background-color-progressive-subtle);
-  color: var(--color-progressive);
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: var(--font-size-x-small);
-  font-weight: 500;
-}
-
-.article-views {
-  color: var(--color-subtle);
-  font-size: var(--font-size-small);
-  font-weight: 500;
-}
-
-.views-count {
-  background: var(--background-color-neutral-subtle);
-  padding: 8px 12px;
-  border-radius: 4px;
-  text-align: center;
-  min-width: 80px;
-}
-
-.views-number {
-  font-size: var(--font-size-large);
-  font-weight: 600;
-  color: var(--color-base);
-}
-
-.views-label {
-  font-size: var(--font-size-x-small);
-  color: var(--color-subtle);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
 .empty-state {
   text-align: center;
   padding: 40px;
   color: var(--color-subtle);
-}
-
-@media (max-width: 768px) {
-  .article-item {
-    grid-template-columns: 80px 1fr;
-    grid-template-rows: auto auto;
-  }
-
-  .views-count {
-    grid-column: 1;
-    grid-row: 2;
-    justify-self: start;
-    margin-top: 10px;
-  }
-
-  .article-image {
-    width: 80px;
-    height: 80px;
-  }
 }

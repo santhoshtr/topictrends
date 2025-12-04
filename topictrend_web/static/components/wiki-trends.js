@@ -39,34 +39,43 @@ class TopicTrends extends HTMLElement {
 
       const data = await response.json();
 
-      // Process articles - flatten all articles from all categories
       this.articles = [];
-      const articleMap = new Map(); // Use Map to deduplicate by title
+      const articleMap = new Map();
 
       data.categories.forEach((category) => {
         category.top_articles.forEach((article) => {
-          // If article already exists, add this category to it
           if (articleMap.has(article.title)) {
             const existingArticle = articleMap.get(article.title);
-            if (!existingArticle.categories.includes(category.title)) {
-              existingArticle.categories.push(category.title);
+            if (
+              !existingArticle.categories.some(
+                (cat) => cat.title === category.title,
+              )
+            ) {
+              existingArticle.categories.push({
+                qid: category.qid,
+                title: category.title,
+                views: category.views,
+              });
             }
           } else {
-            // Create new article with its first category
             articleMap.set(article.title, {
               ...article,
-              categories: [category.title],
+              categories: [
+                {
+                  qid: category.qid,
+                  title: category.title,
+                  views: category.views,
+                },
+              ],
             });
           }
         });
       });
 
-      // Convert Map back to array and sort by views
       this.articles = Array.from(articleMap.values()).sort(
         (a, b) => b.views - a.views,
       );
 
-      // Update stats
       const statsDisplay = document.getElementById("stats-display");
       if (statsDisplay) {
         const wikiCode = this.wiki.replace("wiki", "");
@@ -79,19 +88,6 @@ class TopicTrends extends HTMLElement {
       this.loading = false;
       this.render();
     }
-  }
-
-  formatViews(views) {
-    if (views >= 1000000) {
-      return (views / 1000000).toFixed(1) + "M";
-    } else if (views >= 1000) {
-      return (views / 1000).toFixed(0) + "k";
-    }
-    return views.toString();
-  }
-
-  formatTitle(title) {
-    return title.replace(/_/g, " ");
   }
 
   createLoadingElement() {
@@ -120,63 +116,13 @@ class TopicTrends extends HTMLElement {
   }
 
   createArticleElement(article) {
-    const wikiCode = this.wiki.replace("wiki", "");
-    const imageUrl = `https://wiki-display-image.toolforge.org/webp/${wikiCode}/${encodeURIComponent(article.title)}?width=180`;
-
-    const articleDiv = document.createElement("div");
-    articleDiv.className = "article-item";
-
-    // Create image
-    const img = document.createElement("img");
-    img.src = imageUrl;
-    img.alt = this.formatTitle(article.title);
-    img.className = "article-image";
-    img.setAttribute("loading", "lazy");
-    // Create content div
-    const contentDiv = document.createElement("div");
-    contentDiv.className = "article-content";
-
-    // Create title
-    const titleDiv = document.createElement("a");
-    titleDiv.className = "article-title";
-    titleDiv.textContent = this.formatTitle(article.title);
-    titleDiv.href = `https://${wikiCode}.wikipedia.org/wiki/${article.title}`;
-
-    // Create categories div
-    const categoriesDiv = document.createElement("div");
-    categoriesDiv.className = "categories";
-
-    article.categories.forEach((cat) => {
-      const categoryTag = document.createElement("span");
-      categoryTag.className = "category-tag";
-      categoryTag.textContent = this.formatTitle(cat);
-      categoriesDiv.appendChild(categoryTag);
-    });
-
-    contentDiv.appendChild(titleDiv);
-    contentDiv.appendChild(categoriesDiv);
-
-    // Create views count div
-    const viewsDiv = document.createElement("div");
-    viewsDiv.className = "views-count";
-
-    const viewsNumber = document.createElement("div");
-    viewsNumber.className = "views-number";
-    viewsNumber.textContent = this.formatViews(article.views);
-
-    const viewsLabel = document.createElement("div");
-    viewsLabel.className = "views-label";
-    viewsLabel.textContent = "Views";
-
-    viewsDiv.appendChild(viewsNumber);
-    viewsDiv.appendChild(viewsLabel);
-
-    // Assemble article item
-    articleDiv.appendChild(img);
-    articleDiv.appendChild(contentDiv);
-    articleDiv.appendChild(viewsDiv);
-
-    return articleDiv;
+    const articleEl = document.createElement("wiki-article-pageviews");
+    articleEl.setAttribute("wiki", this.wiki);
+    articleEl.setAttribute("title", article.title);
+    articleEl.setAttribute("views", article.views.toString());
+    articleEl.setAttribute("qid", article.qid.toString());
+    articleEl.setAttribute("categories", JSON.stringify(article.categories));
+    return articleEl;
   }
 
   createArticlesListElement() {
@@ -199,15 +145,12 @@ class TopicTrends extends HTMLElement {
   }
 
   async render() {
-    // Clear shadow root
     this.shadowRoot.innerHTML = "";
 
-    // Load and add styles
     const style = document.createElement("style");
     style.textContent = `@import url(${styleURL});`;
     this.shadowRoot.appendChild(style);
 
-    // Create container
     const container = document.createElement("div");
     container.className = "container";
 
@@ -231,5 +174,4 @@ class TopicTrends extends HTMLElement {
   }
 }
 
-// Define the custom element
 customElements.define("wiki-trends", TopicTrends);
