@@ -24,6 +24,30 @@ document.addEventListener("DOMContentLoaded", async function () {
   populateFormFromQueryParams();
 });
 
+function showSection(section) {
+  const chart = document.getElementById("chart");
+  const topArticles = document.getElementById("top-articles");
+  const categoryList = document.getElementById("category-list");
+  const wikiTrends = document.querySelector("wiki-trends");
+
+  // Clear/hide all sections
+  if (chart) chart.style.display = "none";
+  if (topArticles) topArticles.innerHTML = "";
+  if (wikiTrends) wikiTrends.remove();
+
+  // Show requested section
+  if (section === "chart") {
+    if (chart) chart.style.display = "block";
+  } else if (section === "chart-with-articles") {
+    if (chart) chart.style.display = "block";
+    // top-articles will be populated separately
+  } else if (section === "wiki-trends") {
+    // wiki-trends component will be added separately
+    // Also clear category list when showing wiki-trends
+    if (categoryList) categoryList.innerHTML = "";
+  }
+}
+
 async function onSubmit(event) {
   event.preventDefault();
 
@@ -83,8 +107,8 @@ function initializeChart() {
   const theme = window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";
-  document.getElementById("chart").style.display = "block";
-  chartInstance = echarts.init(document.getElementById("chart"), theme, {
+  const chartElement = document.getElementById("chart");
+  chartInstance = echarts.init(chartElement, theme, {
     renderer: "svg",
   });
 
@@ -110,7 +134,7 @@ function initializeChart() {
     },
     legend: {
       top: "bottom",
-      left: "center", // Center the legend horizontally
+      left: "center",
     },
     xAxis: {
       type: "category",
@@ -149,7 +173,7 @@ function updateChart(data, label) {
   const newDates = data.map((item) => item.date);
   const existingDates = existingOption.xAxis[0].data;
   const mergedDates = Array.from(new Set([...existingDates, ...newDates]));
-  mergedDates.sort(); // Ensure dates are sorted
+  mergedDates.sort();
   chartInstance.setOption({
     xAxis: {
       data: mergedDates,
@@ -180,7 +204,7 @@ async function renderSubCategories(wiki, category, depth = 20) {
     throw new Error("Failed to fetch data");
   }
 
-  categoryListContainer.innerHTML = ""; // Clear previous results
+  categoryListContainer.innerHTML = "";
 
   const subheading = document.createElement("h3");
   subheading.textContent = "Subcategories";
@@ -225,14 +249,16 @@ async function renderSubCategories(wiki, category, depth = 20) {
 function renderTopArticles(wiki, topArticles) {
   const container = document.getElementById("top-articles");
 
+  container.innerHTML = "";
+
   if (!topArticles || topArticles.length === 0) {
     return;
   }
-  container.innerHTML = "";
 
   const subheading = document.createElement("h3");
   subheading.textContent = "Top Articles in Category";
   container.appendChild(subheading);
+
   topArticles.forEach((article) => {
     const articleEl = document.createElement("wiki-article-pageviews");
     articleEl.setAttribute("wiki", wiki);
@@ -251,7 +277,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Format the date to "YYYY-MM-DD" as required by the input type="date"
   let year = today.getFullYear();
-  let month = String(today.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+  let month = String(today.getMonth() + 1).padStart(2, "0");
   let day = String(today.getDate()).padStart(2, "0");
   endDatePicker.value = `${year}-${month}-${day}`;
 
@@ -261,7 +287,7 @@ document.addEventListener("DOMContentLoaded", function () {
     today.getDate(),
   );
   year = oneMonthAgo.getFullYear();
-  month = String(oneMonthAgo.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+  month = String(oneMonthAgo.getMonth() + 1).padStart(2, "0");
   day = String(oneMonthAgo.getDate()).padStart(2, "0");
 
   startDatePicker.value = `${year}-${month}-${day}`;
@@ -284,6 +310,8 @@ async function fetchCategoryPageviews(
   endDate,
   depth,
 ) {
+  showSection("chart-with-articles");
+
   const apiUrl = `/api/pageviews/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&category=${encodeURIComponent(
     category,
   )}`;
@@ -312,6 +340,8 @@ async function fetchCategoryPageviews(
 }
 
 async function fetchArticlePageviews(wiki, article, startDate, endDate) {
+  showSection("chart");
+
   const apiUrl = `/api/pageviews/article?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&article=${encodeURIComponent(
     article,
   )}`;
@@ -334,6 +364,7 @@ async function fetchArticlePageviews(wiki, article, startDate, endDate) {
     showMessage("Failed to fetch article data. Please try again.", "error");
   }
 }
+
 function populateFormFromQueryParams() {
   const urlParams = new URLSearchParams(window.location.search);
 
@@ -390,10 +421,8 @@ async function populateWikiDropdown() {
     const wikis = await response.json();
     const wikiSelect = document.getElementById("wiki");
 
-    // Clear existing options
     wikiSelect.innerHTML = "";
 
-    // Add options to dropdown
     wikis.forEach((wiki) => {
       const option = document.createElement("option");
       option.value = wiki.code;
@@ -405,19 +434,19 @@ async function populateWikiDropdown() {
     console.log(`Loaded ${wikis.length} wikis to dropdown`);
   } catch (error) {
     console.error("Failed to load wiki list:", error);
-    // Fallback to current hardcoded options
     console.log("📋 Using fallback wiki list");
   }
 }
 
-// Setup controls
 document.addEventListener("DOMContentLoaded", () => {
   const loadButton = document.getElementById("wikitrends-btn");
 
   loadButton.addEventListener("click", () => {
-    let topicTrends = document.querySelector("wiki-trends");
+    showSection("wiki-trends");
 
+    let topicTrends = document.querySelector("wiki-trends");
     const selectedWiki = wiki.value;
+
     if (!topicTrends) {
       let topicTrendsEl = document.createElement("wiki-trends");
       document.querySelector(".main").appendChild(topicTrendsEl);
@@ -427,7 +456,6 @@ document.addEventListener("DOMContentLoaded", () => {
     topicTrends.setAttribute("wiki", selectedWiki);
     loadButton.disabled = true;
 
-    // Re-enable button after a short delay to prevent rapid clicking
     setTimeout(() => {
       loadButton.disabled = false;
     }, 1000);
