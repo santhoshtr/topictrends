@@ -89,52 +89,16 @@ class WikiArticlePageviews extends HTMLElement {
     categoriesDiv.className = "categories";
 
     this.categories.forEach((cat) => {
-      const categoryTag = document.createElement("span");
-      categoryTag.className = "category-tag";
-
-      const iconSvg = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "svg",
-      );
-      iconSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-      iconSvg.setAttribute("height", "14px");
-      iconSvg.setAttribute("viewBox", "0 -960 960 960");
-      iconSvg.setAttribute("width", "14px");
-      iconSvg.setAttribute("fill", "currentColor");
-      iconSvg.classList.add("category-icon");
-
-      const path = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "path",
-      );
-      path.setAttribute(
-        "d",
-        "M856-390 570-104q-12 12-27 18t-30 6q-15 0-30-6t-27-18L103-457q-11-11-17-25.5T80-513v-287q0-33 23.5-56.5T160-880h287q16 0 31 6.5t26 17.5l352 353q12 12 17.5 27t5.5 30q0 15-5.5 29.5T856-390ZM513-160l286-286-353-354H160v286l353 354ZM260-640q25 0 42.5-17.5T320-700q0-25-17.5-42.5T260-760q-25 0-42.5 17.5T200-700q0 25 17.5 42.5T260-640Zm220 160Z",
-      );
-
-      iconSvg.appendChild(path);
-      categoryTag.appendChild(iconSvg);
-
-      const textSpan = document.createElement("span");
+      const categoryEl = document.createElement("wiki-category");
       const categoryTitle = typeof cat === "string" ? cat : cat.title;
-      textSpan.textContent = this.formatTitle(categoryTitle);
-      categoryTag.title = `Category ${categoryTitle} Q${cat.qid}: ${cat.views} pageviews`;
-      categoryTag.appendChild(textSpan);
+      const categoryQid = typeof cat === "string" ? "" : cat.qid;
+      const categoryViews = typeof cat === "string" ? 0 : cat.views;
 
-      categoryTag.addEventListener("click", () => {
-        const categoryInput = document.getElementById("category");
-        const categoryQidInput = document.getElementById("category_qid");
+      categoryEl.setAttribute("title", categoryTitle);
+      categoryEl.setAttribute("qid", categoryQid.toString());
+      categoryEl.setAttribute("views", categoryViews.toString());
 
-        if (categoryInput) {
-          categoryInput.value = categoryTitle;
-        }
-
-        if (categoryQidInput) {
-          categoryQidInput.value = cat.qid;
-        }
-      });
-
-      categoriesDiv.appendChild(categoryTag);
+      categoriesDiv.appendChild(categoryEl);
     });
 
     contentDiv.appendChild(titleDiv);

@@ -1,0 +1,25 @@
+:host {
+  display: inline-block;
+}
+
+.category-tag {
+  background-color: var(--background-color-progressive-subtle);
+  color: var(--color-progressive);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: var(--font-size-x-small);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--background-color-progressive-subtle--hover);
+  }
+}
+
+.category-icon {
+  display: inline-block;
+  vertical-align: middle;
+}

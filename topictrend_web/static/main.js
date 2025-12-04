@@ -187,12 +187,15 @@ async function renderSubCategories(wiki, category) {
   categoryListContainer.appendChild(subheading);
 
   const ul = document.createElement("ul");
-  Object.entries(subcategories).forEach(([id, title]) => {
+  Object.entries(subcategories).forEach(([qid, title]) => {
     const li = document.createElement("li");
-    li.id = id;
-    const categoryLabel = document.createElement("span");
-    categoryLabel.href = "#";
-    categoryLabel.textContent = title.replaceAll("_", " ");
+    li.id = qid;
+
+    const wikiCategory = document.createElement("wiki-category");
+    wikiCategory.setAttribute("title", title);
+    wikiCategory.setAttribute("qid", qid);
+    wikiCategory.setAttribute("views", "0");
+
     const plotButton = document.createElement("button");
     plotButton.title = "Plot pageviews for this category";
     plotButton.className = "plot-button";
@@ -211,27 +214,9 @@ async function renderSubCategories(wiki, category) {
 
       fetchCategoryPageviews(wiki, title, startDate, endDate, depth);
     });
-    const analyseButton = document.createElement("button");
-    analyseButton.title = "Analyse this category";
-    analyseButton.className = "analyse-button";
-    analyseButton.innerHTML = `
-    <svg xmlns="http://www.w3.org/2000/svg" 
-    height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor">
-    <path d="M400-320q100 0 170-70t70-170q0-100-70-170t-170-70q-100 0-170 70t-70 170q0 100 70 170t170 70Zm-40-120v-280h80v280h-80Zm-140 0v-200h80v200h-80Zm280 0v-160h80v160h-80ZM824-80 597-307q-41 32-91 49.5T400-240q-134 0-227-93T80-560q0-134 93-227t227-93q134 0 227 93t93 227q0 56-17.5 106T653-363l227 227-56 56Z"/></svg>
-    `;
 
-    analyseButton.addEventListener("click", (event) => {
-      event.preventDefault();
-      const urlParams = new URLSearchParams(window.location.search);
-      urlParams.set("category", title);
-      urlParams.set("category_qid", id);
-      urlParams.set("type", "category");
-      const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
-      window.location.href = newUrl;
-    });
-    li.appendChild(categoryLabel);
+    li.appendChild(wikiCategory);
     li.appendChild(plotButton);
-    li.appendChild(analyseButton);
     ul.appendChild(li);
   });
 

@@ -49,24 +49,6 @@
   margin-bottom: 8px;
 }
 
-.category-tag {
-  background-color: var(--background-color-progressive-subtle);
-  color: var(--color-progressive);
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: var(--font-size-x-small);
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-}
-
-.category-icon {
-  display: inline-block;
-  vertical-align: middle;
-}
-
 .views-count {
   background: var(--background-color-neutral-subtle);
   padding: 8px 12px;

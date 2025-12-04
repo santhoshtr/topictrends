@@ -138,6 +138,7 @@
       padding: 1em;
       height: 100%;
       overflow: auto;
+      list-style: none;
 
       li {
         line-height: 1.5;
