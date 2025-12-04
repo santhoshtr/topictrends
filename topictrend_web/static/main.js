@@ -223,6 +223,30 @@ async function renderSubCategories(wiki, category) {
   categoryListContainer.appendChild(ul);
 }
 
+function renderTopArticles(wiki, topArticles) {
+  const container = document.getElementById("top-articles");
+
+  if (!topArticles || topArticles.length === 0) {
+    return;
+  }
+  container.innerHTML = "";
+
+  const subheading = document.createElement("h3");
+  subheading.textContent = "Top Articles in Category";
+  container.appendChild(subheading);
+
+  topArticles.forEach((article) => {
+    const articleEl = document.createElement("wiki-article-pageviews");
+    articleEl.setAttribute("wiki", wiki);
+    articleEl.setAttribute("title", article.title);
+    articleEl.setAttribute("views", article.views.toString());
+    articleEl.setAttribute("qid", article.qid.toString());
+    articleEl.setAttribute("categories", "[]");
+    articlesContainer.appendChild(articleEl);
+  });
+  container.appendChild(articlesContainer);
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   const startDatePicker = document.getElementById("start_date");
   const endDatePicker = document.getElementById("end_date");
@@ -280,6 +304,10 @@ async function fetchCategoryPageviews(
     const endTime = performance.now();
     const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
     showMessage(`Fetched ${label} in ${timeTaken} seconds.`, "success");
+
+    if (data.top_articles && data.top_articles.length > 0) {
+      renderTopArticles(wiki, data.top_articles);
+    }
   } catch (error) {
     console.error("Error:", error);
     showMessage("Failed to fetch category data. Please try again.", "error");
