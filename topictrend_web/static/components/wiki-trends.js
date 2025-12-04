@@ -7,15 +7,23 @@ class TopicTrends extends HTMLElement {
     this.loading = false;
     this.error = null;
     this.wiki = this.getAttribute("wiki") || "enwiki";
+    this.start_date = this.getAttribute("start_date");
+    this.end_date = this.getAttribute("end_date");
   }
 
   static get observedAttributes() {
-    return ["wiki"];
+    return ["wiki", "start_date", "end_date"];
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
-    if (name === "wiki" && oldValue !== newValue) {
-      this.wiki = newValue;
+    if (oldValue !== newValue) {
+      if (name === "wiki") {
+        this.wiki = newValue;
+      } else if (name === "start_date") {
+        this.start_date = newValue;
+      } else if (name === "end_date") {
+        this.end_date = newValue;
+      }
       this.fetchData();
     }
   }
@@ -30,7 +38,16 @@ class TopicTrends extends HTMLElement {
     this.render();
 
     try {
-      const url = `https://topictrends.wmcloud.org/api/list/top_categories?wiki=${this.wiki}&top_n=50`;
+      let url = `https://topictrends.wmcloud.org/api/list/top_categories?wiki=${this.wiki}&top_n=50`;
+      
+      if (this.start_date) {
+        url += `&start_date=${this.start_date}`;
+      }
+      
+      if (this.end_date) {
+        url += `&end_date=${this.end_date}`;
+      }
+
       const response = await fetch(url);
 
       if (!response.ok) {

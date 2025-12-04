@@ -446,6 +446,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let topicTrends = document.querySelector("wiki-trends");
     const selectedWiki = wiki.value;
+    const startDate = document.getElementById("start_date").value;
+    const endDate = document.getElementById("end_date").value;
 
     if (!topicTrends) {
       let topicTrendsEl = document.createElement("wiki-trends");
@@ -454,6 +456,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     topicTrends.setAttribute("wiki", selectedWiki);
+    topicTrends.setAttribute("start_date", startDate);
+    topicTrends.setAttribute("end_date", endDate);
     loadButton.disabled = true;
 
     setTimeout(() => {
