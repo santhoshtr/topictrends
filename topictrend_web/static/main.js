@@ -234,7 +234,6 @@ function renderTopArticles(wiki, topArticles) {
   const subheading = document.createElement("h3");
   subheading.textContent = "Top Articles in Category";
   container.appendChild(subheading);
-
   topArticles.forEach((article) => {
     const articleEl = document.createElement("wiki-article-pageviews");
     articleEl.setAttribute("wiki", wiki);
@@ -242,9 +241,8 @@ function renderTopArticles(wiki, topArticles) {
     articleEl.setAttribute("views", article.views.toString());
     articleEl.setAttribute("qid", article.qid.toString());
     articleEl.setAttribute("categories", "[]");
-    articlesContainer.appendChild(articleEl);
+    container.appendChild(articleEl);
   });
-  container.appendChild(articlesContainer);
 }
 
 document.addEventListener("DOMContentLoaded", function () {
