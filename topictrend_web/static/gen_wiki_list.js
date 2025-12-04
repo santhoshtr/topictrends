@@ -84,7 +84,7 @@ async function generateWikiList() {
     );
 
     // Sort by English name
-    uniqueWikis.sort((a, b) => a.name.localeCompare(b.name));
+    uniqueWikis.sort((a, b) => a.name.localeCompare(b.code));
 
     // Write to static JSON file
     const outputPath = "./topictrend_web/static/wikis.json";
