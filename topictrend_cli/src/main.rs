@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .long("depth")
                         .short('d')
                         .default_value("1")
-                        .value_parser(clap::value_parser!(u8))
+                        .value_parser(clap::value_parser!(u32))
                         .help("Depth for recursive queries"),
                 ),
         )
@@ -167,7 +167,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 fn handle_get_articles(graph: &wikigraph::WikiGraph, matches: &ArgMatches) {
     let category_qid: &u32 = matches.get_one::<u32>("category").unwrap();
-    let depth: &u8 = matches.get_one::<u8>("depth").unwrap();
+    let depth: &u32 = matches.get_one::<u32>("depth").unwrap();
 
     let articles = match graph.get_articles_in_category(*category_qid, *depth) {
         Ok(articles) => articles,
@@ -278,7 +278,7 @@ fn handle_category_trend(wiki_id: &str, matches: &ArgMatches) {
     let start = Instant::now();
 
     let category: &u32 = matches.get_one::<u32>("category").unwrap();
-    let depth: &u8 = matches.get_one::<u8>("depth").unwrap();
+    let depth: &u32 = matches.get_one::<u32>("depth").unwrap();
     let start_date = matches
         .get_one::<String>("start-date")
         .and_then(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())

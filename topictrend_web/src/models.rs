@@ -34,7 +34,7 @@ impl AppState {
 pub struct CategoryTrendParams {
     pub wiki: String,
     pub category: String,
-    pub depth: Option<u8>,
+    pub depth: Option<u32>,
     pub category_qid: Option<u32>,
     pub start_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
@@ -60,7 +60,7 @@ pub struct TopCategoriesParams {
     pub wiki: String,
     pub start_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
-    pub top_n: Option<u8>,
+    pub top_n: Option<u32>,
 }
 
 // --- Response DTO ---

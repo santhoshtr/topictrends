@@ -96,7 +96,7 @@ fn verify() {
 
     let articles_in_cat = engine
         .get_wikigraph()
-        .get_articles_in_category(1, u8::MAX)
+        .get_articles_in_category(1, u32::MAX)
         .unwrap();
     assert_eq!(articles_in_cat.len(), 4);
 

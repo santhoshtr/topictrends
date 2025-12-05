@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package topictrend;
+
+service TopicTrendService {
+  rpc GetCategoryPageviews(CategoryTrendRequest) returns (CategoryTrendResponse);
+  rpc GetArticlePageviews(ArticleTrendRequest) returns (ArticleTrendResponse);
+  rpc GetTopCategories(TopCategoriesRequest) returns (TopCategoriesResponse);
+  rpc GetSubCategories(SubCategoryRequest) returns (SubCategoryResponse);
+}
+
+message CategoryTrendRequest {
+  string wiki = 1;
+  string category = 2;
+  optional uint32 depth = 3;
+  optional uint32 category_qid = 4;
+  optional string start_date = 5;
+  optional string end_date = 6;
+}
+
+message ArticleTrendRequest {
+  string wiki = 1;
+  string article = 2;
+  optional uint32 article_qid = 3;
+  optional string start_date = 4;
+  optional string end_date = 5;
+}
+
+message TopCategoriesRequest {
+  string wiki = 1;
+  optional string start_date = 2;
+  optional string end_date = 3;
+  optional uint32 top_n = 4;
+}
+
+message SubCategoryRequest {
+  string wiki = 1;
+  string category = 2;
+  optional uint32 category_qid = 3;
+}
+
+message DailyViews {
+  string date = 1;
+  uint64 views = 2;
+}
+
+message TopArticle {
+  uint32 qid = 1;
+  string title = 2;
+  uint32 views = 3;
+}
+
+message TopCategory {
+  uint32 qid = 1;
+  string title = 2;
+  uint32 views = 3;
+  repeated TopArticle top_articles = 4;
+}
+
+message CategoryTrendResponse {
+  uint32 qid = 1;
+  string title = 2;
+  repeated DailyViews views = 3;
+  repeated TopArticle top_articles = 4;
+}
+
+message ArticleTrendResponse {
+  uint32 qid = 1;
+  string title = 2;
+  repeated DailyViews views = 3;
+}
+
+message TopCategoriesResponse {
+  repeated TopCategory categories = 1;
+}
+
+message SubCategoryResponse {
+  map<uint32, string> categories = 1;
+}

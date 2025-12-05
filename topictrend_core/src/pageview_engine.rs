@@ -180,7 +180,7 @@ impl PageViewEngine {
     pub fn get_category_trend(
         &mut self,
         category_qid: u32,
-        depth: u8,
+        depth: u32,
         start_date: NaiveDate,
         end_date: NaiveDate,
     ) -> Vec<(NaiveDate, u64)> {
@@ -478,7 +478,7 @@ impl PageViewEngine {
         category_qid: u32,
         start_date: NaiveDate,
         end_date: NaiveDate,
-        depth: u8,
+        depth: u32,
         top_n: usize,
     ) -> Result<CategoryRank, Box<dyn Error>> {
         // Get all articles in this category (depth 0 for direct children only)

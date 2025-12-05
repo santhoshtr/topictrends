@@ -21,7 +21,7 @@ impl WikiGraph {
     pub fn get_articles_in_category(
         &self,
         category_qid: u32,
-        max_depth: u8,
+        max_depth: u32,
     ) -> Result<Vec<u32>, String> {
         let articles_dense = self
             .get_articles_in_category_as_dense(category_qid, max_depth)
@@ -36,7 +36,7 @@ impl WikiGraph {
     pub fn get_articles_in_category_as_dense(
         &self,
         category_qid: u32,
-        max_depth: u8,
+        max_depth: u32,
     ) -> Result<RoaringBitmap, String> {
         // Translate External ID -> Internal Dense ID
         let start_node = match self.cat_original_to_dense.get(category_qid) {

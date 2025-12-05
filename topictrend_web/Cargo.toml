@@ -3,6 +3,9 @@ name = "topictrend_web"
 version = "0.1.0"
 edition = "2024"
 
+[build-dependencies]
+tonic-prost-build = "0.14"
+prost-build = "0.14"
 
 [dependencies]
 topictrend_core = { path = "../topictrend_core" }
@@ -18,3 +21,7 @@ log = "0.4"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing = "0.1"
 sqlx = { version = "0.8", features = ["mysql", "runtime-tokio-rustls", "chrono"] }
+tonic = "0.14"
+prost = "0.14"
+tonic-prost = "0.14.2"
+prost-types = "0.14"
