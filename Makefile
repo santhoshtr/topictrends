@@ -20,7 +20,7 @@ PAGEVIEWS_DIR := $(DATA_DIR)/pageviews
 
 .DEFAULT_GOAL := run
 
-.PHONY: run init clean help $(WIKIS) qdrant monthly
+.PHONY: run init clean help $(WIKIS) qdrant monthly notebook
 
 # Help target
 help:
@@ -150,6 +150,22 @@ monthly: init
 		$(MAKE) run DATE="$$PROCESS_DATE" || true; \
 	done; \
 	echo "Monthly processing complete for $$YEAR-$$MONTH!"
+
+# Start a jupyter server from topictrend_web folder.
+# Allow google colab as trusted origin so that we can use
+# google colab to connect with this runtime.
+notebook:
+	@cd topictrend_web; \
+	command -v uv >/dev/null 2>&1 || { echo >&2 "uv is required but not installed. Aborting."; exit 1; }; \
+	uv run --with jupyter jupyter lab \
+		--ServerApp.allow_origin='https://colab.research.google.com' \
+		--ServerApp.allow_credentials=True \
+		--ServerApp.port_retries=0 \
+		--ServerApp.disable_check_xsrf=True \
+		--ServerApp.allow_remote_access=True \
+		--port=8888 \
+		--no-browser \
+		--ip=0.0.0.0
 
 # Prevent deletion of intermediate files
 .PRECIOUS: $(DATA_DIR)/%/articles.parquet \
