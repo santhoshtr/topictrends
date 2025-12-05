@@ -15,7 +15,7 @@ impl QidService {
     ) -> Result<u32, CoreServiceError> {
         let pool = get_or_create_db_pool(state, wiki).await?;
 
-        let row = sqlx::query(include_str!("../../../../queries/get_id_by_title.sql"))
+        let row = sqlx::query(include_str!("../../../../queries/get_qid_by_title.sql"))
             .bind(title)
             .bind(namespace)
             .fetch_optional(&pool)
