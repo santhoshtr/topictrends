@@ -95,7 +95,7 @@ pub fn get_daily_pageviews(wiki: &str, year: &i16, month: &i8, day: &i8) -> Vec<
 
     let article_id_to_qid: DirectMap = article_ids
         .into_iter()
-        .zip(article_qids.into_iter())
+        .zip(article_qids)
         .filter_map(|(id, qid)| Some((id?, qid?)))
         .collect();
 

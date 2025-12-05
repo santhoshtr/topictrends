@@ -505,10 +505,10 @@ impl PageViewEngine {
 
             let mut curr = start_date;
             while curr <= end_date {
-                if let Some(day_data) = self.daily_views.get(&curr) {
-                    if let Some(&views) = day_data.get(article_dense_id as usize) {
-                        total_views += views as u64;
-                    }
+                if let Some(day_data) = self.daily_views.get(&curr)
+                    && let Some(&views) = day_data.get(article_dense_id as usize)
+                {
+                    total_views += views as u64;
                 }
                 curr = curr.succ_opt().unwrap();
             }

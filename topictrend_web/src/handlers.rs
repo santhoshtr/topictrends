@@ -18,11 +18,11 @@ use crate::{
 // Custom error type for API handlers
 #[derive(Debug)]
 pub enum ApiError {
-    ServiceError(crate::services::pageviews_service::ServiceError),
+    ServiceError(crate::services::ServiceError),
 }
 
-impl From<crate::services::pageviews_service::ServiceError> for ApiError {
-    fn from(err: crate::services::pageviews_service::ServiceError) -> Self {
+impl From<crate::services::ServiceError> for ApiError {
+    fn from(err: crate::services::ServiceError) -> Self {
         ApiError::ServiceError(err)
     }
 }
@@ -31,21 +31,23 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let (status, error_message) = match self {
             ApiError::ServiceError(e) => match e {
-                crate::services::pageviews_service::ServiceError::DatabaseError(e) => (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Database error: {}", e),
-                ),
-                crate::services::pageviews_service::ServiceError::EngineError(e) => (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Engine error: {}", e),
-                ),
-                crate::services::pageviews_service::ServiceError::NotFound => {
-                    (StatusCode::NOT_FOUND, "Resource not found".to_string())
-                }
-                crate::services::pageviews_service::ServiceError::InternalError(e) => (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Internal server error: {}", e),
-                ),
+                crate::services::ServiceError::CoreError(core_err) => match core_err {
+                    crate::services::core::CoreServiceError::DatabaseError(e) => (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("Database error: {}", e),
+                    ),
+                    crate::services::core::CoreServiceError::EngineError(e) => (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("Engine error: {}", e),
+                    ),
+                    crate::services::core::CoreServiceError::NotFound => {
+                        (StatusCode::NOT_FOUND, "Resource not found".to_string())
+                    }
+                    crate::services::core::CoreServiceError::InternalError(e) => (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("Internal server error: {}", e),
+                    ),
+                },
             },
         };
 

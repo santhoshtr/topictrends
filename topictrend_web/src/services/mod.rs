@@ -1,4 +1,5 @@
-pub mod pageviews_service;
+pub mod composite;
+pub mod core;
 
-pub use pageviews_service::PageViewsService;
-pub use pageviews_service::ServiceError;
+pub use composite::PageViewsService;
+pub use composite::ServiceError;

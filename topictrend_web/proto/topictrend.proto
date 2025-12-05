@@ -3,12 +3,176 @@ syntax = "proto3";
 package topictrend;
 
 service TopicTrendService {
+  // Raw data endpoints
+  rpc GetCategoryViews(CategoryViewsRequest) returns (CategoryViewsResponse);
+  rpc GetArticleViews(ArticleViewsRequest) returns (ArticleViewsResponse);
+  rpc GetTopCategoriesRaw(TopCategoriesRawRequest) returns (TopCategoriesRawResponse);
+  rpc GetTopArticlesRaw(TopArticlesRawRequest) returns (TopArticlesRawResponse);
+  
+  // Metadata endpoints
+  rpc GetTitlesByQids(TitlesByQidsRequest) returns (TitlesByQidsResponse);
+  rpc GetQidsByTitles(QidsByTitlesRequest) returns (QidsByTitlesResponse);
+  rpc GetTitleByQid(TitleByQidRequest) returns (TitleByQidResponse);
+  rpc GetQidByTitle(QidByTitleRequest) returns (QidByTitleResponse);
+  
+  // Graph endpoints
+  rpc GetChildCategories(ChildCategoriesRequest) returns (ChildCategoriesResponse);
+  rpc GetParentCategories(ParentCategoriesRequest) returns (ParentCategoriesResponse);
+  rpc GetCategoryArticles(CategoryArticlesRequest) returns (CategoryArticlesResponse);
+  rpc GetArticleCategories(ArticleCategoriesRequest) returns (ArticleCategoriesResponse);
+  
+  // Validation endpoints
+  rpc ValidateCategoryExists(ValidateCategoryRequest) returns (ValidationResponse);
+  rpc ValidateArticleExists(ValidateArticleRequest) returns (ValidationResponse);
+  
+  // Composite endpoints (for convenience/backward compatibility)
   rpc GetCategoryPageviews(CategoryTrendRequest) returns (CategoryTrendResponse);
   rpc GetArticlePageviews(ArticleTrendRequest) returns (ArticleTrendResponse);
   rpc GetTopCategories(TopCategoriesRequest) returns (TopCategoriesResponse);
   rpc GetSubCategories(SubCategoryRequest) returns (SubCategoryResponse);
 }
 
+// Raw data request/response messages
+message CategoryViewsRequest {
+  string wiki = 1;
+  uint32 category_qid = 2;
+  string start_date = 3;
+  string end_date = 4;
+  optional uint32 depth = 5;
+}
+
+message CategoryViewsResponse {
+  repeated DailyViews views = 1;
+}
+
+message ArticleViewsRequest {
+  string wiki = 1;
+  uint32 article_qid = 2;
+  string start_date = 3;
+  string end_date = 4;
+}
+
+message ArticleViewsResponse {
+  repeated DailyViews views = 1;
+}
+
+message TopCategoriesRawRequest {
+  string wiki = 1;
+  string start_date = 2;
+  string end_date = 3;
+  optional uint32 limit = 4;
+}
+
+message TopCategoriesRawResponse {
+  repeated RawCategoryViews categories = 1;
+}
+
+message TopArticlesRawRequest {
+  string wiki = 1;
+  uint32 category_qid = 2;
+  string start_date = 3;
+  string end_date = 4;
+  optional uint32 depth = 5;
+  optional uint32 limit = 6;
+}
+
+message TopArticlesRawResponse {
+  repeated RawArticleViews articles = 1;
+}
+
+// Metadata request/response messages
+message TitlesByQidsRequest {
+  string wiki = 1;
+  repeated uint32 qids = 2;
+}
+
+message TitlesByQidsResponse {
+  map<uint32, string> titles = 1;
+}
+
+message QidsByTitlesRequest {
+  string wiki = 1;
+  repeated string titles = 2;
+  optional int32 namespace = 3;
+}
+
+message QidsByTitlesResponse {
+  map<string, uint32> qids = 1;
+}
+
+message TitleByQidRequest {
+  string wiki = 1;
+  uint32 qid = 2;
+}
+
+message TitleByQidResponse {
+  string title = 1;
+}
+
+message QidByTitleRequest {
+  string wiki = 1;
+  string title = 2;
+  optional int32 namespace = 3;
+}
+
+message QidByTitleResponse {
+  uint32 qid = 1;
+}
+
+// Graph request/response messages
+message ChildCategoriesRequest {
+  string wiki = 1;
+  uint32 category_qid = 2;
+}
+
+message ChildCategoriesResponse {
+  repeated uint32 category_qids = 1;
+}
+
+message ParentCategoriesRequest {
+  string wiki = 1;
+  uint32 category_qid = 2;
+}
+
+message ParentCategoriesResponse {
+  repeated uint32 category_qids = 1;
+}
+
+message CategoryArticlesRequest {
+  string wiki = 1;
+  uint32 category_qid = 2;
+  optional uint32 depth = 3;
+}
+
+message CategoryArticlesResponse {
+  repeated uint32 article_qids = 1;
+}
+
+message ArticleCategoriesRequest {
+  string wiki = 1;
+  uint32 article_qid = 2;
+}
+
+message ArticleCategoriesResponse {
+  repeated uint32 category_qids = 1;
+}
+
+// Validation request/response messages
+message ValidateCategoryRequest {
+  string wiki = 1;
+  uint32 category_qid = 2;
+}
+
+message ValidateArticleRequest {
+  string wiki = 1;
+  uint32 article_qid = 2;
+}
+
+message ValidationResponse {
+  bool exists = 1;
+}
+
+// Legacy composite messages (kept for backward compatibility)
 message CategoryTrendRequest {
   string wiki = 1;
   string category = 2;
@@ -39,9 +203,21 @@ message SubCategoryRequest {
   optional uint32 category_qid = 3;
 }
 
+// Common data structures
 message DailyViews {
   string date = 1;
   uint64 views = 2;
+}
+
+message RawArticleViews {
+  uint32 article_qid = 1;
+  uint64 total_views = 2;
+}
+
+message RawCategoryViews {
+  uint32 category_qid = 1;
+  uint64 total_views = 2;
+  repeated RawArticleViews top_articles = 3;
 }
 
 message TopArticle {

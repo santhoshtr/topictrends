@@ -19,46 +19,50 @@ impl fmt::Display for SearchResult {
 
         // Extract and display page_id
         if let Some(page_id) = self.payload.get("page_id")
-            && let Some(kind) = &page_id.kind {
-                match kind {
-                    qdrant_client::qdrant::value::Kind::IntegerValue(val) => {
-                        writeln!(f, "  Page ID: {}", val)?;
-                    }
-                    _ => writeln!(f, "  Page ID: {:?}", page_id)?,
+            && let Some(kind) = &page_id.kind
+        {
+            match kind {
+                qdrant_client::qdrant::value::Kind::IntegerValue(val) => {
+                    writeln!(f, "  Page ID: {}", val)?;
                 }
+                _ => writeln!(f, "  Page ID: {:?}", page_id)?,
             }
+        }
 
         // Extract and display page_title
         if let Some(page_title) = self.payload.get("page_title")
-            && let Some(kind) = &page_title.kind {
-                match kind {
-                    qdrant_client::qdrant::value::Kind::StringValue(val) => {
-                        writeln!(f, "  Title: {}", val)?;
-                    }
-                    _ => writeln!(f, "  Title: {:?}", page_title)?,
+            && let Some(kind) = &page_title.kind
+        {
+            match kind {
+                qdrant_client::qdrant::value::Kind::StringValue(val) => {
+                    writeln!(f, "  Title: {}", val)?;
                 }
+                _ => writeln!(f, "  Title: {:?}", page_title)?,
             }
+        }
 
         // Display any other fields
         for (key, value) in self.payload.iter() {
-            if key != "page_id" && key != "page_title"
-                && let Some(kind) = &value.kind {
-                    match kind {
-                        qdrant_client::qdrant::value::Kind::StringValue(val) => {
-                            writeln!(f, "  {}: {}", key, val)?;
-                        }
-                        qdrant_client::qdrant::value::Kind::IntegerValue(val) => {
-                            writeln!(f, "  {}: {}", key, val)?;
-                        }
-                        qdrant_client::qdrant::value::Kind::DoubleValue(val) => {
-                            writeln!(f, "  {}: {}", key, val)?;
-                        }
-                        qdrant_client::qdrant::value::Kind::BoolValue(val) => {
-                            writeln!(f, "  {}: {}", key, val)?;
-                        }
-                        _ => writeln!(f, "  {}: {:?}", key, value)?,
+            if key != "page_id"
+                && key != "page_title"
+                && let Some(kind) = &value.kind
+            {
+                match kind {
+                    qdrant_client::qdrant::value::Kind::StringValue(val) => {
+                        writeln!(f, "  {}: {}", key, val)?;
                     }
+                    qdrant_client::qdrant::value::Kind::IntegerValue(val) => {
+                        writeln!(f, "  {}: {}", key, val)?;
+                    }
+                    qdrant_client::qdrant::value::Kind::DoubleValue(val) => {
+                        writeln!(f, "  {}: {}", key, val)?;
+                    }
+                    qdrant_client::qdrant::value::Kind::BoolValue(val) => {
+                        writeln!(f, "  {}: {}", key, val)?;
+                    }
+                    _ => writeln!(f, "  {}: {:?}", key, value)?,
                 }
+            }
         }
 
         Ok(())

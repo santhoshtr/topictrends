@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Build DirectMap for page_id -> qid conversion
     let category_id_to_qid: DirectMap = category_ids
         .into_iter()
-        .zip(category_qids.into_iter())
+        .zip(&*category_qids)
         .filter_map(|(id, qid)| Some((id?, qid?)))
         .collect();
 

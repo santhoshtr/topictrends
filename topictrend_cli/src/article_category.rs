@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let article_id_to_qid: DirectMap = article_ids
         .into_iter()
-        .zip(article_qids.into_iter())
+        .zip(&*article_qids)
         .filter_map(|(id, qid)| Some((id?, qid?)))
         .collect();
     let valid_article_ids_set: HashSet<u32> = article_id_to_qid.keys().into_iter().collect();
@@ -54,7 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let category_id_to_qid: DirectMap = category_ids
         .into_iter()
-        .zip(category_qids.into_iter())
+        .zip(&*category_qids)
         .filter_map(|(id, qid)| Some((id?, qid?)))
         .collect();
 
@@ -77,8 +77,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             {
                 return None;
             }
-            let article_qid = article_id_to_qid.get(article_id)?.clone();
-            let category_qid = category_id_to_qid.get(category_id)?.clone();
+            let article_qid = article_id_to_qid.get(article_id)?;
+            let category_qid = category_id_to_qid.get(category_id)?;
             if lines_count % 1000 == 0 {
                 print!(
                     "\rRetrieved {} records from {} query results",

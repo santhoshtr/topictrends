@@ -132,16 +132,14 @@ impl GraphBuilder {
 
         let max_length = ids.len();
         let mut dense_to_original = Vec::with_capacity(ids.len());
-        let mut mapper = DirectMap::new(max_length as usize);
+        let mut mapper = DirectMap::new(max_length);
 
         let mut dense_counter = 0;
 
-        for opt_id in ids.into_iter() {
-            if let Some(id) = opt_id {
-                dense_to_original.push(id);
-                mapper.insert(id, dense_counter);
-                dense_counter += 1;
-            }
+        for id in ids.into_iter().flatten() {
+            dense_to_original.push(id);
+            mapper.insert(id, dense_counter);
+            dense_counter += 1;
         }
 
         Ok((dense_to_original, mapper))

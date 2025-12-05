@@ -1,11 +1,13 @@
+mod grpc_service;
 mod handlers;
 mod models;
-mod wiki;
 mod services;
-mod grpc_service;
+mod wiki;
 
+use crate::grpc_service::{
+    TopicTrendGrpcService, topictrend_proto::topic_trend_service_server::TopicTrendServiceServer,
+};
 use crate::models::AppState;
-use crate::grpc_service::{TopicTrendGrpcService, topictrend_proto::topic_trend_service_server::TopicTrendServiceServer};
 use axum::http::header::{CACHE_CONTROL, HeaderValue};
 use axum::{
     Router,
@@ -14,12 +16,14 @@ use axum::{
     routing::{get, get_service},
 };
 use std::{net::SocketAddr, sync::Arc};
+use tonic::transport::Server;
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::{cors::CorsLayer, services::ServeDir};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use tonic::transport::Server;
 
-async fn run_http_server(state: Arc<AppState>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn run_http_server(
+    state: Arc<AppState>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let port = std::env::var("PORT")
         .unwrap_or_else(|_| "8765".to_string())
         .parse::<u16>()
@@ -70,12 +74,14 @@ async fn run_http_server(state: Arc<AppState>) -> Result<(), Box<dyn std::error:
             eprintln!("Failed to bind to address {}: {}", addr, e);
             panic!("HTTP Server failed to start");
         });
-    
+
     axum::serve(listener, app).await.unwrap();
     Ok(())
 }
 
-async fn run_grpc_server(state: Arc<AppState>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn run_grpc_server(
+    state: Arc<AppState>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let grpc_port = std::env::var("GRPC_PORT")
         .unwrap_or_else(|_| "50051".to_string())
         .parse::<u16>()
@@ -85,7 +91,7 @@ async fn run_grpc_server(state: Arc<AppState>) -> Result<(), Box<dyn std::error:
     let grpc_service = TopicTrendGrpcService::new(state);
 
     println!("🚀 gRPC Server started successfully on port {}", grpc_port);
-    
+
     Server::builder()
         .add_service(TopicTrendServiceServer::new(grpc_service))
         .serve(addr)
@@ -105,7 +111,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .init();
 
     let state: Arc<AppState> = Arc::new(AppState::new());
-    
+
     let http_server = run_http_server(Arc::clone(&state));
     let grpc_server = run_grpc_server(Arc::clone(&state));
 

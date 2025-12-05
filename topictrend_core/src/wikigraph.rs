@@ -62,7 +62,7 @@ impl WikiGraph {
 
             // B. Traverse deeper if allowed
             if depth < max_depth {
-                let children = self.children.get(curr as u32);
+                let children = self.children.get(curr);
                 for &child in children {
                     if !visited.contains(child) {
                         visited.insert(child);
