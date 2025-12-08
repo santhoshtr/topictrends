@@ -1,5 +1,4 @@
 use crate::models::AppState;
-use crate::services::composite::{PageViewsService, ServiceError as CompositeServiceError};
 use crate::services::core::{
     ArticleService, CategoryService, CoreServiceError, PageViewService, QidService,
 };
@@ -16,16 +15,13 @@ use topictrend_proto::{
     ArticleCategoriesRequest,
     ArticleCategoriesResponse,
 
-    ArticleTrendRequest,
-    ArticleTrendResponse,
+    ArticleViews,
     ArticleViewsRequest,
     ArticleViewsResponse,
     CategoryArticlesRequest,
     CategoryArticlesResponse,
-    // Composite messages (legacy)
-    CategoryTrendRequest,
-    CategoryTrendResponse,
-    // Raw data messages
+    CategoryViews,
+    //  data messages
     CategoryViewsRequest,
     CategoryViewsResponse,
     // Graph messages
@@ -40,25 +36,17 @@ use topictrend_proto::{
 
     QidsByTitlesRequest,
     QidsByTitlesResponse,
-    RawArticleViews,
-    RawCategoryViews,
-    SubCategoryRequest,
-    SubCategoryResponse,
 
     TitleByQidRequest,
     TitleByQidResponse,
     // Metadata messages
     TitlesByQidsRequest,
     TitlesByQidsResponse,
-    TopArticle,
-    TopArticlesRawRequest,
-    TopArticlesRawResponse,
+    TopArticlesRequest,
+    TopArticlesResponse,
 
-    TopCategoriesRawRequest,
-    TopCategoriesRawResponse,
     TopCategoriesRequest,
     TopCategoriesResponse,
-    TopCategory,
 
     ValidateArticleRequest,
     // Validation messages
@@ -94,14 +82,6 @@ impl From<CoreServiceError> for Status {
     }
 }
 
-impl From<CompositeServiceError> for Status {
-    fn from(err: CompositeServiceError) -> Self {
-        match err {
-            CompositeServiceError::CoreError(core_err) => core_err.into(),
-        }
-    }
-}
-
 fn parse_date(date_str: &str) -> Result<NaiveDate, Status> {
     NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
         .map_err(|_| Status::invalid_argument("Invalid date format, expected YYYY-MM-DD"))
@@ -109,7 +89,7 @@ fn parse_date(date_str: &str) -> Result<NaiveDate, Status> {
 
 #[tonic::async_trait]
 impl TopicTrendService for TopicTrendGrpcService {
-    // Raw data endpoints
+    //  data endpoints
     async fn get_category_views(
         &self,
         request: Request<CategoryViewsRequest>,
@@ -120,7 +100,7 @@ impl TopicTrendService for TopicTrendGrpcService {
         let end_date = parse_date(&req.end_date)?;
         let depth = req.depth.unwrap_or(0);
 
-        let views = PageViewService::get_raw_category_views(
+        let views = PageViewService::get_category_views(
             Arc::clone(&self.state),
             &req.wiki,
             req.category_qid,
@@ -151,7 +131,7 @@ impl TopicTrendService for TopicTrendGrpcService {
         let start_date = parse_date(&req.start_date)?;
         let end_date = parse_date(&req.end_date)?;
 
-        let views = PageViewService::get_raw_article_views(
+        let views = PageViewService::get_article_views(
             Arc::clone(&self.state),
             &req.wiki,
             req.article_qid,
@@ -172,17 +152,17 @@ impl TopicTrendService for TopicTrendGrpcService {
         Ok(Response::new(ArticleViewsResponse { views: daily_views }))
     }
 
-    async fn get_top_categories_raw(
+    async fn get_top_categories(
         &self,
-        request: Request<TopCategoriesRawRequest>,
-    ) -> Result<Response<TopCategoriesRawResponse>, Status> {
+        request: Request<TopCategoriesRequest>,
+    ) -> Result<Response<TopCategoriesResponse>, Status> {
         let req = request.into_inner();
 
         let start_date = parse_date(&req.start_date)?;
         let end_date = parse_date(&req.end_date)?;
         let limit = req.limit.unwrap_or(10) as usize;
 
-        let categories = PageViewService::get_top_categories_raw(
+        let categories = PageViewService::get_top_categories(
             Arc::clone(&self.state),
             &req.wiki,
             start_date,
@@ -192,19 +172,19 @@ impl TopicTrendService for TopicTrendGrpcService {
         .await
         .map_err(Status::from)?;
 
-        let raw_categories: Vec<RawCategoryViews> = categories
+        let categories: Vec<CategoryViews> = categories
             .into_iter()
             .map(|cat| {
-                let top_articles: Vec<RawArticleViews> = cat
+                let top_articles: Vec<ArticleViews> = cat
                     .top_articles
                     .into_iter()
-                    .map(|art| RawArticleViews {
+                    .map(|art| ArticleViews {
                         article_qid: art.article_qid,
                         total_views: art.total_views,
                     })
                     .collect();
 
-                RawCategoryViews {
+                CategoryViews {
                     category_qid: cat.category_qid,
                     total_views: cat.total_views,
                     top_articles,
@@ -212,15 +192,15 @@ impl TopicTrendService for TopicTrendGrpcService {
             })
             .collect();
 
-        Ok(Response::new(TopCategoriesRawResponse {
-            categories: raw_categories,
+        Ok(Response::new(TopCategoriesResponse {
+            categories,
         }))
     }
 
-    async fn get_top_articles_raw(
+    async fn get_top_articles(
         &self,
-        request: Request<TopArticlesRawRequest>,
-    ) -> Result<Response<TopArticlesRawResponse>, Status> {
+        request: Request<TopArticlesRequest>,
+    ) -> Result<Response<TopArticlesResponse>, Status> {
         let req = request.into_inner();
 
         let start_date = parse_date(&req.start_date)?;
@@ -228,7 +208,7 @@ impl TopicTrendService for TopicTrendGrpcService {
         let depth = req.depth.unwrap_or(0);
         let limit = req.limit.unwrap_or(10) as usize;
 
-        let articles = PageViewService::get_top_articles_raw(
+        let articles = PageViewService::get_top_articles(
             Arc::clone(&self.state),
             &req.wiki,
             req.category_qid,
@@ -240,17 +220,15 @@ impl TopicTrendService for TopicTrendGrpcService {
         .await
         .map_err(Status::from)?;
 
-        let raw_articles: Vec<RawArticleViews> = articles
+        let articles: Vec<ArticleViews> = articles
             .into_iter()
-            .map(|art| RawArticleViews {
+            .map(|art| ArticleViews {
                 article_qid: art.article_qid,
                 total_views: art.total_views,
             })
             .collect();
 
-        Ok(Response::new(TopArticlesRawResponse {
-            articles: raw_articles,
-        }))
+        Ok(Response::new(TopArticlesResponse { articles }))
     }
 
     // Metadata endpoints
@@ -418,189 +396,5 @@ impl TopicTrendService for TopicTrendGrpcService {
         .map_err(Status::from)?;
 
         Ok(Response::new(ValidationResponse { exists }))
-    }
-
-    // Legacy composite endpoints (for backward compatibility)
-    async fn get_category_pageviews(
-        &self,
-        request: Request<CategoryTrendRequest>,
-    ) -> Result<Response<CategoryTrendResponse>, Status> {
-        let req = request.into_inner();
-
-        let start_date = if !req.start_date.as_ref().unwrap_or(&String::new()).is_empty() {
-            Some(parse_date(req.start_date.as_ref().unwrap())?)
-        } else {
-            None
-        };
-
-        let end_date = if !req.end_date.as_ref().unwrap_or(&String::new()).is_empty() {
-            Some(parse_date(req.end_date.as_ref().unwrap())?)
-        } else {
-            None
-        };
-
-        let result = PageViewsService::get_category_trend(
-            Arc::clone(&self.state),
-            &req.wiki,
-            &req.category,
-            req.category_qid,
-            req.depth,
-            start_date,
-            end_date,
-        )
-        .await
-        .map_err(Status::from)?;
-
-        let daily_views: Vec<DailyViews> = result
-            .views
-            .into_iter()
-            .map(|(date, views)| DailyViews {
-                date: date.to_string(),
-                views,
-            })
-            .collect();
-
-        let top_articles: Vec<TopArticle> = result
-            .top_articles
-            .into_iter()
-            .map(|art| TopArticle {
-                qid: art.qid,
-                title: art.title,
-                views: art.views,
-            })
-            .collect();
-
-        let response = CategoryTrendResponse {
-            qid: result.qid,
-            title: result.title,
-            views: daily_views,
-            top_articles,
-        };
-
-        Ok(Response::new(response))
-    }
-
-    async fn get_article_pageviews(
-        &self,
-        request: Request<ArticleTrendRequest>,
-    ) -> Result<Response<ArticleTrendResponse>, Status> {
-        let req = request.into_inner();
-
-        let start_date = if !req.start_date.as_ref().unwrap_or(&String::new()).is_empty() {
-            Some(parse_date(req.start_date.as_ref().unwrap())?)
-        } else {
-            None
-        };
-
-        let end_date = if !req.end_date.as_ref().unwrap_or(&String::new()).is_empty() {
-            Some(parse_date(req.end_date.as_ref().unwrap())?)
-        } else {
-            None
-        };
-
-        let result = PageViewsService::get_article_trend(
-            Arc::clone(&self.state),
-            &req.wiki,
-            &req.article,
-            req.article_qid,
-            start_date,
-            end_date,
-        )
-        .await
-        .map_err(Status::from)?;
-
-        let daily_views: Vec<DailyViews> = result
-            .views
-            .into_iter()
-            .map(|(date, views)| DailyViews {
-                date: date.to_string(),
-                views,
-            })
-            .collect();
-
-        let response = ArticleTrendResponse {
-            qid: result.qid,
-            title: result.title,
-            views: daily_views,
-        };
-
-        Ok(Response::new(response))
-    }
-
-    async fn get_top_categories(
-        &self,
-        request: Request<TopCategoriesRequest>,
-    ) -> Result<Response<TopCategoriesResponse>, Status> {
-        let req = request.into_inner();
-
-        let start_date = if !req.start_date.as_ref().unwrap_or(&String::new()).is_empty() {
-            Some(parse_date(req.start_date.as_ref().unwrap())?)
-        } else {
-            None
-        };
-
-        let end_date = if !req.end_date.as_ref().unwrap_or(&String::new()).is_empty() {
-            Some(parse_date(req.end_date.as_ref().unwrap())?)
-        } else {
-            None
-        };
-
-        let categories = PageViewsService::get_top_categories(
-            Arc::clone(&self.state),
-            &req.wiki,
-            start_date,
-            end_date,
-            req.top_n,
-        )
-        .await
-        .map_err(Status::from)?;
-
-        let grpc_categories: Vec<TopCategory> = categories
-            .into_iter()
-            .map(|cat| {
-                let top_articles: Vec<TopArticle> = cat
-                    .top_articles
-                    .into_iter()
-                    .map(|art| TopArticle {
-                        qid: art.qid,
-                        title: art.title,
-                        views: art.views,
-                    })
-                    .collect();
-
-                TopCategory {
-                    qid: cat.qid,
-                    title: cat.title,
-                    views: cat.views,
-                    top_articles,
-                }
-            })
-            .collect();
-
-        let response = TopCategoriesResponse {
-            categories: grpc_categories,
-        };
-
-        Ok(Response::new(response))
-    }
-
-    async fn get_sub_categories(
-        &self,
-        request: Request<SubCategoryRequest>,
-    ) -> Result<Response<SubCategoryResponse>, Status> {
-        let req = request.into_inner();
-
-        let categories = PageViewsService::get_sub_categories(
-            Arc::clone(&self.state),
-            &req.wiki,
-            &req.category,
-            req.category_qid,
-        )
-        .await
-        .map_err(Status::from)?;
-
-        let response = SubCategoryResponse { categories };
-
-        Ok(Response::new(response))
     }
 }

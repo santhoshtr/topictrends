@@ -3,36 +3,31 @@ syntax = "proto3";
 package topictrend;
 
 service TopicTrendService {
-  // Raw data endpoints
+  //  data endpoints
   rpc GetCategoryViews(CategoryViewsRequest) returns (CategoryViewsResponse);
   rpc GetArticleViews(ArticleViewsRequest) returns (ArticleViewsResponse);
-  rpc GetTopCategoriesRaw(TopCategoriesRawRequest) returns (TopCategoriesRawResponse);
-  rpc GetTopArticlesRaw(TopArticlesRawRequest) returns (TopArticlesRawResponse);
-  
+  rpc GetTopCategories(TopCategoriesRequest) returns (TopCategoriesResponse);
+  rpc GetTopArticles(TopArticlesRequest) returns (TopArticlesResponse);
+
   // Metadata endpoints
   rpc GetTitlesByQids(TitlesByQidsRequest) returns (TitlesByQidsResponse);
   rpc GetQidsByTitles(QidsByTitlesRequest) returns (QidsByTitlesResponse);
   rpc GetTitleByQid(TitleByQidRequest) returns (TitleByQidResponse);
   rpc GetQidByTitle(QidByTitleRequest) returns (QidByTitleResponse);
-  
+
   // Graph endpoints
   rpc GetChildCategories(ChildCategoriesRequest) returns (ChildCategoriesResponse);
   rpc GetParentCategories(ParentCategoriesRequest) returns (ParentCategoriesResponse);
   rpc GetCategoryArticles(CategoryArticlesRequest) returns (CategoryArticlesResponse);
   rpc GetArticleCategories(ArticleCategoriesRequest) returns (ArticleCategoriesResponse);
-  
+
   // Validation endpoints
   rpc ValidateCategoryExists(ValidateCategoryRequest) returns (ValidationResponse);
   rpc ValidateArticleExists(ValidateArticleRequest) returns (ValidationResponse);
-  
-  // Composite endpoints (for convenience/backward compatibility)
-  rpc GetCategoryPageviews(CategoryTrendRequest) returns (CategoryTrendResponse);
-  rpc GetArticlePageviews(ArticleTrendRequest) returns (ArticleTrendResponse);
-  rpc GetTopCategories(TopCategoriesRequest) returns (TopCategoriesResponse);
-  rpc GetSubCategories(SubCategoryRequest) returns (SubCategoryResponse);
+
 }
 
-// Raw data request/response messages
+//  data request/response messages
 message CategoryViewsRequest {
   string wiki = 1;
   uint32 category_qid = 2;
@@ -56,18 +51,18 @@ message ArticleViewsResponse {
   repeated DailyViews views = 1;
 }
 
-message TopCategoriesRawRequest {
+message TopCategoriesRequest {
   string wiki = 1;
   string start_date = 2;
   string end_date = 3;
   optional uint32 limit = 4;
 }
 
-message TopCategoriesRawResponse {
-  repeated RawCategoryViews categories = 1;
+message TopCategoriesResponse {
+  repeated CategoryViews categories = 1;
 }
 
-message TopArticlesRawRequest {
+message TopArticlesRequest {
   string wiki = 1;
   uint32 category_qid = 2;
   string start_date = 3;
@@ -76,8 +71,8 @@ message TopArticlesRawRequest {
   optional uint32 limit = 6;
 }
 
-message TopArticlesRawResponse {
-  repeated RawArticleViews articles = 1;
+message TopArticlesResponse {
+  repeated ArticleViews articles = 1;
 }
 
 // Metadata request/response messages
@@ -190,13 +185,6 @@ message ArticleTrendRequest {
   optional string end_date = 5;
 }
 
-message TopCategoriesRequest {
-  string wiki = 1;
-  optional string start_date = 2;
-  optional string end_date = 3;
-  optional uint32 top_n = 4;
-}
-
 message SubCategoryRequest {
   string wiki = 1;
   string category = 2;
@@ -209,47 +197,14 @@ message DailyViews {
   uint64 views = 2;
 }
 
-message RawArticleViews {
+message ArticleViews {
   uint32 article_qid = 1;
   uint64 total_views = 2;
 }
 
-message RawCategoryViews {
+message CategoryViews {
   uint32 category_qid = 1;
   uint64 total_views = 2;
-  repeated RawArticleViews top_articles = 3;
+  repeated ArticleViews top_articles = 3;
 }
 
-message TopArticle {
-  uint32 qid = 1;
-  string title = 2;
-  uint32 views = 3;
-}
-
-message TopCategory {
-  uint32 qid = 1;
-  string title = 2;
-  uint32 views = 3;
-  repeated TopArticle top_articles = 4;
-}
-
-message CategoryTrendResponse {
-  uint32 qid = 1;
-  string title = 2;
-  repeated DailyViews views = 3;
-  repeated TopArticle top_articles = 4;
-}
-
-message ArticleTrendResponse {
-  uint32 qid = 1;
-  string title = 2;
-  repeated DailyViews views = 3;
-}
-
-message TopCategoriesResponse {
-  repeated TopCategory categories = 1;
-}
-
-message SubCategoryResponse {
-  map<uint32, string> categories = 1;
-}

@@ -65,7 +65,7 @@ impl PageViewsService {
         };
 
         // Get raw pageview data
-        let raw_data = PageViewService::get_raw_category_views(
+        let data = PageViewService::get_category_views(
             Arc::clone(&state),
             wiki,
             category_qid,
@@ -76,7 +76,7 @@ impl PageViewsService {
         .await?;
 
         // Get top articles
-        let top_articles_raw = PageViewService::get_top_articles_raw(
+        let top_articles = PageViewService::get_top_articles(
             Arc::clone(&state),
             wiki,
             category_qid,
@@ -88,12 +88,12 @@ impl PageViewsService {
         .await?;
 
         // Get titles for articles
-        let article_qids: Vec<u32> = top_articles_raw.iter().map(|a| a.article_qid).collect();
+        let article_qids: Vec<u32> = top_articles.iter().map(|a| a.article_qid).collect();
 
         let titles_map =
             QidService::get_titles_by_qids(Arc::clone(&state), wiki, article_qids).await?;
 
-        let top_articles: Vec<ArticleRank> = top_articles_raw
+        let top_articles: Vec<ArticleRank> = top_articles
             .into_iter()
             .map(|art| {
                 let article_title = titles_map
@@ -112,7 +112,7 @@ impl PageViewsService {
         Ok(CategoryTrendResult {
             qid: category_qid,
             title: category.to_string(),
-            views: raw_data,
+            views: data,
             top_articles,
         })
     }
@@ -135,13 +135,12 @@ impl PageViewsService {
             QidService::get_qid_by_title(Arc::clone(&state), wiki, article, 0).await?
         };
 
-        let raw_data =
-            PageViewService::get_raw_article_views(state, wiki, article_qid, start, end).await?;
+        let data = PageViewService::get_article_views(state, wiki, article_qid, start, end).await?;
 
         Ok(ArticleTrendResult {
             qid: article_qid,
             title: article.to_string(),
-            views: raw_data,
+            views: data,
         })
     }
 
@@ -157,8 +156,8 @@ impl PageViewsService {
             .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
         let end = end_date.unwrap_or_else(|| chrono::Local::now().date_naive());
 
-        let categories_raw: Vec<crate::services::core::pageview_service::RawCategoryViews> =
-            PageViewService::get_top_categories_raw(
+        let categories: Vec<crate::services::core::pageview_service::CategoryViews> =
+            PageViewService::get_top_categories(
                 Arc::clone(&state),
                 wiki,
                 start,
@@ -168,7 +167,7 @@ impl PageViewsService {
             .await?;
 
         let mut all_qids = Vec::new();
-        for category in &categories_raw {
+        for category in &categories {
             all_qids.push(category.category_qid);
             for article in &category.top_articles {
                 all_qids.push(article.article_qid);
@@ -178,7 +177,7 @@ impl PageViewsService {
         let titles_map: HashMap<u32, String> =
             QidService::get_titles_by_qids(Arc::clone(&state), wiki, all_qids).await?;
 
-        let top_categories_with_titles: Vec<CategoryRank> = categories_raw
+        let top_categories_with_titles: Vec<CategoryRank> = categories
             .into_iter()
             .map(|cat| {
                 let category_title = titles_map

@@ -4,22 +4,22 @@ use chrono::NaiveDate;
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
-pub struct RawArticleViews {
+pub struct ArticleViews {
     pub article_qid: u32,
     pub total_views: u64,
 }
 
 #[derive(Clone, Debug)]
-pub struct RawCategoryViews {
+pub struct CategoryViews {
     pub category_qid: u32,
     pub total_views: u64,
-    pub top_articles: Vec<RawArticleViews>,
+    pub top_articles: Vec<ArticleViews>,
 }
 
 pub struct PageViewService;
 
 impl PageViewService {
-    pub async fn get_raw_category_views(
+    pub async fn get_category_views(
         state: Arc<AppState>,
         wiki: &str,
         category_qid: u32,
@@ -40,7 +40,7 @@ impl PageViewService {
         Ok(raw_data)
     }
 
-    pub async fn get_raw_article_views(
+    pub async fn get_article_views(
         state: Arc<AppState>,
         wiki: &str,
         article_qid: u32,
@@ -60,7 +60,7 @@ impl PageViewService {
         Ok(raw_data)
     }
 
-    pub async fn get_top_articles_raw(
+    pub async fn get_top_articles(
         state: Arc<AppState>,
         wiki: &str,
         category_qid: u32,
@@ -68,7 +68,7 @@ impl PageViewService {
         end_date: NaiveDate,
         depth: u32,
         limit: usize,
-    ) -> Result<Vec<RawArticleViews>, CoreServiceError> {
+    ) -> Result<Vec<ArticleViews>, CoreServiceError> {
         let engine = EngineService::get_or_build_engine(state, wiki).await?;
 
         let top_articles = {
@@ -83,10 +83,10 @@ impl PageViewService {
                 })?
         };
 
-        let raw_articles: Vec<RawArticleViews> = top_articles
+        let raw_articles: Vec<ArticleViews> = top_articles
             .top_articles
             .into_iter()
-            .map(|art| RawArticleViews {
+            .map(|art| ArticleViews {
                 article_qid: art.article_qid,
                 total_views: art.total_views,
             })
@@ -95,13 +95,13 @@ impl PageViewService {
         Ok(raw_articles)
     }
 
-    pub async fn get_top_categories_raw(
+    pub async fn get_top_categories(
         state: Arc<AppState>,
         wiki: &str,
         start_date: NaiveDate,
         end_date: NaiveDate,
         limit: usize,
-    ) -> Result<Vec<RawCategoryViews>, CoreServiceError> {
+    ) -> Result<Vec<CategoryViews>, CoreServiceError> {
         let engine = EngineService::get_or_build_engine(state, wiki).await?;
 
         let categories = {
@@ -116,19 +116,19 @@ impl PageViewService {
                 })?
         };
 
-        let raw_categories: Vec<RawCategoryViews> = categories
+        let raw_categories: Vec<CategoryViews> = categories
             .into_iter()
             .map(|cat| {
-                let top_articles: Vec<RawArticleViews> = cat
+                let top_articles: Vec<ArticleViews> = cat
                     .top_articles
                     .into_iter()
-                    .map(|art| RawArticleViews {
+                    .map(|art| ArticleViews {
                         article_qid: art.article_qid,
                         total_views: art.total_views,
                     })
                     .collect();
 
-                RawCategoryViews {
+                CategoryViews {
                     category_qid: cat.category_qid,
                     total_views: cat.total_views,
                     top_articles,
