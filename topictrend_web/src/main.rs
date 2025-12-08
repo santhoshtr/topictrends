@@ -42,6 +42,10 @@ async fn run_http_server(
             "/",
             get(|| async { Html(include_str!("../static/index.html")) }),
         )
+        .route(
+            "/delta",
+            get(|| async { Html(include_str!("../static/delta.html")) }),
+        )
         .nest_service("/static", static_files)
         .route(
             "/api/pageviews/category",

@@ -1,3 +1,4 @@
+
 @layer reset, base, components, utilities;
 
 @layer reset {
@@ -79,41 +80,6 @@
         padding: 0.25em 0;
       }
 
-      #wikitrends-btn {
-        align-self: bottom;
-      }
-
-      #tab-category:checked~.tab label:nth-child(1),
-      #tab-article:checked~.tab label:nth-child(2) {
-        border-bottom: 2px solid var(--border-color-progressive);
-      }
-
-      .tab {
-        width: 100%;
-        padding: 0 1em 0 0;
-        display: flex;
-        gap: 1em;
-      }
-
-      .tab-content {
-        width: 100%;
-
-        input {
-          width: 100%;
-        }
-
-        ;
-      }
-
-      .tab-content>div {
-        display: none;
-      }
-
-      #tab-category:checked~.tab-content div:nth-child(1),
-      #tab-article:checked~.tab-content div:nth-child(2) {
-        display: block;
-      }
-
     }
 
     .error-message,
@@ -134,44 +100,6 @@
       color: var(--color-progressive);
     }
 
-    #category-list {
-      padding: 1em;
-      height: 100%;
-      overflow: auto;
-
-      ul {
-        list-style: none;
-      }
-
-      li {
-        line-height: 1.5;
-        text-wrap: balance;
-
-        &:hover {
-          button {
-            color: var(--color-progressive);
-          }
-        }
-      }
-    }
-
-
-    .plot-button,
-    .analyse-button {
-      display: inline;
-      border: 0;
-      border-radius: 25%;
-      padding: 4px;
-      background: transparent;
-      cursor: pointer;
-      color: transparent;
-
-      &:hover {
-        background-color: var(--background-color-interactive--hover);
-        color: var(--color-progressive);
-      }
-
-    }
 
     a {
       text-decoration: none;
@@ -189,7 +117,8 @@
 
   .chart {
     width: calc(100vw - 400px);
-    height: 66dvh;
+    height: 100dvh;
+    display: none;
   }
 
   footer {

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="color-scheme" content="light dark">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Topic deltas</title>
+  <meta description="Category wise pageview deltas analysis for Wikipedia" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@wikimedia/codex-design-tokens/theme-wikimedia-ui-root.css">
+  <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@wikimedia/codex-design-tokens/theme-wikimedia-ui-mode-dark.css"
+    media="( prefers-color-scheme: dark )">
+  <link rel="stylesheet" href="https://tools-static.wmflabs.org/cdnjs/ajax/libs/codex/1.19.1/codex.style.css">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+</head>
+
+<body>
+  <div class="app-container">
+    <div class="sidebar">
+      <h2>Topicdelta</h2>
+      <form id="delta-form">
+        <div class="form-item ">
+          <div class="form-item ">
+            <label for="wiki">Wiki</label>
+          </div>
+          <div class="form-item">
+            <select id="wiki" class="cdx-select">
+              <option value="enwiki">English</option>
+              <option value="hiwiki">Hindi</option>
+              <option value="idwiki">Indonesian</option>
+              <option value="mlwiki">Malayalam</option>
+              <option value="eswiki">Spanish</option>
+              <option value="tawiki">Tamil</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-item row">
+          <div class="form-item">
+            <label for="baseline_start_date">Baseline Start Date</label>
+            <input type="date" id="baseline_start_date" name="baseline_start-date" required>
+          </div>
+          <div class="form-item">
+            <label for="baseline_end_date">Baseline End Date</label>
+            <input type="date" id="baseline_end_date" name="baseline_end-date" required>
+          </div>
+        </div>
+        <div class="form-item row">
+          <div class="form-item">
+            <label for="impact_start_date">Impact Start Date</label>
+            <input type="date" id="impact_start_date" name="Impact_start-date" required>
+          </div>
+          <div class="form-item">
+            <label for="impact_end_date">Impact End Date</label>
+            <input type="date" id="impact_end_date" name="impact_end-date" required>
+          </div>
+        </div>
+
+        <div class="form-item">
+          <label for="limit">Number of categories</label>
+          <input name="limit" id="limit" value="20">
+        </div>
+        <input name="depth" id="depth" value="2" type="hidden">
+
+        <div class="form-item">
+          <button type="submit"
+            class="cdx-button cdx-button--action-progressive cdx-button--weight-primary">Submit</button>
+        </div>
+      </form>
+    </div>
+    <div class="main">
+      <div id="chart" class="chart"></div>
+      <footer>
+        <p id="status" class="status"></p>
+      </footer>
+    </div>
+    <script src="/static/delta.js" type="module"></script>
+</body>
+
+</html>
