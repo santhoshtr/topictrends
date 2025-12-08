@@ -1,4 +1,5 @@
 use crate::models::AppState;
+use crate::services::composite::DeltaService;
 use crate::services::core::{
     ArticleService, CategoryService, CoreServiceError, PageViewService, QidService,
 };
@@ -14,12 +15,18 @@ pub mod topictrend_proto {
 use topictrend_proto::{
     ArticleCategoriesRequest,
     ArticleCategoriesResponse,
+    ArticleDeltaItem,
+    ArticleDeltaRequest,
+    ArticleDeltaResponse,
 
     ArticleViews,
     ArticleViewsRequest,
     ArticleViewsResponse,
     CategoryArticlesRequest,
     CategoryArticlesResponse,
+    CategoryDeltaItem,
+    CategoryDeltaRequest,
+    CategoryDeltaResponse,
     CategoryViews,
     //  data messages
     CategoryViewsRequest,
@@ -192,9 +199,7 @@ impl TopicTrendService for TopicTrendGrpcService {
             })
             .collect();
 
-        Ok(Response::new(TopCategoriesResponse {
-            categories,
-        }))
+        Ok(Response::new(TopCategoriesResponse { categories }))
     }
 
     async fn get_top_articles(
@@ -231,6 +236,112 @@ impl TopicTrendService for TopicTrendGrpcService {
         Ok(Response::new(TopArticlesResponse { articles }))
     }
 
+    // Delta analysis endpoints
+    async fn get_category_delta(
+        &self,
+        request: Request<CategoryDeltaRequest>,
+    ) -> Result<Response<CategoryDeltaResponse>, Status> {
+        let req = request.into_inner();
+
+        let baseline_start = parse_date(&req.baseline_start_date)?;
+        let baseline_end = parse_date(&req.baseline_end_date)?;
+        let impact_start = parse_date(&req.impact_start_date)?;
+        let impact_end = parse_date(&req.impact_end_date)?;
+        let limit = req.limit.unwrap_or(100) as usize;
+        let depth = req.depth.unwrap_or(0);
+
+        let delta_items = DeltaService::get_category_delta(
+            Arc::clone(&self.state),
+            &req.wiki,
+            baseline_start,
+            baseline_end,
+            impact_start,
+            impact_end,
+            limit,
+            depth,
+        )
+        .await
+        .map_err(Status::from)?;
+
+        let categories: Vec<CategoryDeltaItem> = delta_items
+            .into_iter()
+            .map(|item| CategoryDeltaItem {
+                category_qid: item.category_qid,
+                category_title: item.category_title,
+                baseline_views: item.baseline_views,
+                impact_views: item.impact_views,
+                delta_percentage: item.delta_percentage,
+                absolute_delta: item.absolute_delta,
+            })
+            .collect();
+
+        let baseline_period = format!("{} to {}", baseline_start, baseline_end);
+        let impact_period = format!("{} to {}", impact_start, impact_end);
+
+        Ok(Response::new(CategoryDeltaResponse {
+            categories,
+            baseline_period,
+            impact_period,
+        }))
+    }
+
+    async fn get_article_delta(
+        &self,
+        request: Request<ArticleDeltaRequest>,
+    ) -> Result<Response<ArticleDeltaResponse>, Status> {
+        let req = request.into_inner();
+
+        let baseline_start = parse_date(&req.baseline_start_date)?;
+        let baseline_end = parse_date(&req.baseline_end_date)?;
+        let impact_start = parse_date(&req.impact_start_date)?;
+        let impact_end = parse_date(&req.impact_end_date)?;
+        let limit = req.limit.unwrap_or(100) as usize;
+        let depth = req.depth.unwrap_or(0);
+
+        let delta_items = DeltaService::get_article_delta(
+            Arc::clone(&self.state),
+            &req.wiki,
+            req.category_qid,
+            baseline_start,
+            baseline_end,
+            impact_start,
+            impact_end,
+            limit,
+            depth,
+        )
+        .await
+        .map_err(Status::from)?;
+
+        let articles: Vec<ArticleDeltaItem> = delta_items
+            .into_iter()
+            .map(|item| ArticleDeltaItem {
+                article_qid: item.article_qid,
+                article_title: item.article_title,
+                baseline_views: item.baseline_views,
+                impact_views: item.impact_views,
+                delta_percentage: item.delta_percentage,
+                absolute_delta: item.absolute_delta,
+            })
+            .collect();
+
+        // Get category title
+        let category_title =
+            QidService::get_title_by_qid(Arc::clone(&self.state), &req.wiki, req.category_qid)
+                .await
+                .unwrap_or_else(|_| format!("Q{}", req.category_qid));
+
+        let baseline_period = format!("{} to {}", baseline_start, baseline_end);
+        let impact_period = format!("{} to {}", impact_start, impact_end);
+
+        Ok(Response::new(ArticleDeltaResponse {
+            articles,
+            category_qid: req.category_qid,
+            category_title,
+            baseline_period,
+            impact_period,
+        }))
+    }
+
     // Metadata endpoints
     async fn get_titles_by_qids(
         &self,
@@ -238,7 +349,7 @@ impl TopicTrendService for TopicTrendGrpcService {
     ) -> Result<Response<TitlesByQidsResponse>, Status> {
         let req = request.into_inner();
 
-        let titles = QidService::get_titles_by_qids(Arc::clone(&self.state), &req.wiki, req.qids)
+        let titles = QidService::get_titles_by_qids(Arc::clone(&self.state), &req.wiki, &req.qids)
             .await
             .map_err(Status::from)?;
 

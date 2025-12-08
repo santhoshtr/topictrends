@@ -91,7 +91,7 @@ impl PageViewsService {
         let article_qids: Vec<u32> = top_articles.iter().map(|a| a.article_qid).collect();
 
         let titles_map =
-            QidService::get_titles_by_qids(Arc::clone(&state), wiki, article_qids).await?;
+            QidService::get_titles_by_qids(Arc::clone(&state), wiki, &article_qids).await?;
 
         let top_articles: Vec<ArticleRank> = top_articles
             .into_iter()
@@ -175,7 +175,7 @@ impl PageViewsService {
         }
 
         let titles_map: HashMap<u32, String> =
-            QidService::get_titles_by_qids(Arc::clone(&state), wiki, all_qids).await?;
+            QidService::get_titles_by_qids(Arc::clone(&state), wiki, &all_qids).await?;
 
         let top_categories_with_titles: Vec<CategoryRank> = categories
             .into_iter()
@@ -230,7 +230,7 @@ impl PageViewsService {
 
         let category_qids =
             CategoryService::get_child_categories(Arc::clone(&state), wiki, category_qid).await?;
-        let titles_map = QidService::get_titles_by_qids(state, wiki, category_qids).await?;
+        let titles_map = QidService::get_titles_by_qids(state, wiki, &category_qids).await?;
 
         Ok(titles_map)
     }

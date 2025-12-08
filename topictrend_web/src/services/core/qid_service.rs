@@ -34,14 +34,14 @@ impl QidService {
         wiki: &str,
         qid: u32,
     ) -> Result<String, CoreServiceError> {
-        let titles = Self::get_titles_by_qids(state, wiki, vec![qid]).await?;
+        let titles = Self::get_titles_by_qids(state, wiki, &vec![qid]).await?;
         titles.get(&qid).cloned().ok_or(CoreServiceError::NotFound)
     }
 
     pub async fn get_titles_by_qids(
         state: Arc<AppState>,
         wiki: &str,
-        qids: Vec<u32>,
+        qids: &Vec<u32>,
     ) -> Result<HashMap<u32, String>, CoreServiceError> {
         let pool = get_or_create_db_pool(state, wiki).await?;
 
@@ -60,7 +60,7 @@ impl QidService {
         let mut query_builder = sqlx::query(&query);
 
         // Bind each QID
-        for qid in &qids {
+        for qid in qids {
             query_builder = query_builder.bind(format!("Q{}", qid));
         }
 

@@ -3,171 +3,289 @@ syntax = "proto3";
 package topictrend;
 
 service TopicTrendService {
-  //  data endpoints
+  // Get daily pageview data for a category over a date range
+  // Supports depth traversal to include subcategories
   rpc GetCategoryViews(CategoryViewsRequest) returns (CategoryViewsResponse);
+
+  // Get daily pageview data for a specific article over a date range
   rpc GetArticleViews(ArticleViewsRequest) returns (ArticleViewsResponse);
+
+  // Get the top categories by total pageviews for a given time period
+  // Includes top articles within each category
   rpc GetTopCategories(TopCategoriesRequest) returns (TopCategoriesResponse);
+
+  // Get the top articles within a specific category for a given time period
+  // Supports depth traversal to include articles from subcategories
   rpc GetTopArticles(TopArticlesRequest) returns (TopArticlesResponse);
 
-  // Metadata endpoints
+  // Perform differential analysis comparing category pageviews between two time periods
+  // Returns categories with the biggest changes (increases/decreases)
+  rpc GetCategoryDelta(CategoryDeltaRequest) returns (CategoryDeltaResponse);
+
+  // Perform differential analysis comparing article pageviews within a category between two time periods
+  // Returns articles with the biggest changes (increases/decreases)
+  rpc GetArticleDelta(ArticleDeltaRequest) returns (ArticleDeltaResponse);
+
+  // Get page titles for multiple QIDs in bulk
+  // More efficient than multiple individual title requests
   rpc GetTitlesByQids(TitlesByQidsRequest) returns (TitlesByQidsResponse);
+
+  // Get QIDs for multiple page titles in bulk
+  // More efficient than multiple individual QID requests
   rpc GetQidsByTitles(QidsByTitlesRequest) returns (QidsByTitlesResponse);
+
+  // Get the page title for a single QID
   rpc GetTitleByQid(TitleByQidRequest) returns (TitleByQidResponse);
+
+  // Get the QID for a single page title
   rpc GetQidByTitle(QidByTitleRequest) returns (QidByTitleResponse);
 
-  // Graph endpoints
+  // Get direct child categories of a given category
+  // Returns one level down in the category hierarchy
   rpc GetChildCategories(ChildCategoriesRequest) returns (ChildCategoriesResponse);
+
+  // Get direct parent categories of a given category
+  // Returns one level up in the category hierarchy
   rpc GetParentCategories(ParentCategoriesRequest) returns (ParentCategoriesResponse);
+
+  // Get all articles within a category, optionally including subcategories up to specified depth
   rpc GetCategoryArticles(CategoryArticlesRequest) returns (CategoryArticlesResponse);
+
+  // Get all categories that contain a specific article
   rpc GetArticleCategories(ArticleCategoriesRequest) returns (ArticleCategoriesResponse);
 
-  // Validation endpoints
+  // Check if a category exists in the wiki graph
   rpc ValidateCategoryExists(ValidateCategoryRequest) returns (ValidationResponse);
+
+  // Check if an article exists in the wiki graph
   rpc ValidateArticleExists(ValidateArticleRequest) returns (ValidationResponse);
 
 }
 
-//  data request/response messages
+// Request to get category pageview data over time
 message CategoryViewsRequest {
-  string wiki = 1;
-  uint32 category_qid = 2;
-  string start_date = 3;
-  string end_date = 4;
-  optional uint32 depth = 5;
+  string wiki = 1;          // Wiki identifier (e.g., "enwiki", "kkwiki")
+  uint32 category_qid = 2;  // Wikidata QID of the category
+  string start_date = 3;    // Start date in YYYY-MM-DD format
+  string end_date = 4;      // End date in YYYY-MM-DD format
+  optional uint32 depth = 5; // Depth of subcategory traversal (0 = category only, 1 = include direct subcategories, etc.)
 }
 
+// Response containing daily pageview data for a category
 message CategoryViewsResponse {
-  repeated DailyViews views = 1;
+  repeated DailyViews views = 1; // Array of daily view counts
 }
 
+// Request to get article pageview data over time
 message ArticleViewsRequest {
-  string wiki = 1;
-  uint32 article_qid = 2;
-  string start_date = 3;
-  string end_date = 4;
+  string wiki = 1;          // Wiki identifier (e.g., "enwiki", "kkwiki")
+  uint32 article_qid = 2;   // Wikidata QID of the article
+  string start_date = 3;    // Start date in YYYY-MM-DD format
+  string end_date = 4;      // End date in YYYY-MM-DD format
 }
 
+// Response containing daily pageview data for an article
 message ArticleViewsResponse {
-  repeated DailyViews views = 1;
+  repeated DailyViews views = 1; // Array of daily view counts
 }
 
+// Request to get top categories by pageviews
 message TopCategoriesRequest {
-  string wiki = 1;
-  string start_date = 2;
-  string end_date = 3;
-  optional uint32 limit = 4;
+  string wiki = 1;        // Wiki identifier (e.g., "enwiki", "kkwiki")
+  string start_date = 2;  // Start date in YYYY-MM-DD format
+  string end_date = 3;    // End date in YYYY-MM-DD format
+  optional uint32 limit = 4; // Maximum number of categories to return (default: 10)
 }
 
+// Response containing top categories with their view counts and top articles
 message TopCategoriesResponse {
-  repeated CategoryViews categories = 1;
+  repeated CategoryViews categories = 1; // Array of categories with their pageview data
 }
 
+// Request to get top articles within a category
 message TopArticlesRequest {
-  string wiki = 1;
-  uint32 category_qid = 2;
-  string start_date = 3;
-  string end_date = 4;
-  optional uint32 depth = 5;
-  optional uint32 limit = 6;
+  string wiki = 1;          // Wiki identifier (e.g., "enwiki", "kkwiki")
+  uint32 category_qid = 2;  // Wikidata QID of the category
+  string start_date = 3;    // Start date in YYYY-MM-DD format
+  string end_date = 4;      // End date in YYYY-MM-DD format
+  optional uint32 depth = 5; // Depth of subcategory traversal (0 = category only)
+  optional uint32 limit = 6; // Maximum number of articles to return (default: 10)
 }
 
+// Response containing top articles within a category
 message TopArticlesResponse {
-  repeated ArticleViews articles = 1;
+  repeated ArticleViews articles = 1; // Array of articles with their total view counts
 }
 
-// Metadata request/response messages
+// Request to perform category delta analysis between two time periods
+message CategoryDeltaRequest {
+  string wiki = 1;                    // Wiki identifier (e.g., "enwiki", "kkwiki")
+  string baseline_start_date = 2;     // Baseline period start date in YYYY-MM-DD format
+  string baseline_end_date = 3;       // Baseline period end date in YYYY-MM-DD format
+  string impact_start_date = 4;       // Impact period start date in YYYY-MM-DD format
+  string impact_end_date = 5;         // Impact period end date in YYYY-MM-DD format
+  optional uint32 limit = 6;          // Top N categories to analyze (default: 100)
+  optional uint32 depth = 7;          // Category depth for analysis (default: 0)
+}
+
+// Individual category delta result
+message CategoryDeltaItem {
+  uint32 category_qid = 1;      // Wikidata QID of the category
+  string category_title = 2;    // Human-readable title of the category
+  uint64 baseline_views = 3;    // Total views during baseline period
+  uint64 impact_views = 4;      // Total views during impact period
+  double delta_percentage = 5;  // Percentage change between periods
+  int64 absolute_delta = 6;     // Absolute difference in view counts
+}
+
+// Response containing category delta analysis results
+message CategoryDeltaResponse {
+  repeated CategoryDeltaItem categories = 1; // Array of categories with delta calculations
+  string baseline_period = 2;                // Human-readable baseline period description
+  string impact_period = 3;                  // Human-readable impact period description
+}
+
+// Request to perform article delta analysis within a category between two time periods
+message ArticleDeltaRequest {
+  string wiki = 1;                    // Wiki identifier (e.g., "enwiki", "kkwiki")
+  uint32 category_qid = 2;            // Wikidata QID of the category to analyze
+  string baseline_start_date = 3;     // Baseline period start date in YYYY-MM-DD format
+  string baseline_end_date = 4;       // Baseline period end date in YYYY-MM-DD format
+  string impact_start_date = 5;       // Impact period start date in YYYY-MM-DD format
+  string impact_end_date = 6;         // Impact period end date in YYYY-MM-DD format
+  optional uint32 limit = 7;          // Maximum number of articles to analyze (default: 100)
+  optional uint32 depth = 8;          // Category depth for analysis (default: 0)
+}
+
+// Individual article delta result
+message ArticleDeltaItem {
+  uint32 article_qid = 1;       // Wikidata QID of the article
+  string article_title = 2;     // Human-readable title of the article
+  uint64 baseline_views = 3;    // Total views during baseline period
+  uint64 impact_views = 4;      // Total views during impact period
+  double delta_percentage = 5;  // Percentage change between periods
+  int64 absolute_delta = 6;     // Absolute difference in view counts
+}
+
+// Response containing article delta analysis results
+message ArticleDeltaResponse {
+  repeated ArticleDeltaItem articles = 1; // Array of articles with delta calculations
+  uint32 category_qid = 2;                // QID of the analyzed category
+  string category_title = 3;              // Title of the analyzed category
+  string baseline_period = 4;             // Human-readable baseline period description
+  string impact_period = 5;               // Human-readable impact period description
+}
+
+// Request to get titles for multiple QIDs
 message TitlesByQidsRequest {
-  string wiki = 1;
-  repeated uint32 qids = 2;
+  string wiki = 1;        // Wiki identifier (e.g., "enwiki", "kkwiki")
+  repeated uint32 qids = 2; // Array of Wikidata QIDs to look up
 }
 
+// Response containing QID to title mappings
 message TitlesByQidsResponse {
-  map<uint32, string> titles = 1;
+  map<uint32, string> titles = 1; // Map from QID to page title
 }
 
+// Request to get QIDs for multiple titles
 message QidsByTitlesRequest {
-  string wiki = 1;
-  repeated string titles = 2;
-  optional int32 namespace = 3;
+  string wiki = 1;            // Wiki identifier (e.g., "enwiki", "kkwiki")
+  repeated string titles = 2; // Array of page titles to look up
+  optional int32 namespace = 3; // Page namespace (default: 0 for main namespace, 14 for categories)
 }
 
+// Response containing title to QID mappings
 message QidsByTitlesResponse {
-  map<string, uint32> qids = 1;
+  map<string, uint32> qids = 1; // Map from page title to QID
 }
 
+// Request to get title for a single QID
 message TitleByQidRequest {
-  string wiki = 1;
-  uint32 qid = 2;
+  string wiki = 1; // Wiki identifier (e.g., "enwiki", "kkwiki")
+  uint32 qid = 2;  // Wikidata QID to look up
 }
 
+// Response containing the title for a QID
 message TitleByQidResponse {
-  string title = 1;
+  string title = 1; // Human-readable page title
 }
 
+// Request to get QID for a single title
 message QidByTitleRequest {
-  string wiki = 1;
-  string title = 2;
-  optional int32 namespace = 3;
+  string wiki = 1;         // Wiki identifier (e.g., "enwiki", "kkwiki")
+  string title = 2;        // Page title to look up
+  optional int32 namespace = 3; // Page namespace (default: 0 for main namespace, 14 for categories)
 }
 
+// Response containing the QID for a title
 message QidByTitleResponse {
-  uint32 qid = 1;
+  uint32 qid = 1; // Wikidata QID of the page
 }
 
-// Graph request/response messages
+// Request to get child categories of a category
 message ChildCategoriesRequest {
-  string wiki = 1;
-  uint32 category_qid = 2;
+  string wiki = 1;          // Wiki identifier (e.g., "enwiki", "kkwiki")
+  uint32 category_qid = 2;  // Wikidata QID of the parent category
 }
 
+// Response containing child category QIDs
 message ChildCategoriesResponse {
-  repeated uint32 category_qids = 1;
+  repeated uint32 category_qids = 1; // Array of child category QIDs
 }
 
+// Request to get parent categories of a category
 message ParentCategoriesRequest {
-  string wiki = 1;
-  uint32 category_qid = 2;
+  string wiki = 1;          // Wiki identifier (e.g., "enwiki", "kkwiki")
+  uint32 category_qid = 2;  // Wikidata QID of the child category
 }
 
+// Response containing parent category QIDs
 message ParentCategoriesResponse {
-  repeated uint32 category_qids = 1;
+  repeated uint32 category_qids = 1; // Array of parent category QIDs
 }
 
+// Request to get articles within a category
 message CategoryArticlesRequest {
-  string wiki = 1;
-  uint32 category_qid = 2;
-  optional uint32 depth = 3;
+  string wiki = 1;          // Wiki identifier (e.g., "enwiki", "kkwiki")
+  uint32 category_qid = 2;  // Wikidata QID of the category
+  optional uint32 depth = 3; // Depth of subcategory traversal (default: 0)
 }
 
+// Response containing article QIDs within a category
 message CategoryArticlesResponse {
-  repeated uint32 article_qids = 1;
+  repeated uint32 article_qids = 1; // Array of article QIDs in the category
 }
 
+// Request to get categories that contain an article
 message ArticleCategoriesRequest {
-  string wiki = 1;
-  uint32 article_qid = 2;
+  string wiki = 1;        // Wiki identifier (e.g., "enwiki", "kkwiki")
+  uint32 article_qid = 2; // Wikidata QID of the article
 }
 
+// Response containing category QIDs that contain the article
 message ArticleCategoriesResponse {
-  repeated uint32 category_qids = 1;
+  repeated uint32 category_qids = 1; // Array of category QIDs containing the article
 }
 
-// Validation request/response messages
+// Request to validate if a category exists
 message ValidateCategoryRequest {
-  string wiki = 1;
-  uint32 category_qid = 2;
+  string wiki = 1;          // Wiki identifier (e.g., "enwiki", "kkwiki")
+  uint32 category_qid = 2;  // Wikidata QID of the category to validate
 }
 
+// Request to validate if an article exists
 message ValidateArticleRequest {
-  string wiki = 1;
-  uint32 article_qid = 2;
+  string wiki = 1;        // Wiki identifier (e.g., "enwiki", "kkwiki")
+  uint32 article_qid = 2; // Wikidata QID of the article to validate
 }
 
+// Response for validation requests
 message ValidationResponse {
-  bool exists = 1;
+  bool exists = 1; // True if the entity exists, false otherwise
 }
 
 // Legacy composite messages (kept for backward compatibility)
+// Use the more specific endpoints above for new implementations
 message CategoryTrendRequest {
   string wiki = 1;
   string category = 2;
@@ -191,20 +309,23 @@ message SubCategoryRequest {
   optional uint32 category_qid = 3;
 }
 
-// Common data structures
+// Common data structures used across multiple endpoints
+
+// Represents pageviews for a single day
 message DailyViews {
-  string date = 1;
-  uint64 views = 2;
+  string date = 1; // Date in YYYY-MM-DD format
+  uint64 views = 2; // Number of pageviews on that date
 }
 
+// Represents an article with its total view count
 message ArticleViews {
-  uint32 article_qid = 1;
-  uint64 total_views = 2;
+  uint32 article_qid = 1; // Wikidata QID of the article
+  uint64 total_views = 2; // Total pageviews for the time period
 }
 
+// Represents a category with its total view count and top articles
 message CategoryViews {
-  uint32 category_qid = 1;
-  uint64 total_views = 2;
-  repeated ArticleViews top_articles = 3;
+  uint32 category_qid = 1;           // Wikidata QID of the category
+  uint64 total_views = 2;            // Total pageviews for the category
+  repeated ArticleViews top_articles = 3; // Top articles within this category
 }
-
