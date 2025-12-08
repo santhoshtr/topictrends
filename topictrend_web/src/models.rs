@@ -39,6 +39,7 @@ pub struct CategoryTrendParams {
     pub start_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
 }
+
 #[derive(Deserialize)]
 pub struct ArticleTrendParams {
     pub wiki: String,
@@ -61,6 +62,29 @@ pub struct TopCategoriesParams {
     pub start_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
     pub top_n: Option<u32>,
+}
+
+#[derive(Deserialize)]
+pub struct CategoryDeltaParams {
+    pub wiki: String,
+    pub baseline_start_date: NaiveDate,
+    pub baseline_end_date: NaiveDate,
+    pub impact_start_date: NaiveDate,
+    pub impact_end_date: NaiveDate,
+    pub limit: Option<u32>,
+    pub depth: Option<u32>,
+}
+
+#[derive(Deserialize)]
+pub struct ArticleDeltaParams {
+    pub wiki: String,
+    pub category_qid: u32,
+    pub baseline_start_date: NaiveDate,
+    pub baseline_end_date: NaiveDate,
+    pub impact_start_date: NaiveDate,
+    pub impact_end_date: NaiveDate,
+    pub limit: Option<u32>,
+    pub depth: Option<u32>,
 }
 
 // --- Response DTO ---
@@ -103,4 +127,40 @@ pub struct TopCategory {
 #[derive(Serialize)]
 pub struct CategoryRankResponse {
     pub categories: Vec<TopCategory>,
+}
+
+#[derive(Serialize)]
+pub struct CategoryDeltaItemResponse {
+    pub category_qid: u32,
+    pub category_title: String,
+    pub baseline_views: u64,
+    pub impact_views: u64,
+    pub delta_percentage: f64,
+    pub absolute_delta: i64,
+}
+
+#[derive(Serialize)]
+pub struct CategoryDeltaResponse {
+    pub categories: Vec<CategoryDeltaItemResponse>,
+    pub baseline_period: String,
+    pub impact_period: String,
+}
+
+#[derive(Serialize)]
+pub struct ArticleDeltaItemResponse {
+    pub article_qid: u32,
+    pub article_title: String,
+    pub baseline_views: u64,
+    pub impact_views: u64,
+    pub delta_percentage: f64,
+    pub absolute_delta: i64,
+}
+
+#[derive(Serialize)]
+pub struct ArticleDeltaResponse {
+    pub articles: Vec<ArticleDeltaItemResponse>,
+    pub category_qid: u32,
+    pub category_title: String,
+    pub baseline_period: String,
+    pub impact_period: String,
 }

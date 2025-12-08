@@ -59,6 +59,14 @@ async fn run_http_server(
             "/api/list/top_categories",
             get(handlers::get_top_categories_handler),
         )
+        .route(
+            "/api/delta/categories",
+            get(handlers::get_category_delta_handler),
+        )
+        .route(
+            "/api/delta/articles",
+            get(handlers::get_article_delta_handler),
+        )
         .with_state(state)
         .layer(cors)
         .layer(SetResponseHeaderLayer::if_not_present(

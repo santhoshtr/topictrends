@@ -8,22 +8,32 @@ use axum_macros::debug_handler;
 use std::sync::Arc;
 
 use crate::models::{
-    AppState, ArticleTrendParams, CategoryRankResponse, CategoryTrendParams, DailyViews,
+    AppState, ArticleDeltaParams, ArticleDeltaResponse, ArticleTrendParams, CategoryDeltaParams,
+    CategoryDeltaResponse, CategoryRankResponse, CategoryTrendParams, DailyViews,
     SubCategoryParams, TopArticle, TopCategoriesParams, TopCategory,
 };
+use crate::services::composite::DeltaService;
 use crate::{
-    models::ArticleTrendResponse, models::CategoryTrendResponse, services::PageViewsService,
+    models::{ArticleTrendResponse, CategoryTrendResponse},
+    services::PageViewsService,
 };
 
 // Custom error type for API handlers
 #[derive(Debug)]
 pub enum ApiError {
     ServiceError(crate::services::ServiceError),
+    DeltaError(crate::services::core::CoreServiceError),
 }
 
 impl From<crate::services::ServiceError> for ApiError {
     fn from(err: crate::services::ServiceError) -> Self {
         ApiError::ServiceError(err)
+    }
+}
+
+impl From<crate::services::core::CoreServiceError> for ApiError {
+    fn from(err: crate::services::core::CoreServiceError) -> Self {
+        ApiError::DeltaError(err)
     }
 }
 
@@ -48,6 +58,23 @@ impl IntoResponse for ApiError {
                         format!("Internal server error: {}", e),
                     ),
                 },
+            },
+            ApiError::DeltaError(core_err) => match core_err {
+                crate::services::core::CoreServiceError::DatabaseError(e) => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Database error: {}", e),
+                ),
+                crate::services::core::CoreServiceError::EngineError(e) => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Engine error: {}", e),
+                ),
+                crate::services::core::CoreServiceError::NotFound => {
+                    (StatusCode::NOT_FOUND, "Resource not found".to_string())
+                }
+                crate::services::core::CoreServiceError::InternalError(e) => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Internal server error: {}", e),
+                ),
             },
         };
 
@@ -177,4 +204,103 @@ pub async fn get_top_categories_handler(
     };
 
     Ok(Json(response))
+}
+
+pub async fn get_category_delta_handler(
+    Query(params): Query<CategoryDeltaParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<CategoryDeltaResponse>, ApiError> {
+    let limit = params.limit.unwrap_or(100) as usize;
+    let depth = params.depth.unwrap_or(0);
+
+    let delta_items = DeltaService::get_category_delta(
+        Arc::clone(&state),
+        &params.wiki,
+        params.baseline_start_date,
+        params.baseline_end_date,
+        params.impact_start_date,
+        params.impact_end_date,
+        limit,
+        depth,
+    )
+    .await?;
+
+    let categories: Vec<crate::models::CategoryDeltaItemResponse> = delta_items
+        .into_iter()
+        .map(|item| crate::models::CategoryDeltaItemResponse {
+            category_qid: item.category_qid,
+            category_title: item.category_title,
+            baseline_views: item.baseline_views,
+            impact_views: item.impact_views,
+            delta_percentage: item.delta_percentage,
+            absolute_delta: item.absolute_delta,
+        })
+        .collect();
+
+    let baseline_period = format!(
+        "{} to {}",
+        params.baseline_start_date, params.baseline_end_date
+    );
+    let impact_period = format!("{} to {}", params.impact_start_date, params.impact_end_date);
+
+    Ok(Json(CategoryDeltaResponse {
+        categories,
+        baseline_period,
+        impact_period,
+    }))
+}
+
+pub async fn get_article_delta_handler(
+    Query(params): Query<ArticleDeltaParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<ArticleDeltaResponse>, ApiError> {
+    use crate::services::core::QidService;
+
+    let limit = params.limit.unwrap_or(100) as usize;
+    let depth = params.depth.unwrap_or(0);
+
+    let delta_items = DeltaService::get_article_delta(
+        Arc::clone(&state),
+        &params.wiki,
+        params.category_qid,
+        params.baseline_start_date,
+        params.baseline_end_date,
+        params.impact_start_date,
+        params.impact_end_date,
+        limit,
+        depth,
+    )
+    .await?;
+
+    let articles: Vec<crate::models::ArticleDeltaItemResponse> = delta_items
+        .into_iter()
+        .map(|item| crate::models::ArticleDeltaItemResponse {
+            article_qid: item.article_qid,
+            article_title: item.article_title,
+            baseline_views: item.baseline_views,
+            impact_views: item.impact_views,
+            delta_percentage: item.delta_percentage,
+            absolute_delta: item.absolute_delta,
+        })
+        .collect();
+
+    // Get category title
+    let category_title =
+        QidService::get_title_by_qid(Arc::clone(&state), &params.wiki, params.category_qid)
+            .await
+            .unwrap_or_else(|_| format!("Q{}", params.category_qid));
+
+    let baseline_period = format!(
+        "{} to {}",
+        params.baseline_start_date, params.baseline_end_date
+    );
+    let impact_period = format!("{} to {}", params.impact_start_date, params.impact_end_date);
+
+    Ok(Json(ArticleDeltaResponse {
+        articles,
+        category_qid: params.category_qid,
+        category_title,
+        baseline_period,
+        impact_period,
+    }))
 }
