@@ -46,7 +46,6 @@
     overflow: hidden;
   }
 
-
   .sidebar {
     border-right: 1px solid var(--border-color-base);
     display: flex;
@@ -117,7 +116,7 @@
 
   .chart {
     width: calc(100vw - 400px);
-    height: 100dvh;
+    height: 66dvh;
   }
 
   footer {
