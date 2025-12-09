@@ -190,6 +190,7 @@
   .chart {
     width: calc(100vw - 400px);
     height: 66dvh;
+    display: none;
   }
 
   footer {
