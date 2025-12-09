@@ -24,7 +24,9 @@ class TopicTrends extends HTMLElement {
       } else if (name === "end_date") {
         this.end_date = newValue;
       }
-      this.fetchData();
+      if (this.wiki && this.start_date && this.end_date) {
+        this.fetchData();
+      }
     }
   }
 
@@ -39,11 +41,11 @@ class TopicTrends extends HTMLElement {
 
     try {
       let url = `https://topictrends.wmcloud.org/api/list/top_categories?wiki=${this.wiki}&top_n=50`;
-      
+
       if (this.start_date) {
         url += `&start_date=${this.start_date}`;
       }
-      
+
       if (this.end_date) {
         url += `&end_date=${this.end_date}`;
       }
