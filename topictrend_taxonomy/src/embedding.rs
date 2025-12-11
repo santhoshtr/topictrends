@@ -6,6 +6,8 @@ use ort::{
     value::TensorRef,
 };
 use tokenizers::Tokenizer;
+use std::time::Instant;
+
 pub struct SentenceEmbedder {
     session: Session,
     tokenizer: Tokenizer,
@@ -112,7 +114,10 @@ fn main() -> Result<()> {
     println!("Generating embeddings for {} phrases...\n", phrases.len());
 
     // Generate embeddings
+    let start_time = Instant::now();
     let embeddings = embedder.encode_batch(&phrases)?;
+    let elapsed = start_time.elapsed();
+    println!("Embedding generation took: {:.2?}\n", elapsed);
 
     // Print embedding dimensions
     println!("Embedding dimension: {}\n", embeddings[0].len());
