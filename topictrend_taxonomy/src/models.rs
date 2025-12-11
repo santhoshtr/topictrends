@@ -1,6 +1,5 @@
 use ahash::HashMap;
 use qdrant_client::qdrant::Value;
-use serde::Deserialize;
 use std::fmt;
 
 pub struct SearchResult {

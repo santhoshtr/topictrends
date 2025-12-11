@@ -1,6 +1,7 @@
 use anyhow::Result;
 use ndarray::{Axis, Ix2};
 use ort::{
+    execution_providers::OpenVINOExecutionProvider,
     session::{Session, builder::GraphOptimizationLevel},
     value::TensorRef,
 };
@@ -17,8 +18,10 @@ impl SentenceEmbedder {
         let tokenizer_path = "topictrend_taxonomy/models/tokenizer.json";
 
         let session = Session::builder()?
-            .with_optimization_level(GraphOptimizationLevel::Level1)?
+            .with_optimization_level(GraphOptimizationLevel::Level3)?
+            .with_execution_providers([OpenVINOExecutionProvider::default().build()])?
             .with_intra_threads(4)?
+            .with_inter_threads(8)?
             .commit_from_file(model_path)?;
 
         let tokenizer = Tokenizer::from_file(tokenizer_path)
@@ -35,17 +38,19 @@ impl SentenceEmbedder {
             .encode_batch(sentences.to_vec(), true)
             .map_err(|e| anyhow::anyhow!("Tokenization failed: {}", e))?;
 
-        let padded_token_length = encodings[0].len();
+        let batch_size = sentences.len();
+        let seq_len = encodings[0].len();
+
+        // Pre-allocate with exact capacity
+        let mut ids = Vec::with_capacity(batch_size * seq_len);
+        let mut mask = Vec::with_capacity(batch_size * seq_len);
 
         // Get token IDs and attention mask as flattened arrays
-        let ids: Vec<i64> = encodings
-            .iter()
-            .flat_map(|e| e.get_ids().iter().map(|i| *i as i64))
-            .collect();
-        let mask: Vec<i64> = encodings
-            .iter()
-            .flat_map(|e| e.get_attention_mask().iter().map(|i| *i as i64))
-            .collect();
+        for encoding in &encodings {
+            ids.extend(encoding.get_ids().iter().map(|&i| i as i64));
+            mask.extend(encoding.get_attention_mask().iter().map(|&i| i as i64));
+        }
+        let padded_token_length = encodings[0].len();
 
         // Create 2D tensor views [batch_size, sequence_length]
         let a_ids = TensorRef::from_array_view(([sentences.len(), padded_token_length], &*ids))?;
@@ -59,7 +64,7 @@ impl SentenceEmbedder {
             .try_extract_array::<f32>()?
             .into_dimensionality::<Ix2>()?;
 
-        // Convert to Vec of Array1
+        // Convert to Vec of Vec
         let result: Vec<Vec<f32>> = embeddings
             .axis_iter(Axis(0))
             .map(|row| Self::normalize(&row.to_vec()))
@@ -86,7 +91,7 @@ impl SentenceEmbedder {
 }
 
 /// Calculate cosine similarity between two embedding vectors
-pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     let dot_product: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
     dot_product
 }

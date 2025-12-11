@@ -15,11 +15,14 @@ enum Commands {
     /// Index records for a given wiki
     Index {
         /// Wiki name (e.g., enwiki)
+        #[clap(default_value = "enwiki")]
         wiki: String,
     },
+
     /// Search for a query in a given wiki
     Search {
         /// Wiki name (e.g., enwiki)
+        #[clap(default_value = "enwiki")]
         wiki: String,
         /// Query string to search
         query: String,

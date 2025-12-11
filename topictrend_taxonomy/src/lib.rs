@@ -42,51 +42,54 @@ pub async fn injest(db: &Qdrant, wiki: String) -> Result<(), Box<dyn std::error:
         let parquet_path: PlPath = PlPath::Local(Arc::from(Path::new(&parquet_path)));
         let df = polars::prelude::LazyFrame::scan_parquet(parquet_path, Default::default())?
             .select([
-                polars::prelude::col("page_id"),
+                polars::prelude::col("qid"),
                 polars::prelude::col("page_title"),
             ])
             .collect()?;
 
-        let page_ids = df.column("page_id")?.u32()?;
+        let page_qids = df.column("qid")?.u32()?;
         let page_titles = df.column("page_title")?.str()?;
 
         // Convert to Vec to move out of the blocking task
-        let ids: Vec<Option<u32>> = page_ids.into_iter().collect();
+        let qids: Vec<Option<u32>> = page_qids.into_iter().collect();
         let titles: Vec<Option<&str>> = page_titles.into_iter().collect();
         let titles_owned: Vec<Option<String>> = titles
             .into_iter()
             .map(|opt| opt.map(|s| s.to_string()))
             .collect();
-        Ok::<_, polars::error::PolarsError>((ids, titles_owned))
+        Ok::<_, polars::error::PolarsError>((qids, titles_owned))
     })
     .await
     .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?
     .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
+
     let total_records = page_ids_vec.len();
     println!("Found {} records to process", total_records);
     let mut processed = 0;
     let mut batch = Vec::new();
-    for (page_id, page_title) in page_ids_vec.into_iter().zip(page_titles_vec.into_iter()) {
-        if let (Some(id), Some(title)) = (page_id, page_title) {
-            batch.push((id, title));
+    let mut encoder = SentenceEmbedder::new()?;
+    for (page_qid, page_title) in page_ids_vec.into_iter().zip(page_titles_vec.into_iter()) {
+        if let (Some(qid), Some(title)) = (page_qid, page_title) {
+            batch.push((qid, title));
 
             if batch.len() == 100 {
-                let embeddings = fetch_embeddings(&batch)?;
+                let embeddings = fetch_embeddings(&mut encoder, &batch)?;
                 insert_to_qdrant(db, &wiki, &batch, &embeddings).await?;
-                processed += batch.len();
-                print!(
-                    "\rProgress: {}/{} records processed ({:.1}%)",
-                    processed,
-                    total_records,
-                    (processed as f64 / total_records as f64) * 100.0
-                );
                 batch.clear();
             }
+            processed += 1;
+
+            print!(
+                "\rProgress: {}/{} records processed ({:.1}%)",
+                processed,
+                total_records,
+                (processed as f64 / total_records as f64) * 100.0
+            );
         }
     }
 
     if !batch.is_empty() {
-        let embeddings = fetch_embeddings(&batch)?;
+        let embeddings = fetch_embeddings(&mut encoder, &batch)?;
         insert_to_qdrant(db, &wiki, &batch, &embeddings).await?;
         processed += batch.len();
         print!(
@@ -123,18 +126,18 @@ async fn insert_to_qdrant(
         )
         .await;
 
-    // Use page_id as the point ID to avoid duplicates
+    // Use page_qid as the point ID to avoid duplicates
     // Qdrant will automatically overwrite points with the same ID
     let points: Vec<PointStruct> = batch
         .iter()
         .zip(embeddings.iter())
-        .map(|((page_id, title), embedding)| {
+        .map(|((page_qid, title), embedding)| {
             let mut payload = Payload::new();
-            payload.insert("page_id", Value::from(*page_id as i64));
+            payload.insert("qid", Value::from(*page_qid as i64));
             payload.insert("page_title", Value::from(title.clone()));
 
-            // Use page_id as the point ID instead of sequential index
-            PointStruct::new(*page_id as u64, embedding.clone(), payload)
+            // Use page_id as the point QID instead of sequential index
+            PointStruct::new(*page_qid as u64, embedding.clone(), payload)
         })
         .collect();
     Ok(client
@@ -142,8 +145,10 @@ async fn insert_to_qdrant(
         .await?)
 }
 
-fn fetch_embeddings(batch: &[(u32, String)]) -> Result<Vec<Vec<f32>>, Box<dyn Error>> {
-    let mut encoder = SentenceEmbedder::new()?;
+fn fetch_embeddings(
+    encoder: &mut SentenceEmbedder,
+    batch: &[(u32, String)],
+) -> Result<Vec<Vec<f32>>, Box<dyn Error>> {
     let titles: Vec<&str> = batch.iter().map(|(_, title)| title.as_str()).collect();
     Ok(encoder.encode_batch(&titles)?)
 }
@@ -215,7 +220,8 @@ mod integration_tests {
             (5u32, "ഡീപ് ലേങിങ്ങ്".to_string()),
         ];
 
-        let embeddings_result = fetch_embeddings(&batch);
+        let mut encoder = SentenceEmbedder::new().expect("Failed to create encoder");
+        let embeddings_result = fetch_embeddings(&mut encoder, &batch);
 
         match embeddings_result {
             Ok(embeddings) => {
@@ -240,7 +246,7 @@ mod integration_tests {
 
                 // First get embedding for the search query
                 let query_batch = vec![(0u32, search_query.clone())];
-                let query_embedding_result = fetch_embeddings(&query_batch);
+                let query_embedding_result = fetch_embeddings(&mut encoder, &query_batch);
 
                 match query_embedding_result {
                     Ok(query_embeddings) => {
