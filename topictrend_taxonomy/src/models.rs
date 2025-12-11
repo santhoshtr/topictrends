@@ -3,11 +3,6 @@ use qdrant_client::qdrant::Value;
 use serde::Deserialize;
 use std::fmt;
 
-#[derive(Deserialize)]
-pub struct EmbeddingResponse {
-    pub embeddings: Vec<Vec<f32>>,
-}
-
 pub struct SearchResult {
     pub score: f32,
     pub payload: HashMap<String, Value>,

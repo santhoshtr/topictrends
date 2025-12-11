@@ -17,13 +17,12 @@ use qdrant_client::{
     },
 };
 
-use reqwest::Client;
 use std::sync::Arc;
 
-use crate::models::EmbeddingResponse;
+use crate::embedding::SentenceEmbedder;
 use crate::models::SearchResult;
+mod embedding;
 mod models;
-static EMBEDDING_API_URL: &str = "https://embed.wmcloud.org/api/embeddings";
 
 pub async fn get_connection() -> Result<Qdrant, Box<dyn Error>> {
     let quadrant_server =
@@ -65,7 +64,6 @@ pub async fn injest(db: &Qdrant, wiki: String) -> Result<(), Box<dyn std::error:
     .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
     let total_records = page_ids_vec.len();
     println!("Found {} records to process", total_records);
-    let client = Client::new();
     let mut processed = 0;
     let mut batch = Vec::new();
     for (page_id, page_title) in page_ids_vec.into_iter().zip(page_titles_vec.into_iter()) {
@@ -73,7 +71,7 @@ pub async fn injest(db: &Qdrant, wiki: String) -> Result<(), Box<dyn std::error:
             batch.push((id, title));
 
             if batch.len() == 100 {
-                let embeddings = fetch_embeddings(&client, &batch).await?;
+                let embeddings = fetch_embeddings(&batch)?;
                 insert_to_qdrant(db, &wiki, &batch, &embeddings).await?;
                 processed += batch.len();
                 print!(
@@ -88,7 +86,7 @@ pub async fn injest(db: &Qdrant, wiki: String) -> Result<(), Box<dyn std::error:
     }
 
     if !batch.is_empty() {
-        let embeddings = fetch_embeddings(&client, &batch).await?;
+        let embeddings = fetch_embeddings(&batch)?;
         insert_to_qdrant(db, &wiki, &batch, &embeddings).await?;
         processed += batch.len();
         print!(
@@ -144,27 +142,10 @@ async fn insert_to_qdrant(
         .await?)
 }
 
-async fn fetch_embeddings(
-    client: &reqwest::Client,
-    batch: &[(u32, String)],
-) -> Result<Vec<Vec<f32>>, Box<dyn Error>> {
-    let texts: Vec<String> = batch.iter().map(|(_, title)| title.clone()).collect();
-    let response = client
-        .post(EMBEDDING_API_URL)
-        .header("accept", "application/json")
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({
-            "texts": texts,
-            "model_id": "sentence-transformers/LaBSE#refs/pr/18"
-           //  "model_id": "intfloat/multilingual-e5-base"
-            // "model_id": "santhosh/Qwen3-Embedding-0.6B-int8-ov"
-        }))
-        .send()
-        .await?;
-
-    let embedding_response: EmbeddingResponse = response.json().await?;
-    let embeddings: Vec<Vec<f32>> = embedding_response.embeddings;
-    Ok(embeddings)
+fn fetch_embeddings(batch: &[(u32, String)]) -> Result<Vec<Vec<f32>>, Box<dyn Error>> {
+    let mut encoder = SentenceEmbedder::new()?;
+    let titles: Vec<&str> = batch.iter().map(|(_, title)| title.as_str()).collect();
+    Ok(encoder.encode_batch(&titles)?)
 }
 
 pub async fn search(
@@ -175,21 +156,12 @@ pub async fn search(
     let client = get_connection().await?;
     let collection_name = format!("{}-categories", wiki);
 
-    // Fetch the embedding for the query
-    let http_client = Client::new();
-    let query_batch = vec![(0u32, query.clone())];
-
-    let query_embeddings = fetch_embeddings(&http_client, &query_batch).await?;
-
-    if query_embeddings.is_empty() {
-        return Err("Failed to get embedding for query".into());
-    }
-
-    let query_vector = query_embeddings[0].clone();
+    let mut encoder = SentenceEmbedder::new()?;
+    let query_embedding = encoder.encode(&query)?;
 
     let search_result = client
         .search_points(
-            SearchPointsBuilder::new(collection_name, query_vector, number_of_results)
+            SearchPointsBuilder::new(collection_name, query_embedding, number_of_results)
                 .with_payload(true)
                 .params(SearchParamsBuilder::default().exact(true)),
         )
@@ -243,10 +215,7 @@ mod integration_tests {
             (5u32, "ഡീപ് ലേങിങ്ങ്".to_string()),
         ];
 
-        // Fetch actual embeddings from the API
-        let http_client = Client::new();
-
-        let embeddings_result = fetch_embeddings(&http_client, &batch).await;
+        let embeddings_result = fetch_embeddings(&batch);
 
         match embeddings_result {
             Ok(embeddings) => {
@@ -271,7 +240,7 @@ mod integration_tests {
 
                 // First get embedding for the search query
                 let query_batch = vec![(0u32, search_query.clone())];
-                let query_embedding_result = fetch_embeddings(&http_client, &query_batch).await;
+                let query_embedding_result = fetch_embeddings(&query_batch);
 
                 match query_embedding_result {
                     Ok(query_embeddings) => {
