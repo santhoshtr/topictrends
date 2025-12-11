@@ -5,8 +5,8 @@ use ort::{
     session::{Session, builder::GraphOptimizationLevel},
     value::TensorRef,
 };
-use std::time::Instant;
 use tokenizers::Tokenizer;
+use std::time::Instant;
 
 pub struct SentenceEmbedder {
     session: Session,
@@ -99,7 +99,6 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 }
 
 fn main() -> Result<()> {
-    ort::set_api(ort_candle::api());
     // Load the model - you can use from_url for testing or new() for local files
     let mut embedder = SentenceEmbedder::new()?;
 
