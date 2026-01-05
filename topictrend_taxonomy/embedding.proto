@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package embedding;
+
+service EmbeddingService {
+  // Encode text into embeddings
+  rpc Encode(EncodeRequest) returns (EncodeResponse);
+
+  // Compute similarity between query and document embeddings
+  rpc ComputeSimilarity(SimilarityRequest) returns (SimilarityResponse);
+
+  // Health check
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message EncodeRequest {
+  repeated string texts = 1;
+  // Optional: "query" for queries, empty/null for documents
+  optional string prompt_name = 2;
+}
+
+message EncodeResponse {
+  // Each embedding is a vector of floats
+  repeated Embedding embeddings = 1;
+}
+
+message Embedding {
+  repeated float values = 1;
+}
+
+message SimilarityRequest {
+  repeated Embedding query_embeddings = 1;
+  repeated Embedding document_embeddings = 2;
+}
+
+message SimilarityResponse {
+  // 2D similarity matrix flattened row-wise
+  // Shape: [num_queries, num_documents]
+  repeated float similarities = 1;
+  int32 num_queries = 2;
+  int32 num_documents = 3;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  bool healthy = 1;
+  string model_name = 2;
+}

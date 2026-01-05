@@ -1,0 +1,33 @@
+[project]
+name = "embedding-service"
+version = "0.1.0"
+description = "gRPC server for vector embeddings using sentence transformers"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "grpcio>=1.65.0",
+    "grpcio-tools>=1.65.0",
+    "sentence-transformers>=2.7.0",
+    "transformers>=4.51.0",
+    "torch>=2.0.0",
+    "numpy>=1.24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "ruff>=0.12.7",
+]
+
+
+[tool.uv]
+index-strategy = "unsafe-best-match"
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+

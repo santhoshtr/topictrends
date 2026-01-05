@@ -19,10 +19,10 @@ use qdrant_client::{
 
 use std::sync::Arc;
 
-use crate::embedding::SentenceEmbedder;
 use crate::models::SearchResult;
-mod embedding;
+use crate::sentence_embedder::SentenceEmbedder;
 mod models;
+mod sentence_embedder;
 
 pub async fn get_connection() -> Result<Qdrant, Box<dyn Error>> {
     let quadrant_server =
@@ -67,13 +67,13 @@ pub async fn injest(db: &Qdrant, wiki: String) -> Result<(), Box<dyn std::error:
     println!("Found {} records to process", total_records);
     let mut processed = 0;
     let mut batch = Vec::new();
-    let mut encoder = SentenceEmbedder::new()?;
+    let mut encoder = SentenceEmbedder::new().await?;
     for (page_qid, page_title) in page_ids_vec.into_iter().zip(page_titles_vec.into_iter()) {
         if let (Some(qid), Some(title)) = (page_qid, page_title) {
             batch.push((qid, title));
 
             if batch.len() == 100 {
-                let embeddings = fetch_embeddings(&mut encoder, &batch)?;
+                let embeddings = fetch_embeddings(&mut encoder, &batch).await?;
                 insert_to_qdrant(db, &wiki, &batch, &embeddings).await?;
                 batch.clear();
             }
@@ -89,7 +89,7 @@ pub async fn injest(db: &Qdrant, wiki: String) -> Result<(), Box<dyn std::error:
     }
 
     if !batch.is_empty() {
-        let embeddings = fetch_embeddings(&mut encoder, &batch)?;
+        let embeddings = fetch_embeddings(&mut encoder, &batch).await?;
         insert_to_qdrant(db, &wiki, &batch, &embeddings).await?;
         processed += batch.len();
         print!(
@@ -116,7 +116,7 @@ async fn insert_to_qdrant(
     let _ = client
         .create_collection(
             CreateCollectionBuilder::new(&collection_name)
-                .vectors_config(VectorParamsBuilder::new(768, Distance::Cosine).on_disk(true))
+                .vectors_config(VectorParamsBuilder::new(384, Distance::Cosine).on_disk(true))
                 .quantization_config(ScalarQuantizationBuilder::default().always_ram(true))
                 .hnsw_config(
                     HnswConfigDiffBuilder::default()
@@ -145,12 +145,12 @@ async fn insert_to_qdrant(
         .await?)
 }
 
-fn fetch_embeddings(
+async fn fetch_embeddings(
     encoder: &mut SentenceEmbedder,
     batch: &[(u32, String)],
 ) -> Result<Vec<Vec<f32>>, Box<dyn Error>> {
     let titles: Vec<&str> = batch.iter().map(|(_, title)| title.as_str()).collect();
-    Ok(encoder.encode_batch(&titles)?)
+    encoder.encode_batch(&titles).await
 }
 
 pub async fn search(
@@ -161,8 +161,8 @@ pub async fn search(
     let client = get_connection().await?;
     let collection_name = format!("{}-categories", wiki);
 
-    let mut encoder = SentenceEmbedder::new()?;
-    let query_embedding = encoder.encode(&query)?;
+    let mut encoder = SentenceEmbedder::new().await?;
+    let query_embedding = encoder.encode(&query).await?;
 
     let search_result = client
         .search_points(
@@ -203,7 +203,7 @@ mod integration_tests {
     }
 
     #[tokio::test]
-    #[ignore] // Run with: cargo test -- --ignored
+    #[ignore]
     async fn test_full_insert_flow() {
         if !is_qdrant_available().await {
             println!("Qdrant not available, skipping integration test");
@@ -220,8 +220,10 @@ mod integration_tests {
             (5u32, "ഡീപ് ലേങിങ്ങ്".to_string()),
         ];
 
-        let mut encoder = SentenceEmbedder::new().expect("Failed to create encoder");
-        let embeddings_result = fetch_embeddings(&mut encoder, &batch);
+        let mut encoder = SentenceEmbedder::new()
+            .await
+            .expect("Failed to create encoder");
+        let embeddings_result = fetch_embeddings(&mut encoder, &batch).await;
 
         match embeddings_result {
             Ok(embeddings) => {
@@ -246,7 +248,7 @@ mod integration_tests {
 
                 // First get embedding for the search query
                 let query_batch = vec![(0u32, search_query.clone())];
-                let query_embedding_result = fetch_embeddings(&mut encoder, &query_batch);
+                let query_embedding_result = fetch_embeddings(&mut encoder, &query_batch).await;
 
                 match query_embedding_result {
                     Ok(query_embeddings) => {

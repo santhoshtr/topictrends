@@ -15,14 +15,12 @@ enum Commands {
     /// Index records for a given wiki
     Index {
         /// Wiki name (e.g., enwiki)
-        #[clap(default_value = "enwiki")]
         wiki: String,
     },
 
     /// Search for a query in a given wiki
     Search {
         /// Wiki name (e.g., enwiki)
-        #[clap(default_value = "enwiki")]
         wiki: String,
         /// Query string to search
         query: String,
@@ -63,19 +61,38 @@ async fn run() -> Result<()> {
                 .expect("Failed to connect to Qdrant server");
 
             println!("Starting indexing for wiki: {}", wiki);
-            injest(&client, wiki.clone())
-                .await
-                .unwrap_or_else(|_| panic!("Failed to index wiki '{}'", wiki));
+            injest(&client, wiki.clone()).await.unwrap_or_else(|e| {
+                eprintln!("Failed to index wiki '{}': {}", wiki, e);
+
+                // Print the error chain
+                let mut source = e.source();
+                while let Some(err) = source {
+                    eprintln!("  Caused by: {}", err);
+                    source = err.source();
+                }
+
+                panic!("Indexing failed");
+            });
 
             println!("✓ Indexing completed successfully for '{}'", wiki);
         }
 
         Commands::Search { wiki, query, n } => {
             println!("Searching in '{}' for: '{}'", wiki, query);
-
             let results = search(query.clone(), wiki.clone(), n)
                 .await
-                .unwrap_or_else(|_| panic!("Failed to search in wiki '{}'", wiki));
+                .unwrap_or_else(|e| {
+                    eprintln!("Failed to search in wiki '{}': {}", wiki, e);
+
+                    // Print the error chain
+                    let mut source = e.source();
+                    while let Some(err) = source {
+                        eprintln!("  Caused by: {}", err);
+                        source = err.source();
+                    }
+
+                    panic!("Search failed");
+                });
 
             if results.is_empty() {
                 println!("No results found for query: '{}'", query);
