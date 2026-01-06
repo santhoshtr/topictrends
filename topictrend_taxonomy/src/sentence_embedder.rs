@@ -5,8 +5,9 @@ pub mod embedding {
     tonic::include_proto!("embedding");
 }
 
+use embedding::HealthCheckRequest;
 use embedding::embedding_service_client::EmbeddingServiceClient;
-use embedding::{Embedding, EncodeRequest, HealthCheckRequest, SimilarityRequest};
+use embedding::{EncodeRequest, SimilarityRequest};
 
 pub struct SentenceEmbedder {
     client: EmbeddingServiceClient<tonic::transport::Channel>,
