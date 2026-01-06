@@ -21,6 +21,7 @@ async function onSubmit(event) {
 
   const params = new URLSearchParams();
   const wiki = document.getElementById("wiki").value;
+  const match_threshold = document.getElementById("match_threshold").value;
 
   params.append("wiki", wiki);
   try {
@@ -28,12 +29,12 @@ async function onSubmit(event) {
       .getElementById("category")
       .value.replaceAll(" ", "_");
     params.append("category", category);
-
+    params.append("match_threshold", match_threshold);
     // Update the browser URL with the new parameters
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.pushState({}, "", newUrl);
 
-    const categories = await searchCategory(wiki, category);
+    const categories = await searchCategory(wiki, category, match_threshold);
     renderCategories(categories, wiki);
   } catch (error) {
     console.error("Error:", error);
@@ -113,10 +114,10 @@ function showMessage(message, type) {
   messageEl.textContent = message;
 }
 
-async function searchCategory(wiki, query) {
+async function searchCategory(wiki, query, match_threshold) {
   const apiUrl = `/api/search/categories?wiki=${wiki}&query=${encodeURIComponent(
     query,
-  )}`;
+  )}&match_threshold=${match_threshold}`;
 
   try {
     const startTime = performance.now();
@@ -166,6 +167,7 @@ function populateFormFromQueryParams() {
 
   const wiki = urlParams.get("wiki");
   const category = urlParams.get("category");
+  const match_threshold = urlParams.get("match_threshold");
 
   if (wiki) {
     document.getElementById("wiki").value = wiki;
@@ -173,6 +175,10 @@ function populateFormFromQueryParams() {
   if (category) {
     document.getElementById("category").value = category.replaceAll("_", " ");
   }
+  if (match_threshold) {
+    document.getElementById("match_threshold").value = match_threshold;
+  }
+
   if (wiki && category) {
     onSubmit(new Event("submit"));
   }

@@ -35,9 +35,13 @@
             </select>
           </div>
         </div>
-         <div class="form-item">
+        <div class="form-item">
             <label for="category" class="cdx-label">Category</label>
             <input class="cdx-text-input__input" type="search" id="category" name="category" placeholder="Search category"></input>
+        </div>
+        <div class="form-item">
+            <label for="match_threshold" class="cdx-label">Match threshold</label>
+            <input class="cdx-text-input__input" type="number" id="match_threshold" name="match_threshold" value="0.6" min="0.1" step="0.05" max="1.0"></input>
         </div>
         <div class="form-item">
           <button type="submit"
