@@ -89,8 +89,8 @@ impl DeltaService {
 
         for qid in &all_qids {
             // Fetch missing baseline data
-            if !final_baseline_map.contains_key(qid) {
-                if let Ok(views) = PageViewService::get_category_views(
+            if !final_baseline_map.contains_key(qid)
+                && let Ok(views) = PageViewService::get_category_views(
                     Arc::clone(&state),
                     wiki,
                     *qid,
@@ -103,11 +103,10 @@ impl DeltaService {
                     let total: u64 = views.iter().map(|(_, v)| v).sum();
                     final_baseline_map.insert(*qid, total);
                 }
-            }
 
             // Fetch missing impact data
-            if !final_impact_map.contains_key(qid) {
-                if let Ok(views) = PageViewService::get_category_views(
+            if !final_impact_map.contains_key(qid)
+                && let Ok(views) = PageViewService::get_category_views(
                     Arc::clone(&state),
                     wiki,
                     *qid,
@@ -120,7 +119,6 @@ impl DeltaService {
                     let total: u64 = views.iter().map(|(_, v)| v).sum();
                     final_impact_map.insert(*qid, total);
                 }
-            }
         }
 
         // Get titles for all categories
@@ -230,8 +228,8 @@ impl DeltaService {
 
         for qid in &all_qids {
             // Fetch missing baseline data
-            if !final_baseline_map.contains_key(qid) {
-                if let Ok(views) = PageViewService::get_article_views(
+            if !final_baseline_map.contains_key(qid)
+                && let Ok(views) = PageViewService::get_article_views(
                     Arc::clone(&state),
                     wiki,
                     *qid,
@@ -243,11 +241,10 @@ impl DeltaService {
                     let total: u64 = views.iter().map(|(_, v)| v).sum();
                     final_baseline_map.insert(*qid, total);
                 }
-            }
 
             // Fetch missing impact data
-            if !final_impact_map.contains_key(qid) {
-                if let Ok(views) = PageViewService::get_article_views(
+            if !final_impact_map.contains_key(qid)
+                && let Ok(views) = PageViewService::get_article_views(
                     Arc::clone(&state),
                     wiki,
                     *qid,
@@ -259,7 +256,6 @@ impl DeltaService {
                     let total: u64 = views.iter().map(|(_, v)| v).sum();
                     final_impact_map.insert(*qid, total);
                 }
-            }
         }
 
         // Get titles for all articles
