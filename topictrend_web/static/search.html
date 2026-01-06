@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="color-scheme" content="light dark">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Topic deltas</title>
+  <title>Semantic Topic Model</title>
   <meta description="Semantic topic taxonomy for Wikipedia" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@wikimedia/codex-design-tokens/theme-wikimedia-ui-root.css">
   <link rel="stylesheet"
@@ -44,14 +44,15 @@
             class="cdx-button cdx-button--action-progressive cdx-button--weight-primary">Search</button>
         </div>
       </form>
+          <footer>
+        <p id="status" class="status"></p>
+      </footer>
+
     </div>
     <div class="main">
       <section id="category-list"></section>
       <section id="article-list"></section>
-      <footer>
-        <p id="status" class="status"></p>
-      </footer>
-    </div>
+      </div>
     <script src="/static/search.js" type="module"></script>
 </body>
 
