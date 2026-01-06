@@ -178,21 +178,24 @@
     }
   }
 
+}
+
+.main {
+  display: grid;
+  justify-content: center;
+  align-items: start;
+  width: 100%;
+  overflow-y: auto;
+
+  .chart {
+    width: calc(100vw - 400px);
+    height: 66dvh;
+    display: none;
+  }
+
   footer {
     align-self: end;
   }
 
 
-}
-
-.main {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  justify-content: center;
-  align-items: start;
-  width: 100%;
-  > section {
-    max-height: 100dvh;
-    overflow-y: auto;
-  }
 }

@@ -129,17 +129,21 @@
       text-decoration: none;
     }
   }
+  footer {
+    align-self: end;
+  }
+
 
 }
 
 .main {
   display: grid;
+  grid-template-columns: 1fr 1fr;
   justify-content: center;
   align-items: start;
   width: 100%;
-  overflow-y: auto;
-  footer {
-    align-self: end;
+  > section {
+    overflow-y: auto;
+    max-height: 100dvh;
   }
-
 }
