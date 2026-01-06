@@ -132,7 +132,10 @@ web: init
 
 qdrant:
 	# Port 6334 is GRPC and that is what rust will use.
-	docker run -d --rm -p 6333:6333 -p 6334:6334 --name qdrant qdrant/qdrant
+	docker run -d --rm -p 6333:6333 \
+		-p 6334:6334 \
+		-v "/mnt/nfs/secondary-scratch/santhosh/qdrant_storage:/qdrant/storage:z" \
+		--name qdrant qdrant/qdrant
 
 # Monthly processing target
 # make monthly END_DATE=2025-08-30  # Processes all dates from 2025-08-01 to 2025-08-31
