@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="color-scheme" content="light dark">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Topic deltas</title>
+  <meta description="Semantic topic taxonomy for Wikipedia" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@wikimedia/codex-design-tokens/theme-wikimedia-ui-root.css">
+  <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@wikimedia/codex-design-tokens/theme-wikimedia-ui-mode-dark.css"
+    media="( prefers-color-scheme: dark )">
+  <link rel="stylesheet" href="https://tools-static.wmflabs.org/cdnjs/ajax/libs/codex/1.19.1/codex.style.css">
+  <link rel="stylesheet" href="/static/search.css">
+</head>
+
+<body>
+  <div class="app-container">
+    <div class="sidebar">
+      <h2>Semantic Topic Search</h2>
+      <form id="search-form">
+        <div class="form-item ">
+          <div class="form-item ">
+            <label for="wiki">Wiki</label>
+          </div>
+          <div class="form-item">
+            <select id="wiki" class="cdx-select">
+              <option value="enwiki">English</option>
+              <option value="hiwiki">Hindi</option>
+              <option value="idwiki">Indonesian</option>
+              <option value="mlwiki">Malayalam</option>
+              <option value="eswiki">Spanish</option>
+              <option value="tawiki">Tamil</option>
+            </select>
+          </div>
+        </div>
+         <div class="form-item">
+            <label for="category" class="cdx-label">Category</label>
+            <input type="search" id="category" name="category" placeholder="Search category"></input>
+        </div>
+        <div class="form-item">
+          <button type="submit"
+            class="cdx-button cdx-button--action-progressive cdx-button--weight-primary">Search</button>
+        </div>
+      </form>
+    </div>
+    <div class="main">
+      <section id="category-list"></section>
+      <section id="article-list"></section>
+      <footer>
+        <p id="status" class="status"></p>
+      </footer>
+    </div>
+    <script src="/static/search.js" type="module"></script>
+</body>
+
+</html>

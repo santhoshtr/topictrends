@@ -164,3 +164,42 @@ pub struct ArticleDeltaResponse {
     pub baseline_period: String,
     pub impact_period: String,
 }
+
+#[derive(Deserialize)]
+pub struct CategorySearchParams {
+    pub query: String,
+    pub wiki: String,
+    pub match_threshold: Option<f32>,
+    pub limit: Option<u64>,
+}
+
+#[derive(Serialize)]
+pub struct CategorySearchItemResponse {
+    pub category_qid: u32,
+    pub category_title_en: String,
+    pub category_title: String,
+    pub match_score: f32,
+}
+
+#[derive(Serialize)]
+pub struct CategorySearchResponse {
+    pub categories: Vec<CategorySearchItemResponse>,
+}
+
+#[derive(Deserialize)]
+pub struct ListArticlesInCategoryParams {
+    pub wiki: String,
+    pub category: Option<String>,
+    pub category_qid: Option<u32>,
+}
+
+#[derive(Serialize)]
+pub struct ArticlesInCategoryResponse {
+    pub articles: Vec<ArticleItem>,
+}
+
+#[derive(Serialize)]
+pub struct ArticleItem {
+    pub qid: u32,
+    pub title: String,
+}

@@ -19,7 +19,7 @@ use qdrant_client::{
 
 use std::sync::Arc;
 
-use crate::models::SearchResult;
+pub use crate::models::SearchResult;
 use crate::sentence_embedder::SentenceEmbedder;
 mod models;
 mod sentence_embedder;
@@ -156,7 +156,7 @@ async fn fetch_embeddings(
 pub async fn search(
     query: String,
     wiki: String,
-    number_of_results: u64,
+    limit: u64,
 ) -> Result<Vec<SearchResult>, Box<dyn std::error::Error>> {
     let client = get_connection().await?;
     let collection_name = format!("{}-categories", wiki);
@@ -166,7 +166,7 @@ pub async fn search(
 
     let search_result = client
         .search_points(
-            SearchPointsBuilder::new(collection_name, query_embedding, number_of_results)
+            SearchPointsBuilder::new(collection_name, query_embedding, limit)
                 .with_payload(true)
                 .params(SearchParamsBuilder::default().exact(true)),
         )
@@ -175,15 +175,12 @@ pub async fn search(
     let results: Vec<SearchResult> = search_result
         .result
         .into_iter()
-        .map(|point| {
+        .filter_map(|point| {
             let payload = point
                 .payload
                 .into_iter()
                 .collect::<HashMap<String, Value>>();
-            SearchResult {
-                score: point.score,
-                payload,
-            }
+            SearchResult::from_qdrant_result(point.score, payload)
         })
         .collect();
 

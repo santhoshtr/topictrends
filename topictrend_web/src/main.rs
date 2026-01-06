@@ -46,6 +46,10 @@ async fn run_http_server(
             "/delta",
             get(|| async { Html(include_str!("../static/delta.html")) }),
         )
+        .route(
+            "/search",
+            get(|| async { Html(include_str!("../static/search.html")) }),
+        )
         .nest_service("/static", static_files)
         .route(
             "/api/pageviews/category",
@@ -70,6 +74,11 @@ async fn run_http_server(
         .route(
             "/api/delta/articles",
             get(handlers::get_article_delta_handler),
+        )
+        .route("/api/search/categories", get(handlers::search_categories))
+        .route(
+            "/api/list/articles",
+            get(handlers::get_articles_in_category),
         )
         .with_state(state)
         .layer(cors)

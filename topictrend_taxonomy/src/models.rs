@@ -1,64 +1,45 @@
 use ahash::HashMap;
-use qdrant_client::qdrant::Value;
 use std::fmt;
 
+use qdrant_client::qdrant::Value;
+use serde::Serialize;
+
+#[derive(Debug, Clone, Serialize)]
 pub struct SearchResult {
     pub score: f32,
-    pub payload: HashMap<String, Value>,
+    pub qid: u32,
+    pub page_title: String,
 }
 
 impl fmt::Display for SearchResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "Score: {:.4}", self.score)?;
+        writeln!(f, "  QID: {}", self.qid)?;
+        writeln!(f, "  Title: {}", self.page_title)
+    }
+}
 
-        // Extract and display page_id
-        if let Some(page_id) = self.payload.get("page_id")
-            && let Some(kind) = &page_id.kind
-        {
-            match kind {
-                qdrant_client::qdrant::value::Kind::IntegerValue(val) => {
-                    writeln!(f, "  Page ID: {}", val)?;
-                }
-                _ => writeln!(f, "  Page ID: {:?}", page_id)?,
-            }
-        }
+// Internal helper to convert from Qdrant payload
+impl SearchResult {
+    pub(crate) fn from_qdrant_result(score: f32, payload: HashMap<String, Value>) -> Option<Self> {
+        let qid = payload.get("qid").and_then(|v| match v {
+            Value {
+                kind: Some(qdrant_client::qdrant::value::Kind::IntegerValue(i)),
+            } => Some(*i as u32),
+            _ => None,
+        })?;
 
-        // Extract and display page_title
-        if let Some(page_title) = self.payload.get("page_title")
-            && let Some(kind) = &page_title.kind
-        {
-            match kind {
-                qdrant_client::qdrant::value::Kind::StringValue(val) => {
-                    writeln!(f, "  Title: {}", val)?;
-                }
-                _ => writeln!(f, "  Title: {:?}", page_title)?,
-            }
-        }
+        let page_title = payload.get("page_title").and_then(|v| match v {
+            Value {
+                kind: Some(qdrant_client::qdrant::value::Kind::StringValue(s)),
+            } => Some(s.clone()),
+            _ => None,
+        })?;
 
-        // Display any other fields
-        for (key, value) in self.payload.iter() {
-            if key != "page_id"
-                && key != "page_title"
-                && let Some(kind) = &value.kind
-            {
-                match kind {
-                    qdrant_client::qdrant::value::Kind::StringValue(val) => {
-                        writeln!(f, "  {}: {}", key, val)?;
-                    }
-                    qdrant_client::qdrant::value::Kind::IntegerValue(val) => {
-                        writeln!(f, "  {}: {}", key, val)?;
-                    }
-                    qdrant_client::qdrant::value::Kind::DoubleValue(val) => {
-                        writeln!(f, "  {}: {}", key, val)?;
-                    }
-                    qdrant_client::qdrant::value::Kind::BoolValue(val) => {
-                        writeln!(f, "  {}: {}", key, val)?;
-                    }
-                    _ => writeln!(f, "  {}: {:?}", key, value)?,
-                }
-            }
-        }
-
-        Ok(())
+        Some(SearchResult {
+            score,
+            qid,
+            page_title,
+        })
     }
 }

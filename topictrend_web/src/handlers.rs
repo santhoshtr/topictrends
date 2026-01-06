@@ -7,12 +7,20 @@ use axum::{
 use axum_macros::debug_handler;
 use std::sync::Arc;
 
-use crate::models::{
-    AppState, ArticleDeltaParams, ArticleDeltaResponse, ArticleTrendParams, CategoryDeltaParams,
-    CategoryDeltaResponse, CategoryRankResponse, CategoryTrendParams, DailyViews,
-    SubCategoryParams, TopArticle, TopCategoriesParams, TopCategory,
+use crate::services::{
+    composite::DeltaService,
+    core::{CoreServiceError, QidService},
 };
-use crate::services::composite::DeltaService;
+use crate::{
+    models::{
+        AppState, ArticleDeltaParams, ArticleDeltaResponse, ArticleItem, ArticleTrendParams,
+        ArticlesInCategoryResponse, CategoryDeltaParams, CategoryDeltaResponse,
+        CategoryRankResponse, CategorySearchItemResponse, CategorySearchParams,
+        CategorySearchResponse, CategoryTrendParams, DailyViews, ListArticlesInCategoryParams,
+        SubCategoryParams, TopArticle, TopCategoriesParams, TopCategory,
+    },
+    services::core::CategoryService,
+};
 use crate::{
     models::{ArticleTrendResponse, CategoryTrendResponse},
     services::PageViewsService,
@@ -302,5 +310,107 @@ pub async fn get_article_delta_handler(
         category_title,
         baseline_period,
         impact_period,
+    }))
+}
+
+pub async fn search_categories(
+    Query(params): Query<CategorySearchParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<CategorySearchResponse>, ApiError> {
+    use crate::services::core::QidService;
+
+    let limit: u64 = params.limit.unwrap_or(1000u64);
+    let match_threshold = params.match_threshold.unwrap_or(0.5);
+
+    let search_results: Vec<topictrend_taxonomy::SearchResult> =
+        topictrend_taxonomy::search(params.query.clone(), "enwiki".to_string(), limit)
+            .await
+            .map_err(|e| {
+                ApiError::ServiceError(crate::services::ServiceError::CoreError(
+                    crate::services::core::CoreServiceError::InternalError(e.to_string()),
+                ))
+            })?;
+
+    let mut categories: Vec<CategorySearchItemResponse> = search_results
+        .into_iter()
+        .filter(|result| result.score >= match_threshold)
+        .map(|result| CategorySearchItemResponse {
+            category_qid: result.qid,
+            category_title_en: result.page_title,
+            category_title: "".to_string(),
+            match_score: result.score,
+        })
+        .collect();
+
+    if params.wiki != "enwiki" {
+        let qids: Vec<u32> = categories.iter().map(|cat| cat.category_qid).collect();
+
+        let titles_in_target_wiki =
+            QidService::get_titles_by_qids(Arc::clone(&state), &params.wiki, &qids)
+                .await
+                .unwrap_or_default();
+
+        for category in &mut categories {
+            if let Some(title) = titles_in_target_wiki.get(&category.category_qid) {
+                category.category_title = title.clone();
+            } else {
+                category.category_title = category.category_title_en.clone();
+            }
+        }
+    } else {
+        for category in &mut categories {
+            category.category_title = category.category_title_en.clone();
+        }
+    }
+
+    Ok(Json(CategorySearchResponse { categories }))
+}
+
+pub async fn get_articles_in_category(
+    Query(params): Query<ListArticlesInCategoryParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<ArticlesInCategoryResponse>, ApiError> {
+    let category_qid = if let Some(qid) = params.category_qid {
+        qid
+    } else {
+        let category = params.category.ok_or_else(|| {
+            CoreServiceError::InternalError(
+                "Either category or category_qid must be provided".to_string(),
+            )
+        })?;
+        QidService::get_qid_by_title(Arc::clone(&state), params.wiki.as_str(), &category, 14)
+            .await?
+    };
+
+    // Get all articles in the category (depth 0 = direct members only)
+    let article_qids = CategoryService::get_category_articles(
+        Arc::clone(&state),
+        params.wiki.as_str(),
+        category_qid,
+        0,
+    )
+    .await?;
+
+    // Get titles for all articles
+    let titles_map =
+        QidService::get_titles_by_qids(Arc::clone(&state), params.wiki.as_str(), &article_qids)
+            .await?;
+
+    // Get view data for each article
+    let mut articles_in_category = Vec::new();
+
+    for article_qid in article_qids {
+        let title = titles_map
+            .get(&article_qid)
+            .cloned()
+            .unwrap_or_else(|| format!("Q{}", article_qid));
+
+        articles_in_category.push(ArticleItem {
+            qid: article_qid,
+            title,
+        });
+    }
+    Ok(Json(ArticlesInCategoryResponse {
+        articles: articles_in_category,
     }))
 }

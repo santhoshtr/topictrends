@@ -1,5 +1,5 @@
 use crate::models::AppState;
-use crate::services::core::{CoreServiceError, PageViewService, QidService};
+use crate::services::core::{CategoryService, CoreServiceError, PageViewService, QidService};
 use chrono::NaiveDate;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -41,6 +41,12 @@ pub struct CategoryRank {
     pub title: String,
     pub views: u32,
     pub top_articles: Vec<ArticleRank>,
+}
+
+pub struct ArticleWithViews {
+    pub qid: u32,
+    pub title: String,
+    pub views: Vec<(NaiveDate, u64)>,
 }
 
 impl PageViewsService {
@@ -220,8 +226,6 @@ impl PageViewsService {
         category: &str,
         category_qid: Option<u32>,
     ) -> Result<HashMap<u32, String>, ServiceError> {
-        use crate::services::core::CategoryService;
-
         let category_qid = if let Some(qid) = category_qid {
             qid
         } else {
@@ -233,5 +237,71 @@ impl PageViewsService {
         let titles_map = QidService::get_titles_by_qids(state, wiki, &category_qids).await?;
 
         Ok(titles_map)
+    }
+
+    pub async fn get_articles_in_category(
+        state: Arc<AppState>,
+        wiki: &str,
+        category: Option<String>,
+        category_qid: Option<u32>,
+    ) -> Result<Vec<ArticleWithViews>, ServiceError> {
+        // Default to last 30 days
+        let end = chrono::Local::now().date_naive();
+        let start = end - chrono::Duration::days(30);
+
+        let category_qid = if let Some(qid) = category_qid {
+            qid
+        } else {
+            let category = category.ok_or_else(|| {
+                CoreServiceError::InternalError(
+                    "Either category or category_qid must be provided".to_string(),
+                )
+            })?;
+            QidService::get_qid_by_title(Arc::clone(&state), wiki, &category, 14).await?
+        };
+
+        // Get all articles in the category (depth 0 = direct members only)
+        let article_qids =
+            CategoryService::get_category_articles(Arc::clone(&state), wiki, category_qid, 0)
+                .await?;
+
+        // Get titles for all articles
+        let titles_map =
+            QidService::get_titles_by_qids(Arc::clone(&state), wiki, &article_qids).await?;
+
+        // Get view data for each article
+        let mut articles_with_views = Vec::new();
+
+        for article_qid in article_qids {
+            // Get view data for this article
+            let views = PageViewService::get_article_views(
+                Arc::clone(&state),
+                wiki,
+                article_qid,
+                start,
+                end,
+            )
+            .await?;
+
+            let title = titles_map
+                .get(&article_qid)
+                .cloned()
+                .unwrap_or_else(|| format!("Q{}", article_qid));
+
+            articles_with_views.push(ArticleWithViews {
+                qid: article_qid,
+                title,
+                views,
+            });
+        }
+
+        // Sort by total views descending
+        articles_with_views.sort_by(|a, b| {
+            let a_total: u64 = a.views.iter().map(|(_, v)| v).sum();
+            let b_total: u64 = b.views.iter().map(|(_, v)| v).sum();
+            b_total.cmp(&a_total)
+        });
+
+        Ok(articles_with_views)
     }
 }

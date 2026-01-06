@@ -9,6 +9,7 @@ prost-build = "0.14"
 
 [dependencies]
 topictrend_core = { path = "../topictrend_core" }
+topictrend_taxonomy = { path = "../topictrend_taxonomy" }
 chrono = { workspace = true }
 axum = "0.8"
 axum-macros = "0.5.0"
