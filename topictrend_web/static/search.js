@@ -45,7 +45,7 @@ function renderCategories(categories, wiki) {
   const container = document.getElementById("category-list");
   container.innerHTML = "";
   const categoryListElement = document.createElement("ul");
-
+  const lang = wiki.replaceAll("wiki", "");
   for (let i = 0; i < categories.length; i++) {
     const categoryElement = document.createElement("li");
 
@@ -61,7 +61,7 @@ function renderCategories(categories, wiki) {
       showMessage(`Fetching articles for ${this.innerText}...`, "success");
       try {
         const articles = await listArticles(wiki, categoryQid);
-        renderArticles(articles);
+        renderArticles(articles, lang);
       } catch (error) {
         console.error("Error fetching articles:", error);
         showMessage("Failed to fetch articles. Please try again.", "error");
@@ -74,8 +74,8 @@ function renderCategories(categories, wiki) {
   container.append(categoryListElement);
 }
 
-function renderArticles(articles) {
-  const container = document.getElementById("articles-list");
+function renderArticles(articles, lang) {
+  const container = document.getElementById("article-list");
   container.innerHTML = "";
 
   if (!articles || articles.length === 0) {
@@ -89,16 +89,10 @@ function renderArticles(articles) {
     const articleElement = document.createElement("li");
 
     const articleLink = document.createElement("a");
-    articleLink.href = "#";
+    articleLink.href = `https://${lang}.wikipedia.org/wiki/${articles[i].title}`;
     articleLink.innerText = articles[i].title;
     articleLink.id = articles[i].qid;
-
-    // Calculate total views
-    const totalViews = articles[i].views.reduce(
-      (sum, view) => sum + view.views,
-      0,
-    );
-    articleLink.title = `QID: ${articles[i].qid}, Total views: ${totalViews}`;
+    articleLink.title = `QID: ${articles[i].qid}`;
 
     articleElement.append(articleLink);
     articleListElement.append(articleElement);
