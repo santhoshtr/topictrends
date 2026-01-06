@@ -145,5 +145,7 @@
   > section {
     overflow-y: auto;
     max-height: 100dvh;
+    padding: 2em;
+    line-height: 2;
   }
 }
