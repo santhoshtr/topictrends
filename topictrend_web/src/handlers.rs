@@ -350,13 +350,14 @@ pub async fn search_categories(
                 .await
                 .unwrap_or_default();
 
-        for category in &mut categories {
+        categories.retain_mut(|category| {
             if let Some(title) = titles_in_target_wiki.get(&category.category_qid) {
                 category.category_title = title.clone();
+                true
             } else {
-                category.category_title = category.category_title_en.clone();
+                false
             }
-        }
+        });
     } else {
         for category in &mut categories {
             category.category_title = category.category_title_en.clone();
