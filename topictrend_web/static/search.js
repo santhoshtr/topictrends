@@ -43,7 +43,9 @@ async function onSubmit(event) {
 
 function renderCategories(categories, wiki) {
   const container = document.getElementById("category-list");
-  container.innerHTML = "";
+  container.innerHTML = "<h1>Categories</h1>";
+  document.getElementById("article-list").innerHTML = "";
+
   const categoryListElement = document.createElement("ul");
   const lang = wiki.replaceAll("wiki", "");
   for (let i = 0; i < categories.length; i++) {
@@ -76,7 +78,7 @@ function renderCategories(categories, wiki) {
 
 function renderArticles(articles, lang) {
   const container = document.getElementById("article-list");
-  container.innerHTML = "";
+  container.innerHTML = "<h1>Articles</h1>";
 
   if (!articles || articles.length === 0) {
     container.innerHTML = "<p>No articles found in this category.</p>";
