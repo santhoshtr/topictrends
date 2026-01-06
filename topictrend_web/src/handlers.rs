@@ -320,7 +320,7 @@ pub async fn search_categories(
     use crate::services::core::QidService;
 
     let limit: u64 = params.limit.unwrap_or(1000u64);
-    let match_threshold = params.match_threshold.unwrap_or(0.5);
+    let match_threshold = params.match_threshold.unwrap_or(0.6);
 
     let search_results: Vec<topictrend_taxonomy::SearchResult> =
         topictrend_taxonomy::search(params.query.clone(), "enwiki".to_string(), limit)
