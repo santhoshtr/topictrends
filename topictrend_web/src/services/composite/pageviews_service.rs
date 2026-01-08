@@ -54,7 +54,6 @@ impl PageViewsService {
         state: Arc<AppState>,
         wiki: &str,
         category: &str,
-        depth: u32,
         start_date: Option<NaiveDate>,
         end_date: Option<NaiveDate>,
     ) -> Result<CategoryTrendResult, ServiceError> {
@@ -82,7 +81,7 @@ impl PageViewsService {
             Arc::clone(&state),
             wiki,
             category_qids,
-            Some(depth),
+            Some(1),
             start_date,
             end_date,
         )
@@ -120,7 +119,6 @@ impl PageViewsService {
                         Arc::clone(&state),
                         wiki,
                         category,
-                        depth,
                         start_date,
                         end_date,
                     )
