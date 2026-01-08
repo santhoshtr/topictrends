@@ -101,7 +101,7 @@ async function fetchCategoryPageviews(
 		}
 
 		const data = await response.json();
-		updateChart(data.views, label);
+		updateChart(data.cumulative_views, label);
 		const endTime = performance.now();
 		const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
 		showMessage(`Fetched ${label} in ${timeTaken} seconds.`, "success");
