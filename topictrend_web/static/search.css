@@ -45,7 +45,7 @@
     display: grid;
     grid-template-columns: 400px 2fr;
     height: 100dvh;
-    overflow: hidden;
+    overflow-y: auto;
   }
 
   .sidebar {
