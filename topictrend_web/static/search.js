@@ -63,7 +63,7 @@ async function onTrendBtnClick(event) {
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.pushState({}, "", newUrl);
 
-    const categories = await fetchCategoryPageviews(
+    await fetchCategoryPageviews(
       wiki,
       category,
       match_threshold,
@@ -71,7 +71,6 @@ async function onTrendBtnClick(event) {
       endDate,
       depth,
     );
-    renderCategories(categories, wiki);
   } catch (error) {
     console.error("Error:", error);
     showMessage("Failed to fetch data. Please try again.", "error");
