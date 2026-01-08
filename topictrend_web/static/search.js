@@ -20,7 +20,11 @@ document.addEventListener("DOMContentLoaded", async function() {
 async function onSubmit(event) {
   event.preventDefault();
 
-  document.getElementById("top-articles").innerHTML = "";
+  document.getElementById("top-articles").display = "none";
+  document.getElementById("category-list").style.display = "block";
+  document.getElementById("article-list").style.display = "block";
+
+
   const params = new URLSearchParams();
   const wiki = document.getElementById("wiki").value;
   const match_threshold = document.getElementById("match_threshold").value;
@@ -46,9 +50,9 @@ async function onSubmit(event) {
 
 async function onTrendBtnClick(event) {
   event.preventDefault();
-  document.getElementById("category-list").innerHTML = "";
-  document.getElementById("article-list").innerHTML = "";
-
+  document.getElementById("category-list").style.display = "none";
+  document.getElementById("article-list").style.display = "none";
+  document.getElementById("top-articles").display = "block";
   const params = new URLSearchParams();
   const wiki = document.getElementById("wiki").value;
   const match_threshold = document.getElementById("match_threshold").value;
