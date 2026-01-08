@@ -41,6 +41,16 @@ pub struct CategoryTrendParams {
 }
 
 #[derive(Deserialize)]
+pub struct CategoriesTrendParams {
+    pub wiki: String,
+    pub category_query: String,
+    pub start_date: Option<NaiveDate>,
+    pub end_date: Option<NaiveDate>,
+    pub match_threshold: Option<f32>,
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize)]
 pub struct ArticleTrendParams {
     pub wiki: String,
     pub article: String,
@@ -107,6 +117,19 @@ pub struct CategoryTrendResponse {
     pub title: String,
     pub views: Vec<DailyViews>,
     pub top_articles: Vec<TopArticle>,
+}
+
+#[derive(Serialize)]
+pub struct CategoriesTrendResponse {
+    pub categories: Vec<CategoryInfo>,
+    pub cumulative_views: Vec<DailyViews>,
+    pub top_articles: Vec<TopArticle>,
+}
+
+#[derive(Serialize)]
+pub struct CategoryInfo {
+    pub qid: u32,
+    pub title: String,
 }
 
 #[derive(Serialize)]

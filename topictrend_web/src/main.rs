@@ -80,6 +80,10 @@ async fn run_http_server(
             "/api/list/articles",
             get(handlers::get_articles_in_category),
         )
+        .route(
+            "/api/pageviews/categories",
+            get(handlers::get_categories_trend_by_search_handler),
+        )
         .with_state(state)
         .layer(cors)
         .layer(SetResponseHeaderLayer::if_not_present(

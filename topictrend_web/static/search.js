@@ -14,6 +14,9 @@ document.addEventListener("DOMContentLoaded", async function () {
 
 	await populateWikiDropdown();
 	populateFormFromQueryParams();
+	document
+		.getElementById("categories-trends-btn")
+		.addEventListener("click", onTrendBtnClick);
 });
 
 async function onSubmit(event) {
@@ -40,6 +43,169 @@ async function onSubmit(event) {
 		console.error("Error:", error);
 		showMessage("Failed to fetch data. Please try again.", "error");
 	}
+}
+
+async function onTrendBtnClick(event) {
+	event.preventDefault();
+
+	const params = new URLSearchParams();
+	const wiki = document.getElementById("wiki").value;
+	const match_threshold = document.getElementById("match_threshold").value;
+	const startDate = document.getElementById("start_date").value;
+	const endDate = document.getElementById("end_date").value;
+	const depth = 1;
+	params.append("wiki", wiki);
+	try {
+		const category = document
+			.getElementById("category")
+			.value.replaceAll(" ", "_");
+		params.append("category", category);
+		params.append("match_threshold", match_threshold);
+		// Update the browser URL with the new parameters
+		const newUrl = `${window.location.pathname}?${params.toString()}`;
+		window.history.pushState({}, "", newUrl);
+
+		const categories = await fetchCategoryPageviews(
+			wiki,
+			category,
+			match_threshold,
+			startDate,
+			endDate,
+			depth,
+		);
+		renderCategories(categories, wiki);
+	} catch (error) {
+		console.error("Error:", error);
+		showMessage("Failed to fetch data. Please try again.", "error");
+	}
+}
+
+async function fetchCategoryPageviews(
+	wiki,
+	category,
+	match_threshold,
+	startDate,
+	endDate,
+	depth,
+) {
+	const apiUrl = `/api/pageviews/categories?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&category_query=${encodeURIComponent(
+		category,
+	)}&match_threshold=${match_threshold}`;
+	const label = `Category: ${wiki} - ${category.replaceAll("_", " ")}`;
+
+	try {
+		const startTime = performance.now();
+		const response = await fetch(apiUrl);
+		if (!response.ok) {
+			throw new Error("Failed to fetch data");
+		}
+
+		const data = await response.json();
+		updateChart(data.views, label);
+		const endTime = performance.now();
+		const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
+		showMessage(`Fetched ${label} in ${timeTaken} seconds.`, "success");
+
+		if (data.top_articles && data.top_articles.length > 0) {
+			renderTopArticles(wiki, data.top_articles);
+		}
+	} catch (error) {
+		console.error("Error:", error);
+		showMessage("Failed to fetch category data. Please try again.", "error");
+	}
+}
+
+let chartInstance = null;
+
+function initializeChart() {
+	const theme = window.matchMedia("(prefers-color-scheme: dark)").matches
+		? "dark"
+		: "light";
+	const chartElement = document.getElementById("chart");
+	chartInstance = echarts.init(chartElement, theme, {
+		renderer: "svg",
+	});
+
+	const initialOption = {
+		darkMode: "auto",
+		color: [
+			"#4b77d6",
+			"#eeb533",
+			"#fd7865",
+			"#80cdb3",
+			"#269f4b",
+			"#b0c1f0",
+			"#9182c2",
+			"#d9b4cd",
+			"#b0832b",
+			"#a2a9b1",
+		],
+		title: {
+			text: "Pageviews Trend",
+		},
+		tooltip: {
+			trigger: "axis",
+		},
+		legend: {
+			top: "bottom",
+			left: "center",
+		},
+		xAxis: {
+			type: "category",
+			data: [],
+		},
+		yAxis: {
+			type: "value",
+		},
+		series: [],
+		toolbox: {
+			show: true,
+			feature: {
+				dataZoom: {
+					yAxisIndex: "none",
+				},
+				dataView: { readOnly: false },
+				magicType: { type: ["line", "bar"] },
+				restore: {},
+				saveAsImage: {},
+			},
+		},
+	};
+
+	chartInstance.setOption(initialOption);
+	window.onresize = chartInstance.resize;
+}
+
+function updateChart(data, label) {
+	if (!chartInstance) {
+		initializeChart();
+	}
+
+	const existingOption = chartInstance.getOption();
+
+	// Update xAxis data if new dates are present
+	const newDates = data.map((item) => item.date);
+	const existingDates = existingOption.xAxis[0].data;
+	const mergedDates = Array.from(new Set([...existingDates, ...newDates]));
+	mergedDates.sort();
+	chartInstance.setOption({
+		xAxis: {
+			data: mergedDates,
+		},
+	});
+
+	// Add a new series for the new data
+	chartInstance.setOption({
+		series: [
+			...existingOption.series,
+			{
+				name: label,
+				data: data.map((item) => item.views),
+				type: "line",
+				smooth: true,
+			},
+		],
+	});
 }
 
 function renderCategories(categories, wiki) {
@@ -210,3 +376,26 @@ async function populateWikiDropdown() {
 		console.log("📋 Using fallback wiki list");
 	}
 }
+
+document.addEventListener("DOMContentLoaded", function () {
+	const startDatePicker = document.getElementById("start_date");
+	const endDatePicker = document.getElementById("end_date");
+	const today = new Date();
+
+	// Format the date to "YYYY-MM-DD" as required by the input type="date"
+	let year = today.getFullYear();
+	let month = String(today.getMonth() + 1).padStart(2, "0");
+	let day = String(today.getDate()).padStart(2, "0");
+	endDatePicker.value = `${year}-${month}-${day}`;
+
+	const oneMonthAgo = new Date(
+		today.getFullYear(),
+		today.getMonth() - 1,
+		today.getDate(),
+	);
+	year = oneMonthAgo.getFullYear();
+	month = String(oneMonthAgo.getMonth() + 1).padStart(2, "0");
+	day = String(oneMonthAgo.getDate()).padStart(2, "0");
+
+	startDatePicker.value = `${year}-${month}-${day}`;
+});

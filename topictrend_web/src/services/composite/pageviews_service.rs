@@ -123,6 +123,110 @@ impl PageViewsService {
         })
     }
 
+    pub async fn get_categories_trend(
+        state: Arc<AppState>,
+        wiki: &str,
+        category_qids: Vec<u32>,
+        depth: Option<u32>,
+        start_date: Option<NaiveDate>,
+        end_date: Option<NaiveDate>,
+    ) -> Result<CategoriesTrendResult, ServiceError> {
+        let depth = depth.unwrap_or(0);
+        let start = start_date
+            .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
+        let end = end_date.unwrap_or_else(|| chrono::Local::now().date_naive());
+
+        // Get titles for all categories
+        let category_titles =
+            QidService::get_titles_by_qids(Arc::clone(&state), wiki, &category_qids).await?;
+
+        // Collect all view data and top articles from all categories
+        let mut all_views_by_date: HashMap<NaiveDate, u64> = HashMap::new();
+        let mut all_articles: HashMap<u32, u64> = HashMap::new();
+
+        for category_qid in &category_qids {
+            // Get views for this category
+            let category_views = PageViewService::get_category_views(
+                Arc::clone(&state),
+                wiki,
+                *category_qid,
+                start,
+                end,
+                depth,
+            )
+            .await?;
+
+            // Aggregate views by date
+            for (date, views) in category_views {
+                *all_views_by_date.entry(date).or_insert(0) += views;
+            }
+
+            // Get top articles for this category
+            let top_articles = PageViewService::get_top_articles(
+                Arc::clone(&state),
+                wiki,
+                *category_qid,
+                start,
+                end,
+                depth,
+                50, // Get more articles per category to ensure good global top
+            )
+            .await?;
+
+            // Aggregate article views
+            for article in top_articles {
+                *all_articles.entry(article.article_qid).or_insert(0) += article.total_views;
+            }
+        }
+
+        // Sort views by date
+        let mut cumulative_views: Vec<(NaiveDate, u64)> = all_views_by_date.into_iter().collect();
+        cumulative_views.sort_by_key(|(date, _)| *date);
+
+        // Get top 10 articles overall
+        let mut article_vec: Vec<(u32, u64)> = all_articles.into_iter().collect();
+        article_vec.sort_by(|a, b| b.1.cmp(&a.1));
+        article_vec.truncate(10);
+
+        let article_qids: Vec<u32> = article_vec.iter().map(|(qid, _)| *qid).collect();
+        let article_titles =
+            QidService::get_titles_by_qids(Arc::clone(&state), wiki, &article_qids).await?;
+
+        let top_articles: Vec<ArticleRank> = article_vec
+            .into_iter()
+            .map(|(qid, total_views)| {
+                let title = article_titles
+                    .get(&qid)
+                    .cloned()
+                    .unwrap_or_else(|| format!("Q{}", qid));
+
+                ArticleRank {
+                    qid,
+                    title,
+                    views: total_views as u32,
+                }
+            })
+            .collect();
+
+        let categories: Vec<CategoryInfoResult> = category_qids
+            .into_iter()
+            .map(|qid| {
+                let title = category_titles
+                    .get(&qid)
+                    .cloned()
+                    .unwrap_or_else(|| format!("Q{}", qid));
+
+                CategoryInfoResult { qid, title }
+            })
+            .collect();
+
+        Ok(CategoriesTrendResult {
+            categories,
+            cumulative_views,
+            top_articles,
+        })
+    }
+
     pub async fn get_article_trend(
         state: Arc<AppState>,
         wiki: &str,
@@ -304,4 +408,15 @@ impl PageViewsService {
 
         Ok(articles_with_views)
     }
+}
+
+pub struct CategoriesTrendResult {
+    pub categories: Vec<CategoryInfoResult>,
+    pub cumulative_views: Vec<(NaiveDate, u64)>,
+    pub top_articles: Vec<ArticleRank>,
+}
+
+pub struct CategoryInfoResult {
+    pub qid: u32,
+    pub title: String,
 }

@@ -7,10 +7,6 @@ use axum::{
 use axum_macros::debug_handler;
 use std::sync::Arc;
 
-use crate::services::{
-    composite::DeltaService,
-    core::{CoreServiceError, QidService},
-};
 use crate::{
     models::{
         AppState, ArticleDeltaParams, ArticleDeltaResponse, ArticleItem, ArticleTrendParams,
@@ -24,6 +20,13 @@ use crate::{
 use crate::{
     models::{ArticleTrendResponse, CategoryTrendResponse},
     services::PageViewsService,
+};
+use crate::{
+    models::{CategoriesTrendParams, CategoriesTrendResponse},
+    services::{
+        composite::DeltaService,
+        core::{CoreServiceError, QidService},
+    },
 };
 
 // Custom error type for API handlers
@@ -317,8 +320,6 @@ pub async fn search_categories(
     Query(params): Query<CategorySearchParams>,
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<CategorySearchResponse>, ApiError> {
-    use crate::services::core::QidService;
-
     let limit: u64 = params.limit.unwrap_or(1000u64);
     let match_threshold = params.match_threshold.unwrap_or(0.6);
 
@@ -365,6 +366,69 @@ pub async fn search_categories(
     }
 
     Ok(Json(CategorySearchResponse { categories }))
+}
+
+pub async fn get_categories_trend_by_search_handler(
+    Query(params): Query<CategoriesTrendParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<CategoriesTrendResponse>, ApiError> {
+    let limit: u64 = params.limit.unwrap_or(1000u64);
+    let match_threshold = params.match_threshold.unwrap_or(0.6);
+    let search_results: Vec<topictrend_taxonomy::SearchResult> =
+        topictrend_taxonomy::search(params.category_query.clone(), "enwiki".to_string(), limit)
+            .await
+            .map_err(|e| {
+                ApiError::ServiceError(crate::services::ServiceError::CoreError(
+                    crate::services::core::CoreServiceError::InternalError(e.to_string()),
+                ))
+            })?;
+
+    let category_qids: Vec<u32> = search_results
+        .into_iter()
+        .filter(|result| result.score >= match_threshold)
+        .map(|result| result.qid)
+        .collect();
+
+    let result = PageViewsService::get_categories_trend(
+        state,
+        &params.wiki,
+        category_qids,
+        Some(1u32),
+        params.start_date,
+        params.end_date,
+    )
+    .await?;
+
+    let cumulative_views: Vec<DailyViews> = result
+        .cumulative_views
+        .into_iter()
+        .map(|(date, views)| DailyViews { date, views })
+        .collect();
+
+    let top_articles: Vec<TopArticle> = result
+        .top_articles
+        .into_iter()
+        .map(|art| TopArticle {
+            qid: art.qid,
+            title: art.title,
+            views: art.views,
+        })
+        .collect();
+
+    let categories: Vec<crate::models::CategoryInfo> = result
+        .categories
+        .into_iter()
+        .map(|cat| crate::models::CategoryInfo {
+            qid: cat.qid,
+            title: cat.title,
+        })
+        .collect();
+
+    Ok(Json(CategoriesTrendResponse {
+        categories,
+        cumulative_views,
+        top_articles,
+    }))
 }
 
 pub async fn get_articles_in_category(
