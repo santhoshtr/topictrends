@@ -20,6 +20,7 @@ document.addEventListener("DOMContentLoaded", async function() {
 async function onSubmit(event) {
   event.preventDefault();
 
+  document.getElementById("top-articles").innerHTML = "";
   const params = new URLSearchParams();
   const wiki = document.getElementById("wiki").value;
   const match_threshold = document.getElementById("match_threshold").value;
@@ -45,6 +46,8 @@ async function onSubmit(event) {
 
 async function onTrendBtnClick(event) {
   event.preventDefault();
+  document.getElementById("category-list").innerHTML = "";
+  document.getElementById("article-list").innerHTML = "";
 
   const params = new URLSearchParams();
   const wiki = document.getElementById("wiki").value;
