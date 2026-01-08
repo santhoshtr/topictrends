@@ -12,10 +12,12 @@
 
 @layer base {
 	:root {
-		--font-family-sans-serif: system-ui, "Segoe UI", Roboto, Oxygen, Ubuntu,
-			Cantarell, Helvetica, Arial, "Helvetica Neue", sans-serif;
-		--font-family-monospace: ui-monospace, SFMono-Regular, "SF Mono", Menlo,
-			Consolas, "Liberation Mono", monospace;
+		--font-family-sans-serif:
+			system-ui, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, Helvetica, Arial,
+			"Helvetica Neue", sans-serif;
+		--font-family-monospace:
+			ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+			"Liberation Mono", monospace;
 		--border-radius: 0.5rem;
 		--spacing-xs: 0.25rem;
 		--spacing-sm: 0.5rem;
@@ -138,6 +140,14 @@
 	justify-content: center;
 	align-items: start;
 	width: 100%;
+
+	.chart {
+		width: calc(100vw - 400px);
+		height: 66dvh;
+		display: none;
+		grid-column-start: 1;
+		grid-column-end: 3;
+	}
 
 	> section {
 		overflow-y: auto;
