@@ -167,12 +167,6 @@ notebook:
 		--no-browser \
 		--ip=0.0.0.0
 
-topictrends_taxonomy/models/tokenizer.json:
-	wget https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer.json -O topictrend_taxonomy/models/tokenizer.json
-
-topictrends_taxonomy/models/all-MiniLM-L6-v2.onnx:
-	wget https://cdn.pyke.io/0/pyke:ort-rs/example-models@0.0.0/all-MiniLM-L6-v2.onnx -O topictrend_taxonomy/models/all-MiniLM-L6-v2.onnx
-
 # Prevent deletion of intermediate files
 .PRECIOUS: $(DATA_DIR)/%/articles.parquet \
            $(DATA_DIR)/%/categories.parquet \
