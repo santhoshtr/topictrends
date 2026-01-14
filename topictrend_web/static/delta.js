@@ -1,12 +1,5 @@
-import { autocomp } from "./autocomp.js";
-
-document.addEventListener("DOMContentLoaded", async function () {
+document.addEventListener("DOMContentLoaded", async () => {
 	document.getElementById("delta-form").addEventListener("submit", onSubmit);
-
-	// Set up wiki selector change handler
-	const wikiSelector = document.getElementById("wiki");
-	// Initialize with current wiki value
-	const wikiValue = wikiSelector.value.replaceAll("wiki", "");
 
 	await populateWikiDropdown();
 	populateFormFromQueryParams();
@@ -213,7 +206,7 @@ function updateChart(data, label) {
 				type: "bar",
 				data: deltaPercentages,
 				itemStyle: {
-					color: function (params) {
+					color: (params) => {
 						// Color bars based on positive/negative values
 						return params.value >= 0 ? "#269f4b" : "#fd7865";
 					},
@@ -255,7 +248,7 @@ function updateChart(data, label) {
 			axisPointer: {
 				type: "shadow",
 			},
-			formatter: function (params) {
+			formatter: (params) => {
 				const value = params[0].value.toFixed(2);
 				return `<strong>${params[0].name}</strong><br/>Change: ${value}%`;
 			},
@@ -263,7 +256,7 @@ function updateChart(data, label) {
 	};
 
 	// Add click event handler for bars
-	categoryChartInstance.on("click", async function (params) {
+	categoryChartInstance.on("click", async (params) => {
 		const categoryIndex = params.dataIndex;
 		const categoryItem = data.categories[categoryIndex];
 		const categoryQid = categoryItem.category_qid;
@@ -400,7 +393,7 @@ function updateArticlesChart(data) {
 				type: "bar",
 				data: deltaPercentages,
 				itemStyle: {
-					color: function (params) {
+					color: (params) => {
 						// Color bars based on positive/negative values
 						return params.value >= 0 ? "#269f4b" : "#fd7865";
 					},
@@ -441,7 +434,7 @@ function updateArticlesChart(data) {
 			axisPointer: {
 				type: "shadow",
 			},
-			formatter: function (params) {
+			formatter: (params) => {
 				const value = params[0].value.toFixed(2);
 				const articleData = data.articles[params[0].dataIndex];
 				return `<strong>${params[0].name}</strong><br/>
@@ -467,7 +460,7 @@ function clearArticlesChart() {
 	articlesChartElement.style.display = "none";
 }
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", () => {
 	const startDatePicker = document.getElementById("baseline_start_date");
 	const endDatePicker = document.getElementById("baseline_end_date");
 	const impactStartDatePicker = document.getElementById("impact_start_date");
