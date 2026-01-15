@@ -130,8 +130,7 @@ yields 20ms query latencies where generic solutions would require seconds.
     end
 
     subgraph "Batch Processing"
-        META["Extract: Articles, Categories, Graphs"] PV["Parse: Daily
-        Pageviews"]
+        META["Extract: Articles, Categories, Graphs"] PV["Parse: Daily Pageviews"]
     end
 
     subgraph "Data Representation"
@@ -140,8 +139,7 @@ yields 20ms query latencies where generic solutions would require seconds.
     end
 
     subgraph "Core Engine (Rust, In-Memory)"
-        CSR_LINK["CSR: Article-Category Links"] CSR_TOPO["CSR: Category
-        Topology"] TS_STORE["Mmap: Pageview Vectors"]
+        CSR_LINK["CSR: Article-Category Links"] CSR_TOPO["CSR: Category Topology"] TS_STORE["Mmap: Pageview Vectors"]
     end
 
     subgraph "Web Layer (Axum)"
