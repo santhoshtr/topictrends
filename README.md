@@ -125,35 +125,51 @@ yields 20ms query latencies where generic solutions would require seconds.
 ## 4. System Data Flow
 
 ```mermaid graph TD
+
+graph TD
     subgraph "ETL Layer (Systemd / Makefile)"
-        RAW["Wikimedia SQL Replicas"] DUMPS["Pageview Dumps"]
+        RAW["Wikimedia SQL Replicas"]
+        DUMPS["Pageview Dumps"]
     end
 
     subgraph "Batch Processing"
-        META["Extract: Articles, Categories, Graphs"] PV["Parse: Daily Pageviews"]
+        META["Extract: Articles, Categories, Graphs"]
+        PV["Parse: Daily Pageviews"]
     end
 
     subgraph "Data Representation"
-        PQ_ART["Parquet: Articles"] PQ_CAT["Parquet: Categories"]
-        PQ_GRAPH["Parquet: Topology"] BIN_TS["Binary: Time Series"]
+        PQ_ART["Parquet: Articles"]
+        PQ_CAT["Parquet: Categories"]
+        PQ_GRAPH["Parquet: Topology"]
+        BIN_TS["Binary: Time Series"]
     end
 
     subgraph "Core Engine (Rust, In-Memory)"
-        CSR_LINK["CSR: Article-Category Links"] CSR_TOPO["CSR: Category Topology"] TS_STORE["Mmap: Pageview Vectors"]
+        CSR_LINK["CSR: Article-Category Links"]
+        CSR_TOPO["CSR: Category Topology"]
+        TS_STORE["Mmap: Pageview Vectors"]
     end
 
     subgraph "Web Layer (Axum)"
-        API["REST API"] DB_REP["MariaDB Replica Cache"]
+        API["REST API"]
+        DB_REP["MariaDB Replica Cache"]
     end
 
-    RAW -->|Monthly| META DUMPS -->|Daily| PV META -->|Write| PQ_ART
-    META -->|Write| PQ_CAT META -->|Write| PQ_GRAPH PV -->|Write| BIN_TS
+    RAW -->|Monthly| META
+    DUMPS -->|Daily| PV
+    META -->|Write| PQ_ART
+    META -->|Write| PQ_CAT
+    META -->|Write| PQ_GRAPH
+    PV -->|Write| BIN_TS
 
-    PQ_ART -->|Load @ Startup| CSR_LINK PQ_GRAPH -->|Load @ Startup|
-    CSR_TOPO BIN_TS -->|Mmap @ Runtime| TS_STORE
+    PQ_ART -->|Load @ Startup| CSR_LINK
+    PQ_GRAPH -->|Load @ Startup| CSR_TOPO
+    BIN_TS -->|Mmap @ Runtime| TS_STORE
 
-    API -->|Title→QID| DB_REP API -->|Query| CSR_TOPO API -->|Traverse|
-    CSR_LINK API -->|QID→Title| DB_REP
+    API -->|Title→QID| DB_REP
+    API -->|Query| CSR_TOPO
+    API -->|Traverse| CSR_LINK
+    API -->|QID→Title| DB_REP
 ```
 
 The system divides into four layers, each with distinct responsibilities
