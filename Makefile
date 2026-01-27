@@ -149,6 +149,7 @@ monthly: init
 		echo "Processing date: $$PROCESS_DATE"; \
 		$(MAKE) run DATE="$$PROCESS_DATE" || true; \
 	done; \
+	@rm -rf $(DATA_DIR)/pageviews
 	echo "Monthly processing complete for $$YEAR-$$MONTH!"
 
 # Start a jupyter server from topictrend_web folder.
