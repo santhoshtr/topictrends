@@ -205,7 +205,7 @@ function createCategoryAccordion(category, type) {
 	// Category name
 	const nameSpan = document.createElement("span");
 	nameSpan.className = "category-name";
-	nameSpan.textContent = category.category_title;
+	nameSpan.textContent = category.category_title.replace(/_/g, " ");
 
 	// Delta percentage
 	const deltaDiv = document.createElement("div");
@@ -363,7 +363,7 @@ function createArticleElement(article, wiki) {
 	// Article title as clickable link
 	const titleLink = document.createElement("a");
 	titleLink.className = "article-title";
-	titleLink.textContent = article.article_title;
+	titleLink.textContent = article.article_title.replace(/_/g, " ");
 	titleLink.href = buildWikipediaUrl(wiki, article.article_title);
 	titleLink.target = "_blank";
 	titleLink.rel = "noopener noreferrer";
