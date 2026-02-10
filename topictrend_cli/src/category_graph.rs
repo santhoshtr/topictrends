@@ -1,7 +1,7 @@
 use parquet::file::writer::SerializedFileWriter;
 use parquet::{file::properties::WriterProperties, record::RecordWriter as _};
 use parquet_derive::ParquetRecordWriter;
-use polars::prelude::{LazyFrame, PlPath};
+use polars::prelude::{LazyFrame, PlRefPath};
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
@@ -24,7 +24,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let output_file = &args[2];
 
     // Load categories.parquet to get valid category IDs and their QIDs
-    let categories_parquet_path: PlPath = PlPath::Local(Arc::from(Path::new(&categories_parquet)));
+    let categories_parquet_path: PlRefPath =
+        PlRefPath::try_from_path(Path::new(&categories_parquet))?;
     let categories_df =
         LazyFrame::scan_parquet(categories_parquet_path, Default::default())?.collect()?;
 

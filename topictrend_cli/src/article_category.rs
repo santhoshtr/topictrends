@@ -1,7 +1,7 @@
 use parquet::file::writer::SerializedFileWriter;
 use parquet::{file::properties::WriterProperties, record::RecordWriter as _};
 use parquet_derive::ParquetRecordWriter;
-use polars::prelude::{LazyFrame, PlPath};
+use polars::prelude::{LazyFrame, PlRefPath};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufRead};
@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // but we are interested in 0 (main) namespace. Filtering out in sql query is very slow
     // for English wikipedia due to multiple joins.
     // Load articles.parquet to get valid article IDs
-    let articles_parquet_path: PlPath = PlPath::Local(Arc::from(Path::new(&articles_parquet)));
+    let articles_parquet_path: PlRefPath = PlRefPath::try_from_path(Path::new(&articles_parquet))?;
     let articles_df =
         LazyFrame::scan_parquet(articles_parquet_path, Default::default())?.collect()?;
     let article_ids = articles_df.column("page_id")?.u32()?;
@@ -45,7 +45,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
     let valid_article_ids_set: HashSet<u32> = article_id_to_qid.keys().into_iter().collect();
 
-    let categories_parquet_path: PlPath = PlPath::Local(Arc::from(Path::new(&categories_parquet)));
+    let categories_parquet_path: PlRefPath =
+        PlRefPath::try_from_path(Path::new(&categories_parquet))?;
     let categories_df =
         LazyFrame::scan_parquet(categories_parquet_path, Default::default())?.collect()?;
 

@@ -6,7 +6,6 @@ use std::{
     fs::File,
     io::{BufWriter, Write},
     path::Path,
-    sync::Arc,
 };
 use topictrend::{direct_map::DirectMap, graphbuilder::GraphBuilder, wikigraph::WikiGraph};
 
@@ -52,7 +51,8 @@ pub fn get_daily_pageviews(wiki: &str, year: &i16, month: &i8, day: &i8) -> Vec<
         return Vec::new();
     }
 
-    let path: PlPath = PlPath::Local(Arc::from(Path::new(&full_pageviews_file_path)));
+    let path: PlRefPath =
+        PlRefPath::try_from_path(Path::new(&full_pageviews_file_path)).expect("File reading error");
     let df: DataFrame = LazyFrame::scan_parquet(path, Default::default())
         .expect("Failed to read Parquet file")
         .collect()
@@ -84,7 +84,8 @@ pub fn get_daily_pageviews(wiki: &str, year: &i16, month: &i8, day: &i8) -> Vec<
         .u32()
         .unwrap();
 
-    let articles_parquet: PlPath = PlPath::Local(Arc::from(Path::new(&articles_parquet_path)));
+    let articles_parquet: PlRefPath = PlRefPath::try_from_path(Path::new(&articles_parquet_path))
+        .expect("File reading error for articles parquet");
     let articles_df = LazyFrame::scan_parquet(articles_parquet, Default::default())
         .unwrap()
         .collect()

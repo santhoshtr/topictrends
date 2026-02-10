@@ -44,9 +44,9 @@ impl GraphBuilder {
         // D. Load Relations: Category Parent -> Child
         // Note: User provided 'cat_parents.parquet' (parent, child)
         print!("  Loading Category Hierarchy...");
-        let path: PlPath = PlPath::Local(Arc::from(Path::new(
+        let path: PlRefPath = PlRefPath::try_from_path(Path::new(
             format!("{}/{}/category_graph.parquet", data_dir, self.wiki).as_str(),
-        )));
+        ))?;
         let df_rel: DataFrame = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
 
         let p_col = df_rel.column("parent_qid")?.u32()?;
@@ -81,9 +81,9 @@ impl GraphBuilder {
         println!("\r  Loaded Category Hierarchy");
         // Load Article -> Category
         print!("  Loading Article-Category definitions...");
-        let path: PlPath = PlPath::Local(Arc::from(Path::new(
+        let path: PlRefPath = PlRefPath::try_from_path(Path::new(
             format!("{}/{}/article_category.parquet", data_dir, self.wiki).as_str(),
-        )));
+        ))?;
         let mut cat_articles = vec![RoaringBitmap::new(); num_cats];
         let mut article_cats_vec: Vec<(u32, u32)> = Vec::with_capacity(num_arts);
 
@@ -126,7 +126,7 @@ impl GraphBuilder {
 
     // Helper to load node definitions and create ID mappings
     fn load_nodes(path: String) -> Result<(Vec<u32>, DirectMap)> {
-        let path: PlPath = PlPath::Local(Arc::from(Path::new(&path)));
+        let path: PlRefPath = PlRefPath::try_from_path(Path::new(&path))?;
         let df = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
         let ids = df.column("qid")?.u32()?;
 

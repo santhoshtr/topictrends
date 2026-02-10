@@ -11,7 +11,7 @@ members = [
 parquet = "57"
 parquet_derive = "57.0"
 dotenv = "0.15"
-polars = { version = "0.52", features = [
+polars = { version = "0.53", features = [
   "lazy",
   "parquet",
   "dtype-full",
@@ -22,11 +22,27 @@ roaring = { version = "0.11", features = [] }
 anyhow = "1.0"
 ahash = "0.8"
 clap = { version = "4", features = ["derive"] }
-chrono = { version = "0.4.42", features = ["serde"] }
 rayon = "1.11"
+chrono = "0.4"
 byteorder = "1.5"
 sqlx = { version = "0.8", features = [
   "mysql",
   "runtime-tokio-rustls",
   "chrono",
 ] }
+
+[profile.dev]
+# Faster compile times, slightly slower runtime
+opt-level = 0
+debug = 1  # line tables only (not full debug)
+incremental = true
+
+[profile.dev.package."*"]
+# Optimize dependencies in dev mode (they don't change often)
+opt-level = 1
+
+[profile.release]
+opt-level = 3
+lto = "thin"  # Link-Time Optimization
+codegen-units = 1
+strip = true

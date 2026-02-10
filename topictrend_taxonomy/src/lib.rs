@@ -3,7 +3,7 @@ use std::path::Path;
 
 use ahash::HashMap;
 use anyhow::Result;
-use polars::prelude::PlPath;
+use polars::prelude::PlRefPath;
 use qdrant_client::qdrant::HnswConfigDiffBuilder;
 use qdrant_client::qdrant::PointsOperationResponse;
 use qdrant_client::qdrant::SearchParamsBuilder;
@@ -16,8 +16,6 @@ use qdrant_client::{
         UpsertPointsBuilder, VectorParamsBuilder,
     },
 };
-
-use std::sync::Arc;
 
 pub use crate::models::SearchResult;
 use crate::sentence_embedder::SentenceEmbedder;
@@ -39,7 +37,7 @@ pub async fn injest(db: &Qdrant, wiki: String) -> Result<(), Box<dyn std::error:
 
     // Read parquet file in a blocking context to avoid runtime conflicts
     let (page_ids_vec, page_titles_vec) = tokio::task::spawn_blocking(move || {
-        let parquet_path: PlPath = PlPath::Local(Arc::from(Path::new(&parquet_path)));
+        let parquet_path: PlRefPath = PlRefPath::try_from_path(Path::new(&parquet_path))?;
         let df = polars::prelude::LazyFrame::scan_parquet(parquet_path, Default::default())?
             .select([
                 polars::prelude::col("qid"),

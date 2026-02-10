@@ -72,12 +72,15 @@ fn process_chunk(records: Vec<PageView>) -> Result<DataFrame, PolarsError> {
         .collect();
     let daily_views: Vec<u32> = records.iter().map(|r| r.daily_views).collect();
 
-    DataFrame::new(vec![
-        Column::new("wiki".into(), wiki),
-        Column::new("page_id".into(), page_id),
-        Column::new("access_method".into(), access_method),
-        Column::new("daily_views".into(), daily_views),
-    ])
+    DataFrame::new(
+        1,
+        vec![
+            Column::new("wiki".into(), wiki),
+            Column::new("page_id".into(), page_id),
+            Column::new("access_method".into(), access_method),
+            Column::new("daily_views".into(), daily_views),
+        ],
+    )
 }
 
 fn convert_pageviews_to_parquet(

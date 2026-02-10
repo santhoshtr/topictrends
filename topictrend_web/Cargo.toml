@@ -15,7 +15,13 @@ axum = "0.8"
 axum-macros = "0.5.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["arbitrary_precision"] }
-tokio = { version = "1.48", features = ["full"] }
+tokio = { version = "1.48", features = [
+  "rt-multi-thread",  # async runtime
+  "macros",           # #[tokio::main]
+  "net",              # TCP/networking for axum
+  "time",             # time utilities
+  "sync",             # channels, mutexes
+] }
 tower-http = { version = "0.6", features = ["cors", "trace", "fs", "set-header"] }
 env_logger = "0.11"
 log = "0.4"
