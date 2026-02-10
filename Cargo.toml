@@ -41,8 +41,4 @@ incremental = true
 # Optimize dependencies in dev mode (they don't change often)
 opt-level = 1
 
-[profile.release]
-opt-level = 3
-lto = "thin"  # Link-Time Optimization
-codegen-units = 1
-strip = true
+
