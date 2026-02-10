@@ -1,6 +1,6 @@
 import { autocomp } from "./autocomp.js";
 
-document.addEventListener("DOMContentLoaded", async function () {
+document.addEventListener("DOMContentLoaded", async () => {
 	document.getElementById("trend-form").addEventListener("submit", onSubmit);
 
 	// Set up wiki selector change handler
@@ -270,7 +270,7 @@ function renderTopArticles(wiki, topArticles) {
 	});
 }
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", () => {
 	const startDatePicker = document.getElementById("start_date");
 	const endDatePicker = document.getElementById("end_date");
 	const today = new Date();
@@ -374,6 +374,7 @@ function populateFormFromQueryParams() {
 	const endDate = urlParams.get("end_date");
 	const category = urlParams.get("category");
 	const category_qid = urlParams.get("category_qid");
+	const article = urlParams.get("article");
 	const article_qid = urlParams.get("article_qid");
 	const depth = urlParams.get("depth");
 
@@ -450,7 +451,7 @@ document.addEventListener("DOMContentLoaded", () => {
 		const endDate = document.getElementById("end_date").value;
 
 		if (!topicTrends) {
-			let topicTrendsEl = document.createElement("wiki-trends");
+			const topicTrendsEl = document.createElement("wiki-trends");
 			document.querySelector(".main").appendChild(topicTrendsEl);
 			topicTrends = document.querySelector("wiki-trends");
 		}
