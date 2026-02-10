@@ -194,7 +194,7 @@ function updateChart(data, label) {
 	});
 }
 
-async function renderSubCategories(wiki, category, depth = 20) {
+async function renderSubCategories(wiki, category, depth = 4) {
 	const categoryListContainer = document.getElementById("category-list");
 	const apiUrl = `/api/list/sub_categories?wiki=${wiki}&category=${category}`;
 
