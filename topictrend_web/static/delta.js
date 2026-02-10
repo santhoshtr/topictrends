@@ -228,10 +228,37 @@ function createCategoryAccordion(category, type) {
 	viewsDiv.appendChild(viewsLabel);
 	viewsDiv.appendChild(viewsRange);
 
+	// Plot button
+	const plotLink = document.createElement("a");
+	plotLink.className = "plot-button";
+	plotLink.textContent = "📊";
+	plotLink.title = "View trend chart";
+	plotLink.target = "_blank";
+	plotLink.rel = "noopener noreferrer";
+
+	// Get wiki and depth from form
+	const wiki = document.getElementById("wiki").value;
+	const depth = document.getElementById("depth").value || "0";
+
+	// Build plot URL with date range (today - 1 month to yesterday)
+	const endDate = new Date();
+	endDate.setDate(endDate.getDate() - 1); // Yesterday
+	const startDate = new Date();
+	startDate.setMonth(startDate.getMonth() - 1); // One month ago
+
+	const formatDate = (date) => date.toISOString().split("T")[0];
+	plotLink.href = `https://topictrends.wmcloud.org/?type=category&wiki=${wiki}&start_date=${formatDate(startDate)}&end_date=${formatDate(endDate)}&depth=${depth}&category=${category.category_title}`;
+
+	// Prevent accordion toggle when clicking plot button
+	plotLink.addEventListener("click", (e) => {
+		e.stopPropagation();
+	});
+
 	// Assemble summary
 	summary.appendChild(nameSpan);
 	summary.appendChild(deltaDiv);
 	summary.appendChild(viewsDiv);
+	summary.appendChild(plotLink);
 	details.appendChild(summary);
 
 	// Add event listener for lazy loading articles
@@ -388,10 +415,28 @@ function createArticleElement(article, wiki) {
 	viewsDiv.appendChild(viewsLabel);
 	viewsDiv.appendChild(viewsValue);
 
+	// Plot button
+	const plotLink = document.createElement("a");
+	plotLink.className = "plot-button";
+	plotLink.textContent = "📊";
+	plotLink.title = "View trend chart";
+	plotLink.target = "_blank";
+	plotLink.rel = "noopener noreferrer";
+
+	// Build plot URL with date range (today - 1 month to yesterday)
+	const endDate = new Date();
+	endDate.setDate(endDate.getDate() - 1); // Yesterday
+	const startDate = new Date();
+	startDate.setMonth(startDate.getMonth() - 1); // One month ago
+
+	const formatDate = (date) => date.toISOString().split("T")[0];
+	plotLink.href = `https://topictrends.wmcloud.org/?type=article&wiki=${wiki}&start_date=${formatDate(startDate)}&end_date=${formatDate(endDate)}&article=${article.article_title}`;
+
 	// Assemble article item
 	div.appendChild(titleLink);
 	div.appendChild(deltaSpan);
 	div.appendChild(viewsDiv);
+	div.appendChild(plotLink);
 
 	return div;
 }

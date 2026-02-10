@@ -229,7 +229,7 @@
 		list-style: none;
 		padding: var(--spacing-150);
 		display: grid;
-		grid-template-columns: auto 1fr auto auto;
+		grid-template-columns: auto 1fr auto auto auto;
 		gap: var(--spacing-100);
 		align-items: center;
 		background-color: var(--background-color-interactive-subtle);
@@ -267,6 +267,12 @@
 				grid-column: 1 / -1;
 				justify-self: flex-start;
 				order: 2;
+			}
+
+			& .plot-button {
+				grid-column: 1 / -1;
+				justify-self: flex-start;
+				order: 3;
 			}
 		}
 	}
@@ -312,6 +318,33 @@
 		}
 	}
 
+	.plot-button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: var(--spacing-50) var(--spacing-75);
+		font-size: var(--font-size-large);
+		text-decoration: none;
+		border-radius: var(--border-radius-base);
+		background-color: var(--background-color-progressive-subtle);
+		color: var(--color-progressive);
+		transition:
+			background-color 0.2s ease,
+			transform 0.2s ease;
+		cursor: pointer;
+		min-inline-size: 2.5rem;
+
+		&:hover {
+			background-color: var(--background-color-progressive);
+			color: var(--color-inverted);
+			transform: scale(1.1);
+		}
+
+		&:active {
+			transform: scale(0.95);
+		}
+	}
+
 	/* ============================================
 	   ARTICLES CONTAINER (inside accordion)
 	   ============================================ */
@@ -347,7 +380,7 @@
 	   ============================================ */
 	.article-item {
 		display: grid;
-		grid-template-columns: 1fr auto auto;
+		grid-template-columns: 1fr auto auto auto;
 		gap: var(--spacing-100);
 		align-items: center;
 		padding: var(--spacing-100) var(--spacing-125);
@@ -381,6 +414,11 @@
 
 			& .article-delta {
 				order: 1;
+				justify-self: flex-start;
+			}
+
+			& .plot-button {
+				order: 3;
 				justify-self: flex-start;
 			}
 		}
