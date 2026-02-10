@@ -42,9 +42,17 @@ async function onSubmit(event) {
 			limit,
 		);
 		if (data) {
-			updateChart(data, "Category Delta Analysis");
-			// Clear articles chart when new category data is loaded
-			clearArticlesChart();
+			renderCategoryAccordions(data);
+			const gainsCount = data.categories.filter(
+				(c) => c.delta_percentage > 0,
+			).length;
+			const lossesCount = data.categories.filter(
+				(c) => c.delta_percentage < 0,
+			).length;
+			showMessage(
+				`Loaded ${data.categories.length} categories (${gainsCount} gains, ${lossesCount} losses)`,
+				"success",
+			);
 		}
 	} catch (error) {
 		console.error("Error:", error);
@@ -122,158 +130,151 @@ async function fetchArticleDeltaData(
 	}
 }
 
-let categoryChartInstance = null;
-let articlesChartInstance = null;
+/**
+ * Renders category data as accordion sections (Gains/Losses)
+ * @param {Object} data - API response with categories array
+ */
+function renderCategoryAccordions(data) {
+	const gainsSection = document.getElementById("gains-section");
+	const lossesSection = document.getElementById("losses-section");
+	const gainsList = document.getElementById("gains-list");
+	const lossesList = document.getElementById("losses-list");
+	const emptyState = document.getElementById("empty-state");
 
-function updateChart(data, label) {
-	const theme = window.matchMedia("(prefers-color-scheme: dark)").matches
-		? "dark"
-		: "light";
-	const chartElement = document.getElementById("chart");
-	categoryChartInstance = echarts.init(chartElement, theme, {
-		renderer: "svg",
-	});
+	// Clear existing content
+	gainsList.innerHTML = "";
+	lossesList.innerHTML = "";
 
-	const categories = data.categories.map((item) => item.category_title);
-	const deltaPercentages = data.categories.map((item) => item.delta_percentage);
+	// Separate categories into gains and losses
+	const gains = data.categories.filter((cat) => cat.delta_percentage > 0);
+	const losses = data.categories.filter((cat) => cat.delta_percentage < 0);
 
-	const option = {
-		darkMode: "auto",
-		color: [
-			"#4b77d6",
-			"#eeb533",
-			"#fd7865",
-			"#80cdb3",
-			"#269f4b",
-			"#b0c1f0",
-			"#9182c2",
-			"#d9b4cd",
-			"#b0832b",
-			"#a2a9b1",
-		],
-		title: {
-			text: "Top 20 Most Changed Categories",
-			left: "center",
-			textStyle: {
-				fontSize: 20,
-				fontWeight: "bold",
-			},
-			padding: [10, 0, 20, 0],
-		},
-		grid: {
-			left: "20%",
-			right: "10%",
-			top: "12%",
-			bottom: "8%",
-		},
-		xAxis: {
-			type: "value",
-			name: "Pageview Change (%)",
-			nameLocation: "middle",
-			nameGap: 35,
-			nameTextStyle: {
-				fontSize: 14,
-				fontWeight: "bold",
-			},
-			axisLine: {
-				lineStyle: {
-					color: "#333",
-				},
-			},
-			splitLine: {
-				lineStyle: {
-					type: "dashed",
-					color: "#e0e0e0",
-				},
-			},
-		},
-		yAxis: {
-			type: "category",
-			data: categories,
-			inverse: true,
-			axisLabel: {
-				fontSize: 12,
-				interval: 0,
-			},
-			axisLine: {
-				lineStyle: {
-					color: "#333",
-				},
-			},
-		},
-		series: [
-			{
-				type: "bar",
-				data: deltaPercentages,
-				itemStyle: {
-					color: (params) => {
-						// Color bars based on positive/negative values
-						return params.value >= 0 ? "#269f4b" : "#fd7865";
-					},
-				},
-				barWidth: "70%",
-				markLine: {
-					silent: true,
-					symbol: "none",
-					data: [
-						{
-							xAxis: 0,
-							lineStyle: {
-								color: "red",
-								type: "dashed",
-								width: 2,
-							},
-							label: {
-								show: false,
-							},
-						},
-					],
-				},
-			},
-		],
-		toolbox: {
-			show: true,
-			feature: {
-				dataZoom: {
-					yAxisIndex: "none",
-				},
-				dataView: { readOnly: false },
-				restore: {},
-				saveAsImage: {},
-			},
-		},
+	// Sort by absolute delta (largest changes first)
+	gains.sort((a, b) => b.delta_percentage - a.delta_percentage);
+	losses.sort((a, b) => a.delta_percentage - b.delta_percentage);
 
-		tooltip: {
-			trigger: "axis",
-			axisPointer: {
-				type: "shadow",
-			},
-			formatter: (params) => {
-				const value = params[0].value.toFixed(2);
-				return `<strong>${params[0].name}</strong><br/>Change: ${value}%`;
-			},
-		},
-	};
+	// Hide empty state if we have data
+	if (gains.length > 0 || losses.length > 0) {
+		emptyState.hidden = true;
+	}
 
-	// Add click event handler for bars
-	categoryChartInstance.on("click", async (params) => {
-		const categoryIndex = params.dataIndex;
-		const categoryItem = data.categories[categoryIndex];
-		const categoryQid = categoryItem.category_qid;
+	// Render gains
+	if (gains.length > 0) {
+		gainsSection.style.display = "flex";
+		const countSpan = gainsSection.querySelector(".section-count");
+		countSpan.textContent = gains.length;
 
-		showMessage(`Loading articles for: ${categoryItem.category_title}`, "info");
+		for (const category of gains) {
+			gainsList.appendChild(createCategoryAccordion(category, "positive"));
+		}
+	} else {
+		gainsSection.style.display = "none";
+	}
 
-		// Get form values for the article request
-		const wiki = document.getElementById("wiki").value;
-		const baselineStartDate = document.getElementById(
-			"baseline_start_date",
-		).value;
-		const baselineEndDate = document.getElementById("baseline_end_date").value;
-		const impactStartDate = document.getElementById("impact_start_date").value;
-		const impactEndDate = document.getElementById("impact_end_date").value;
-		const depth = document.getElementById("depth").value;
+	// Render losses
+	if (losses.length > 0) {
+		lossesSection.style.display = "flex";
+		const countSpan = lossesSection.querySelector(".section-count");
+		countSpan.textContent = losses.length;
+
+		for (const category of losses) {
+			lossesList.appendChild(createCategoryAccordion(category, "negative"));
+		}
+	} else {
+		lossesSection.style.display = "none";
+	}
+}
+
+/**
+ * Creates a single category accordion element
+ * @param {Object} category - Category data from API
+ * @param {string} type - 'positive' or 'negative'
+ * @returns {HTMLDetailsElement} - <details> element
+ */
+function createCategoryAccordion(category, type) {
+	const details = document.createElement("details");
+	details.className = "category-accordion";
+	details.name = type === "positive" ? "gains-accordion" : "losses-accordion";
+	details.dataset.categoryQid = category.category_qid;
+	details.dataset.categoryTitle = category.category_title;
+
+	// Create summary (accordion header)
+	const summary = document.createElement("summary");
+	summary.className = "category-summary";
+
+	// Category name
+	const nameSpan = document.createElement("span");
+	nameSpan.className = "category-name";
+	nameSpan.textContent = category.category_title;
+
+	// Delta percentage
+	const deltaDiv = document.createElement("div");
+	deltaDiv.className = `category-delta ${type}`;
+	const sign = category.delta_percentage >= 0 ? "+" : "";
+	deltaDiv.textContent = `${sign}${category.delta_percentage.toFixed(2)}%`;
+
+	// Views (baseline → impact)
+	const viewsDiv = document.createElement("div");
+	viewsDiv.className = "category-views";
+
+	const viewsLabel = document.createElement("span");
+	viewsLabel.className = "views-label";
+	viewsLabel.textContent = "Views";
+
+	const viewsRange = document.createElement("span");
+	viewsRange.className = "views-range";
+	viewsRange.textContent = `${category.baseline_views.toLocaleString()} → ${category.impact_views.toLocaleString()}`;
+
+	viewsDiv.appendChild(viewsLabel);
+	viewsDiv.appendChild(viewsRange);
+
+	// Assemble summary
+	summary.appendChild(nameSpan);
+	summary.appendChild(deltaDiv);
+	summary.appendChild(viewsDiv);
+	details.appendChild(summary);
+
+	// Add event listener for lazy loading articles
+	details.addEventListener("toggle", handleAccordionToggle);
+
+	return details;
+}
+
+/**
+ * Handles accordion expand/collapse
+ * Lazy loads articles when expanded for the first time
+ * @param {Event} event - Toggle event
+ */
+async function handleAccordionToggle(event) {
+	const details = event.target;
+
+	// Only load articles on first open
+	if (details.open && !details.dataset.loaded) {
+		const categoryQid = details.dataset.categoryQid;
+		const categoryTitle = details.dataset.categoryTitle;
+
+		// Create articles container
+		const articlesContainer = document.createElement("div");
+		articlesContainer.className = "articles-container";
+
+		// Show loading indicator
+		articlesContainer.innerHTML =
+			'<div class="loading-indicator">Loading articles</div>';
+		details.appendChild(articlesContainer);
 
 		try {
+			// Get form values
+			const wiki = document.getElementById("wiki").value;
+			const baselineStartDate = document.getElementById(
+				"baseline_start_date",
+			).value;
+			const baselineEndDate =
+				document.getElementById("baseline_end_date").value;
+			const impactStartDate =
+				document.getElementById("impact_start_date").value;
+			const impactEndDate = document.getElementById("impact_end_date").value;
+			const depth = document.getElementById("depth").value;
+
 			const articlesData = await fetchArticleDeltaData(
 				wiki,
 				categoryQid,
@@ -282,182 +283,133 @@ function updateChart(data, label) {
 				impactStartDate,
 				impactEndDate,
 				depth,
-				20, // limit to top 20 articles
+				100, // Fetch more articles (no pagination needed)
 			);
 
 			if (articlesData && articlesData.articles.length > 0) {
-				updateArticlesChart(articlesData);
+				renderArticles(articlesContainer, articlesData.articles, wiki);
+				details.dataset.loaded = "true";
+
 				showMessage(
-					`Loaded ${articlesData.articles.length} articles for: ${categoryItem.category_title}`,
+					`Loaded ${articlesData.articles.length} articles for: ${categoryTitle}`,
 					"success",
 				);
 			} else {
-				showMessage(
-					`No articles found for: ${categoryItem.category_title}`,
-					"info",
-				);
-				clearArticlesChart();
+				articlesContainer.innerHTML =
+					'<div class="no-data">No articles found in this category</div>';
 			}
 		} catch (error) {
 			console.error("Error loading articles:", error);
-			showMessage(
-				`Failed to load articles for: ${categoryItem.category_title}`,
-				"error",
-			);
+			articlesContainer.innerHTML =
+				'<div class="no-data">Error loading articles. Please try again.</div>';
+			showMessage(`Failed to load articles for: ${categoryTitle}`, "error");
 		}
-	});
-
-	categoryChartInstance.setOption(option);
-}
-
-function updateArticlesChart(data) {
-	const theme = window.matchMedia("(prefers-color-scheme: dark)").matches
-		? "dark"
-		: "light";
-	const articlesChartElement = document.getElementById("articles-chart");
-	articlesChartInstance = echarts.init(articlesChartElement, theme, {
-		renderer: "svg",
-	});
-
-	const articles = data.articles.map((item) => item.article_title);
-	const deltaPercentages = data.articles.map((item) => item.delta_percentage);
-
-	const option = {
-		darkMode: "auto",
-		color: [
-			"#4b77d6",
-			"#eeb533",
-			"#fd7865",
-			"#80cdb3",
-			"#269f4b",
-			"#b0c1f0",
-			"#9182c2",
-			"#d9b4cd",
-			"#b0832b",
-			"#a2a9b1",
-		],
-		title: {
-			text: `Top Articles in: ${data.category_title}`,
-			left: "center",
-			textStyle: {
-				fontSize: 18,
-				fontWeight: "bold",
-			},
-			padding: [10, 0, 20, 0],
-		},
-		grid: {
-			left: "25%",
-			right: "10%",
-			top: "12%",
-			bottom: "8%",
-		},
-		xAxis: {
-			type: "value",
-			name: "Pageview Change (%)",
-			nameLocation: "middle",
-			nameGap: 35,
-			nameTextStyle: {
-				fontSize: 14,
-				fontWeight: "bold",
-			},
-			axisLine: {
-				lineStyle: {
-					color: "#333",
-				},
-			},
-			splitLine: {
-				lineStyle: {
-					type: "dashed",
-					color: "#e0e0e0",
-				},
-			},
-		},
-		yAxis: {
-			type: "category",
-			data: articles,
-			inverse: true,
-			axisLabel: {
-				fontSize: 11,
-				interval: 0,
-				width: 200,
-				overflow: "truncate",
-			},
-			axisLine: {
-				lineStyle: {
-					color: "#333",
-				},
-			},
-		},
-		series: [
-			{
-				type: "bar",
-				data: deltaPercentages,
-				itemStyle: {
-					color: (params) => {
-						// Color bars based on positive/negative values
-						return params.value >= 0 ? "#269f4b" : "#fd7865";
-					},
-				},
-				barWidth: "60%",
-				markLine: {
-					silent: true,
-					symbol: "none",
-					data: [
-						{
-							xAxis: 0,
-							lineStyle: {
-								color: "red",
-								type: "dashed",
-								width: 2,
-							},
-							label: {
-								show: false,
-							},
-						},
-					],
-				},
-			},
-		],
-		toolbox: {
-			show: true,
-			feature: {
-				dataZoom: {
-					yAxisIndex: "none",
-				},
-				dataView: { readOnly: false },
-				restore: {},
-				saveAsImage: {},
-			},
-		},
-		tooltip: {
-			trigger: "axis",
-			axisPointer: {
-				type: "shadow",
-			},
-			formatter: (params) => {
-				const value = params[0].value.toFixed(2);
-				const articleData = data.articles[params[0].dataIndex];
-				return `<strong>${params[0].name}</strong><br/>
-                Change: ${value}%<br/>
-                Baseline: ${articleData.baseline_views.toLocaleString()}<br/>
-                Impact: ${articleData.impact_views.toLocaleString()}`;
-			},
-		},
-	};
-
-	articlesChartInstance.setOption(option);
-
-	// Make the articles chart visible
-	articlesChartElement.style.display = "block";
-}
-
-function clearArticlesChart() {
-	const articlesChartElement = document.getElementById("articles-chart");
-	if (articlesChartInstance) {
-		articlesChartInstance.dispose();
-		articlesChartInstance = null;
 	}
-	articlesChartElement.style.display = "none";
+}
+
+/**
+ * Renders articles list inside accordion
+ * @param {HTMLElement} container - Articles container element
+ * @param {Array} articles - Array of article objects
+ * @param {string} wiki - Wiki code for building Wikipedia links
+ */
+function renderArticles(container, articles, wiki) {
+	container.innerHTML = "";
+
+	// Separate into gains and losses
+	const gains = articles.filter((art) => art.delta_percentage > 0);
+	const losses = articles.filter((art) => art.delta_percentage < 0);
+
+	// Sort by delta magnitude
+	gains.sort((a, b) => b.delta_percentage - a.delta_percentage);
+	losses.sort((a, b) => a.delta_percentage - b.delta_percentage);
+
+	// Render gains section
+	if (gains.length > 0) {
+		const gainsHeader = document.createElement("div");
+		gainsHeader.className = "articles-section-header";
+		gainsHeader.innerHTML = "<span>📈</span><span>Article Gains</span>";
+		container.appendChild(gainsHeader);
+
+		for (const article of gains) {
+			container.appendChild(createArticleElement(article, wiki));
+		}
+	}
+
+	// Render losses section
+	if (losses.length > 0) {
+		const lossesHeader = document.createElement("div");
+		lossesHeader.className = "articles-section-header";
+		lossesHeader.innerHTML = "<span>📉</span><span>Article Losses</span>";
+		container.appendChild(lossesHeader);
+
+		for (const article of losses) {
+			container.appendChild(createArticleElement(article, wiki));
+		}
+	}
+}
+
+/**
+ * Creates a single article element with Wikipedia link
+ * @param {Object} article - Article data from API
+ * @param {string} wiki - Wiki code (e.g., 'enwiki')
+ * @returns {HTMLElement} - Article div
+ */
+function createArticleElement(article, wiki) {
+	const div = document.createElement("div");
+	const type = article.delta_percentage >= 0 ? "positive" : "negative";
+	div.className = `article-item ${type}`;
+
+	// Article title as clickable link
+	const titleLink = document.createElement("a");
+	titleLink.className = "article-title";
+	titleLink.textContent = article.article_title;
+	titleLink.href = buildWikipediaUrl(wiki, article.article_title);
+	titleLink.target = "_blank";
+	titleLink.rel = "noopener noreferrer";
+
+	// Delta percentage
+	const deltaSpan = document.createElement("span");
+	deltaSpan.className = `article-delta ${type}`;
+	const sign = article.delta_percentage >= 0 ? "+" : "";
+	deltaSpan.textContent = `${sign}${article.delta_percentage.toFixed(2)}%`;
+
+	// Views (baseline → impact)
+	const viewsDiv = document.createElement("div");
+	viewsDiv.className = "article-views";
+
+	const viewsLabel = document.createElement("span");
+	viewsLabel.className = "views-label";
+	viewsLabel.textContent = "Views";
+
+	const viewsValue = document.createElement("span");
+	viewsValue.textContent = `${article.baseline_views.toLocaleString()} → ${article.impact_views.toLocaleString()}`;
+
+	viewsDiv.appendChild(viewsLabel);
+	viewsDiv.appendChild(viewsValue);
+
+	// Assemble article item
+	div.appendChild(titleLink);
+	div.appendChild(deltaSpan);
+	div.appendChild(viewsDiv);
+
+	return div;
+}
+
+/**
+ * Builds a Wikipedia article URL
+ * @param {string} wiki - Wiki code (e.g., 'enwiki')
+ * @param {string} title - Article title
+ * @returns {string} - Full Wikipedia URL
+ */
+function buildWikipediaUrl(wiki, title) {
+	// Extract language code from wiki (e.g., 'enwiki' -> 'en')
+	const langCode = wiki.replace("wiki", "");
+
+	// URL encode the title
+	const encodedTitle = encodeURIComponent(title.replace(/ /g, "_"));
+
+	return `https://${langCode}.wikipedia.org/wiki/${encodedTitle}`;
 }
 
 document.addEventListener("DOMContentLoaded", () => {

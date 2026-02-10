@@ -7,13 +7,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Topic deltas</title>
   <meta description="Category wise pageview deltas analysis for Wikipedia" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@wikimedia/codex-design-tokens/theme-wikimedia-ui-root.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@wikimedia/codex-design-tokens/theme-wikimedia-ui.css">
   <link rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/@wikimedia/codex-design-tokens/theme-wikimedia-ui-mode-dark.css"
     media="( prefers-color-scheme: dark )">
   <link rel="stylesheet" href="https://tools-static.wmflabs.org/cdnjs/ajax/libs/codex/1.19.1/codex.style.css">
   <link rel="stylesheet" href="/static/delta.css">
-  <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
 </head>
 
 <body>
@@ -72,8 +71,29 @@
       </form>
     </div>
     <div class="main">
-      <div id="chart" class="chart"></div>
-      <div id="articles-chart" class="chart"></div>
+      <div id="results-container" class="results-container">
+        <section id="gains-section" class="delta-section">
+          <h2 class="section-header">
+            <span class="section-icon">📈</span>
+            <span>Gains</span>
+            <span class="section-count"></span>
+          </h2>
+          <div id="gains-list" class="category-list"></div>
+        </section>
+        
+        <section id="losses-section" class="delta-section">
+          <h2 class="section-header">
+            <span class="section-icon">📉</span>
+            <span>Losses</span>
+            <span class="section-count"></span>
+          </h2>
+          <div id="losses-list" class="category-list"></div>
+        </section>
+        
+        <div id="empty-state" class="empty-state">
+          <p>Submit the form to see category delta analysis</p>
+        </div>
+      </div>
       <footer>
         <p id="status" class="status"></p>
       </footer>
