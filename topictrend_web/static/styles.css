@@ -183,7 +183,7 @@
 	overflow-y: auto;
 
 	.chart {
-		width: calc(100vw - 400px);
+		width: calc(100vw - 420px);
 		height: 66dvh;
 		display: none;
 	}

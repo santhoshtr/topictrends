@@ -1,38 +1,38 @@
 :host {
-  display: block;
+	display: block;
 }
 
 .container {
-  background: var(--background-color-base);
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 4px var(--box-shadow-color-alpha-base);
+	background: var(--background-color-base);
+	border-radius: 8px;
+	overflow: hidden;
+	box-shadow: 0 2px 4px var(--box-shadow-color-alpha-base);
 }
 
 .loading {
-  text-align: center;
-  padding: 40px;
-  color: var(--color-subtle);
-  font-size: var(--font-size-large);
+	text-align: center;
+	padding: 40px;
+	color: var(--color-subtle);
+	font-size: var(--font-size-large);
 }
 
 .error {
-  background-color: var(--background-color-error-subtle);
-  border: 1px solid var(--border-color-error);
-  padding: 20px;
-  margin: 20px;
-  border-radius: 8px;
-  color: var(--color-error);
+	background-color: var(--background-color-error-subtle);
+	border: 1px solid var(--border-color-error);
+	padding: 20px;
+	margin: 20px;
+	border-radius: 8px;
+	color: var(--color-error);
 }
 
 .articles-list {
-  display: grid;
-  gap: 1px;
-  background-color: var(--background-color-neutral);
+	display: grid;
+	gap: 1px;
+	background-color: var(--background-color-neutral);
 }
 
 .empty-state {
-  text-align: center;
-  padding: 40px;
-  color: var(--color-subtle);
+	text-align: center;
+	padding: 40px;
+	color: var(--color-subtle);
 }
