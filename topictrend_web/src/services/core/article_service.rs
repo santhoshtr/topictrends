@@ -10,7 +10,7 @@ impl ArticleService {
         wiki: &str,
         article_qid: u32,
     ) -> Result<Vec<u32>, CoreServiceError> {
-        let engine = EngineService::get_or_build_engine(state, wiki).await?;
+        let engine = EngineService::get_or_build_pageview_engine(state, wiki).await?;
 
         let category_qids = {
             let engine_lock = engine.read().map_err(|e| {
@@ -48,7 +48,7 @@ impl ArticleService {
         wiki: &str,
         article_qid: u32,
     ) -> Result<bool, CoreServiceError> {
-        let engine = EngineService::get_or_build_engine(state, wiki).await?;
+        let engine = EngineService::get_or_build_pageview_engine(state, wiki).await?;
 
         let exists = {
             let engine_lock = engine.read().map_err(|e| {

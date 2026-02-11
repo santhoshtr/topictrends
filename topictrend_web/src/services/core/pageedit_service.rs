@@ -4,22 +4,22 @@ use chrono::NaiveDate;
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
-pub struct ArticleViews {
+pub struct ArticleEdits {
     pub article_qid: u32,
-    pub total_views: u64,
+    pub total_edits: u64,
 }
 
 #[derive(Clone, Debug)]
-pub struct CategoryViews {
+pub struct CategoryEdits {
     pub category_qid: u32,
-    pub total_views: u64,
-    pub top_articles: Vec<ArticleViews>,
+    pub total_edits: u64,
+    pub top_articles: Vec<ArticleEdits>,
 }
 
-pub struct PageViewService;
+pub struct PageEditService;
 
-impl PageViewService {
-    pub async fn get_category_views(
+impl PageEditService {
+    pub async fn get_category_edits(
         state: Arc<AppState>,
         wiki: &str,
         category_qid: u32,
@@ -27,7 +27,7 @@ impl PageViewService {
         end_date: NaiveDate,
         depth: u32,
     ) -> Result<Vec<(NaiveDate, u64)>, CoreServiceError> {
-        let engine = EngineService::get_or_build_pageview_engine(state, wiki).await?;
+        let engine = EngineService::get_or_build_pageedit_engine(state, wiki).await?;
 
         let raw_data = {
             let mut engine_lock = engine.write().map_err(|e| {
@@ -40,18 +40,18 @@ impl PageViewService {
         Ok(raw_data)
     }
 
-    pub async fn get_article_views(
+    pub async fn get_article_edits(
         state: Arc<AppState>,
         wiki: &str,
         article_qid: u32,
         start_date: NaiveDate,
         end_date: NaiveDate,
     ) -> Result<Vec<(NaiveDate, u64)>, CoreServiceError> {
-        let engine = EngineService::get_or_build_pageview_engine(state, wiki).await?;
+        let engine = EngineService::get_or_build_pageedit_engine(state, wiki).await?;
 
         let raw_data = {
-            let mut engine_lock = engine.write().map_err(|e| {
-                CoreServiceError::InternalError(format!("Failed to acquire write lock: {}", e))
+            let engine_lock = engine.read().map_err(|e| {
+                CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
             })?;
 
             engine_lock.get_article_trend(article_qid, start_date, end_date)
@@ -68,8 +68,8 @@ impl PageViewService {
         end_date: NaiveDate,
         depth: u32,
         limit: usize,
-    ) -> Result<Vec<ArticleViews>, CoreServiceError> {
-        let engine = EngineService::get_or_build_pageview_engine(state, wiki).await?;
+    ) -> Result<Vec<ArticleEdits>, CoreServiceError> {
+        let engine = EngineService::get_or_build_pageedit_engine(state, wiki).await?;
 
         let top_articles = {
             let mut engine_lock = engine.write().map_err(|e| {
@@ -83,12 +83,12 @@ impl PageViewService {
                 })?
         };
 
-        let raw_articles: Vec<ArticleViews> = top_articles
+        let raw_articles: Vec<ArticleEdits> = top_articles
             .top_articles
             .into_iter()
-            .map(|art| ArticleViews {
+            .map(|art| ArticleEdits {
                 article_qid: art.article_qid,
-                total_views: art.total_views,
+                total_edits: art.total_edits,
             })
             .collect();
 
@@ -101,8 +101,8 @@ impl PageViewService {
         start_date: NaiveDate,
         end_date: NaiveDate,
         limit: usize,
-    ) -> Result<Vec<CategoryViews>, CoreServiceError> {
-        let engine = EngineService::get_or_build_pageview_engine(state, wiki).await?;
+    ) -> Result<Vec<CategoryEdits>, CoreServiceError> {
+        let engine = EngineService::get_or_build_pageedit_engine(state, wiki).await?;
 
         let categories = {
             let mut engine_lock = engine.write().map_err(|e| {
@@ -116,21 +116,21 @@ impl PageViewService {
                 })?
         };
 
-        let raw_categories: Vec<CategoryViews> = categories
+        let raw_categories: Vec<CategoryEdits> = categories
             .into_iter()
             .map(|cat| {
-                let top_articles: Vec<ArticleViews> = cat
+                let top_articles: Vec<ArticleEdits> = cat
                     .top_articles
                     .into_iter()
-                    .map(|art| ArticleViews {
+                    .map(|art| ArticleEdits {
                         article_qid: art.article_qid,
-                        total_views: art.total_views,
+                        total_edits: art.total_edits,
                     })
                     .collect();
 
-                CategoryViews {
+                CategoryEdits {
                     category_qid: cat.category_qid,
-                    total_views: cat.total_views,
+                    total_edits: cat.total_edits,
                     top_articles,
                 }
             })

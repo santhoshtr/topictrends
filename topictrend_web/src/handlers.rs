@@ -9,11 +9,13 @@ use std::sync::Arc;
 
 use crate::{
     models::{
-        AppState, ArticleDeltaParams, ArticleDeltaResponse, ArticleItem, ArticleTrendParams,
-        ArticlesInCategoryResponse, CategoryDeltaParams, CategoryDeltaResponse,
+        AppState, ArticleItem, ArticleTrendParams, ArticlesInCategoryResponse,
         CategoryRankResponse, CategorySearchItemResponse, CategorySearchParams,
         CategorySearchResponse, CategoryTrendParams, DailyViews, ListArticlesInCategoryParams,
-        SubCategoryParams, TopArticle, TopCategoriesParams, TopCategory,
+        PageEditArticleDeltaParams, PageEditArticleDeltaResponse, PageEditCategoryDeltaParams,
+        PageEditCategoryDeltaResponse, PageViewArticleDeltaParams, PageViewArticleDeltaResponse,
+        PageViewCategoryDeltaParams, PageViewCategoryDeltaResponse, SubCategoryParams, TopArticle,
+        TopCategoriesParams, TopCategory,
     },
     services::core::CategoryService,
 };
@@ -24,7 +26,7 @@ use crate::{
 use crate::{
     models::{CategoriesTrendParams, CategoriesTrendResponse},
     services::{
-        composite::DeltaService,
+        composite::{PageEditDeltaService, PageViewDeltaService},
         core::{CoreServiceError, QidService},
     },
 };
@@ -217,14 +219,14 @@ pub async fn get_top_categories_handler(
     Ok(Json(response))
 }
 
-pub async fn get_category_delta_handler(
-    Query(params): Query<CategoryDeltaParams>,
+pub async fn get_category_pageview_delta_handler(
+    Query(params): Query<PageViewCategoryDeltaParams>,
     State(state): State<Arc<AppState>>,
-) -> Result<Json<CategoryDeltaResponse>, ApiError> {
+) -> Result<Json<PageViewCategoryDeltaResponse>, ApiError> {
     let limit = params.limit.unwrap_or(100) as usize;
     let depth = params.depth.unwrap_or(0);
 
-    let delta_items = DeltaService::get_category_delta(
+    let delta_items = PageViewDeltaService::get_category_delta(
         Arc::clone(&state),
         &params.wiki,
         params.baseline_start_date,
@@ -236,9 +238,9 @@ pub async fn get_category_delta_handler(
     )
     .await?;
 
-    let categories: Vec<crate::models::CategoryDeltaItemResponse> = delta_items
+    let categories: Vec<crate::models::PageViewCategoryDeltaItemResponse> = delta_items
         .into_iter()
-        .map(|item| crate::models::CategoryDeltaItemResponse {
+        .map(|item| crate::models::PageViewCategoryDeltaItemResponse {
             category_qid: item.category_qid,
             category_title: item.category_title,
             baseline_views: item.baseline_views,
@@ -254,23 +256,23 @@ pub async fn get_category_delta_handler(
     );
     let impact_period = format!("{} to {}", params.impact_start_date, params.impact_end_date);
 
-    Ok(Json(CategoryDeltaResponse {
+    Ok(Json(PageViewCategoryDeltaResponse {
         categories,
         baseline_period,
         impact_period,
     }))
 }
 
-pub async fn get_article_delta_handler(
-    Query(params): Query<ArticleDeltaParams>,
+pub async fn get_article_pageview_delta_handler(
+    Query(params): Query<PageViewArticleDeltaParams>,
     State(state): State<Arc<AppState>>,
-) -> Result<Json<ArticleDeltaResponse>, ApiError> {
+) -> Result<Json<PageViewArticleDeltaResponse>, ApiError> {
     use crate::services::core::QidService;
 
     let limit = params.limit.unwrap_or(100) as usize;
     let depth = params.depth.unwrap_or(0);
 
-    let delta_items = DeltaService::get_article_delta(
+    let delta_items = PageViewDeltaService::get_article_delta(
         Arc::clone(&state),
         &params.wiki,
         params.category_qid,
@@ -283,9 +285,9 @@ pub async fn get_article_delta_handler(
     )
     .await?;
 
-    let articles: Vec<crate::models::ArticleDeltaItemResponse> = delta_items
+    let articles: Vec<crate::models::PageViewArticleDeltaItemResponse> = delta_items
         .into_iter()
-        .map(|item| crate::models::ArticleDeltaItemResponse {
+        .map(|item| crate::models::PageViewArticleDeltaItemResponse {
             article_qid: item.article_qid,
             article_title: item.article_title,
             baseline_views: item.baseline_views,
@@ -307,7 +309,106 @@ pub async fn get_article_delta_handler(
     );
     let impact_period = format!("{} to {}", params.impact_start_date, params.impact_end_date);
 
-    Ok(Json(ArticleDeltaResponse {
+    Ok(Json(PageViewArticleDeltaResponse {
+        articles,
+        category_qid: params.category_qid,
+        category_title,
+        baseline_period,
+        impact_period,
+    }))
+}
+
+pub async fn get_category_pageedit_delta_handler(
+    Query(params): Query<PageEditCategoryDeltaParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<PageEditCategoryDeltaResponse>, ApiError> {
+    let limit = params.limit.unwrap_or(100) as usize;
+    let depth = params.depth.unwrap_or(0);
+
+    let delta_items = PageEditDeltaService::get_category_delta(
+        Arc::clone(&state),
+        &params.wiki,
+        params.baseline_start_date,
+        params.baseline_end_date,
+        params.impact_start_date,
+        params.impact_end_date,
+        limit,
+        depth,
+    )
+    .await?;
+
+    let categories: Vec<crate::models::PageEditCategoryDeltaItemResponse> = delta_items
+        .into_iter()
+        .map(|item| crate::models::PageEditCategoryDeltaItemResponse {
+            category_qid: item.category_qid,
+            category_title: item.category_title,
+            baseline_edits: item.baseline_edits,
+            impact_edits: item.impact_edits,
+            delta_percentage: item.delta_percentage,
+            absolute_delta: item.absolute_delta,
+        })
+        .collect();
+
+    let baseline_period = format!(
+        "{} to {}",
+        params.baseline_start_date, params.baseline_end_date
+    );
+    let impact_period = format!("{} to {}", params.impact_start_date, params.impact_end_date);
+
+    Ok(Json(PageEditCategoryDeltaResponse {
+        categories,
+        baseline_period,
+        impact_period,
+    }))
+}
+
+pub async fn get_article_pageedit_delta_handler(
+    Query(params): Query<PageEditArticleDeltaParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<PageEditArticleDeltaResponse>, ApiError> {
+    use crate::services::core::QidService;
+
+    let limit = params.limit.unwrap_or(100) as usize;
+    let depth = params.depth.unwrap_or(0);
+
+    let delta_items = PageEditDeltaService::get_article_delta(
+        Arc::clone(&state),
+        &params.wiki,
+        params.category_qid,
+        params.baseline_start_date,
+        params.baseline_end_date,
+        params.impact_start_date,
+        params.impact_end_date,
+        limit,
+        depth,
+    )
+    .await?;
+
+    let articles: Vec<crate::models::PageEditArticleDeltaItemResponse> = delta_items
+        .into_iter()
+        .map(|item| crate::models::PageEditArticleDeltaItemResponse {
+            article_qid: item.article_qid,
+            article_title: item.article_title,
+            baseline_edits: item.baseline_edits,
+            impact_edits: item.impact_edits,
+            delta_percentage: item.delta_percentage,
+            absolute_delta: item.absolute_delta,
+        })
+        .collect();
+
+    // Get category title
+    let category_title =
+        QidService::get_title_by_qid(Arc::clone(&state), &params.wiki, params.category_qid)
+            .await
+            .unwrap_or_else(|_| format!("Q{}", params.category_qid));
+
+    let baseline_period = format!(
+        "{} to {}",
+        params.baseline_start_date, params.baseline_end_date
+    );
+    let impact_period = format!("{} to {}", params.impact_start_date, params.impact_end_date);
+
+    Ok(Json(PageEditArticleDeltaResponse {
         articles,
         category_qid: params.category_qid,
         category_title,

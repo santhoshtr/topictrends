@@ -12,7 +12,7 @@ use axum::http::header::{CACHE_CONTROL, HeaderValue};
 use axum::{
     Router,
     http::{Method, StatusCode, header::*},
-    response::Html,
+    response::{Html, Redirect},
     routing::{get, get_service},
 };
 use std::{net::SocketAddr, sync::Arc};
@@ -43,8 +43,16 @@ async fn run_http_server(
             get(|| async { Html(include_str!("../static/index.html")) }),
         )
         .route(
+            "/pageviews-delta",
+            get(|| async { Html(include_str!("../static/pageview-delta.html")) }),
+        )
+        .route(
+            "/pageedits-delta",
+            get(|| async { Html(include_str!("../static/pageedit-delta.html")) }),
+        )
+        .route(
             "/delta",
-            get(|| async { Html(include_str!("../static/delta.html")) }),
+            get(|| async { Redirect::permanent("/pageviews-delta") }),
         )
         .route(
             "/search",
@@ -68,12 +76,20 @@ async fn run_http_server(
             get(handlers::get_top_categories_handler),
         )
         .route(
-            "/api/delta/categories",
-            get(handlers::get_category_delta_handler),
+            "/api/pageviews/delta/categories",
+            get(handlers::get_category_pageview_delta_handler),
         )
         .route(
-            "/api/delta/articles",
-            get(handlers::get_article_delta_handler),
+            "/api/pageviews/delta/articles",
+            get(handlers::get_article_pageview_delta_handler),
+        )
+        .route(
+            "/api/pageedits/delta/categories",
+            get(handlers::get_category_pageedit_delta_handler),
+        )
+        .route(
+            "/api/pageedits/delta/articles",
+            get(handlers::get_article_pageedit_delta_handler),
         )
         .route("/api/search/categories", get(handlers::search_categories))
         .route(

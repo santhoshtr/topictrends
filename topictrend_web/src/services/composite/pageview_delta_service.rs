@@ -6,7 +6,7 @@ use chrono::NaiveDate;
 use std::{collections::HashMap, sync::Arc};
 
 #[derive(Clone, Debug)]
-pub struct CategoryDeltaItem {
+pub struct PageViewCategoryDeltaItem {
     pub category_qid: u32,
     pub category_title: String,
     pub baseline_views: u64,
@@ -16,7 +16,7 @@ pub struct CategoryDeltaItem {
 }
 
 #[derive(Clone, Debug)]
-pub struct ArticleDeltaItem {
+pub struct PageViewArticleDeltaItem {
     pub article_qid: u32,
     pub article_title: String,
     pub baseline_views: u64,
@@ -25,9 +25,9 @@ pub struct ArticleDeltaItem {
     pub absolute_delta: i64,
 }
 
-pub struct DeltaService;
+pub struct PageViewDeltaService;
 
-impl DeltaService {
+impl PageViewDeltaService {
     pub async fn get_category_delta(
         state: Arc<AppState>,
         wiki: &str,
@@ -37,7 +37,7 @@ impl DeltaService {
         impact_end: NaiveDate,
         limit: usize,
         depth: u32,
-    ) -> Result<Vec<CategoryDeltaItem>, CoreServiceError> {
+    ) -> Result<Vec<PageViewCategoryDeltaItem>, CoreServiceError> {
         // STEP 1: Get top categories from BOTH periods
         let baseline_categories = PageViewService::get_top_categories(
             Arc::clone(&state),
@@ -99,10 +99,10 @@ impl DeltaService {
                     depth,
                 )
                 .await
-                {
-                    let total: u64 = views.iter().map(|(_, v)| v).sum();
-                    final_baseline_map.insert(*qid, total);
-                }
+            {
+                let total: u64 = views.iter().map(|(_, v)| v).sum();
+                final_baseline_map.insert(*qid, total);
+            }
 
             // Fetch missing impact data
             if !final_impact_map.contains_key(qid)
@@ -115,10 +115,10 @@ impl DeltaService {
                     depth,
                 )
                 .await
-                {
-                    let total: u64 = views.iter().map(|(_, v)| v).sum();
-                    final_impact_map.insert(*qid, total);
-                }
+            {
+                let total: u64 = views.iter().map(|(_, v)| v).sum();
+                final_impact_map.insert(*qid, total);
+            }
         }
 
         // Get titles for all categories
@@ -126,7 +126,7 @@ impl DeltaService {
             QidService::get_titles_by_qids(Arc::clone(&state), wiki, &all_qids).await?;
 
         // STEP 5: Calculate deltas for all categories in the union
-        let mut delta_items: Vec<CategoryDeltaItem> = Vec::new();
+        let mut delta_items: Vec<PageViewCategoryDeltaItem> = Vec::new();
 
         for qid in &all_qids {
             let baseline_views = final_baseline_map.get(qid).unwrap_or(&0);
@@ -145,7 +145,7 @@ impl DeltaService {
                 .cloned()
                 .unwrap_or_else(|| format!("Q{}", qid));
 
-            delta_items.push(CategoryDeltaItem {
+            delta_items.push(PageViewCategoryDeltaItem {
                 category_qid: *qid,
                 category_title,
                 baseline_views: *baseline_views,
@@ -172,7 +172,7 @@ impl DeltaService {
         impact_end: NaiveDate,
         limit: usize,
         depth: u32,
-    ) -> Result<Vec<ArticleDeltaItem>, CoreServiceError> {
+    ) -> Result<Vec<PageViewArticleDeltaItem>, CoreServiceError> {
         // STEP 1: Get top articles from BOTH periods
         let baseline_articles = PageViewService::get_top_articles(
             Arc::clone(&state),
@@ -237,10 +237,10 @@ impl DeltaService {
                     baseline_end,
                 )
                 .await
-                {
-                    let total: u64 = views.iter().map(|(_, v)| v).sum();
-                    final_baseline_map.insert(*qid, total);
-                }
+            {
+                let total: u64 = views.iter().map(|(_, v)| v).sum();
+                final_baseline_map.insert(*qid, total);
+            }
 
             // Fetch missing impact data
             if !final_impact_map.contains_key(qid)
@@ -252,10 +252,10 @@ impl DeltaService {
                     impact_end,
                 )
                 .await
-                {
-                    let total: u64 = views.iter().map(|(_, v)| v).sum();
-                    final_impact_map.insert(*qid, total);
-                }
+            {
+                let total: u64 = views.iter().map(|(_, v)| v).sum();
+                final_impact_map.insert(*qid, total);
+            }
         }
 
         // Get titles for all articles
@@ -263,7 +263,7 @@ impl DeltaService {
             QidService::get_titles_by_qids(Arc::clone(&state), wiki, &all_qids).await?;
 
         // STEP 5: Calculate deltas for all articles in the union
-        let mut delta_items: Vec<ArticleDeltaItem> = Vec::new();
+        let mut delta_items: Vec<PageViewArticleDeltaItem> = Vec::new();
 
         for qid in &all_qids {
             let baseline_views = final_baseline_map.get(qid).unwrap_or(&0);
@@ -282,7 +282,7 @@ impl DeltaService {
                 .cloned()
                 .unwrap_or_else(|| format!("Q{}", qid));
 
-            delta_items.push(ArticleDeltaItem {
+            delta_items.push(PageViewArticleDeltaItem {
                 article_qid: *qid,
                 article_title,
                 baseline_views: *baseline_views,

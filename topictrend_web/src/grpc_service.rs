@@ -1,5 +1,5 @@
 use crate::models::AppState;
-use crate::services::composite::DeltaService;
+use crate::services::composite::{PageEditDeltaService, PageViewDeltaService};
 use crate::services::core::{
     ArticleService, CategoryService, CoreServiceError, PageViewService, QidService,
 };
@@ -15,18 +15,11 @@ pub mod topictrend_proto {
 use topictrend_proto::{
     ArticleCategoriesRequest,
     ArticleCategoriesResponse,
-    ArticleDeltaItem,
-    ArticleDeltaRequest,
-    ArticleDeltaResponse,
-
     ArticleViews,
     ArticleViewsRequest,
     ArticleViewsResponse,
     CategoryArticlesRequest,
     CategoryArticlesResponse,
-    CategoryDeltaItem,
-    CategoryDeltaRequest,
-    CategoryDeltaResponse,
     CategoryViews,
     //  data messages
     CategoryViewsRequest,
@@ -36,6 +29,19 @@ use topictrend_proto::{
     ChildCategoriesResponse,
     // Data structures
     DailyViews,
+    PageEditArticleDeltaItem,
+    PageEditArticleDeltaRequest,
+    PageEditArticleDeltaResponse,
+    PageEditCategoryDeltaItem,
+    PageEditCategoryDeltaRequest,
+    PageEditCategoryDeltaResponse,
+    PageViewArticleDeltaItem,
+    PageViewArticleDeltaRequest,
+    PageViewArticleDeltaResponse,
+
+    PageViewCategoryDeltaItem,
+    PageViewCategoryDeltaRequest,
+    PageViewCategoryDeltaResponse,
     ParentCategoriesRequest,
     ParentCategoriesResponse,
     QidByTitleRequest,
@@ -237,10 +243,10 @@ impl TopicTrendService for TopicTrendGrpcService {
     }
 
     // Delta analysis endpoints
-    async fn get_category_delta(
+    async fn get_category_page_view_delta(
         &self,
-        request: Request<CategoryDeltaRequest>,
-    ) -> Result<Response<CategoryDeltaResponse>, Status> {
+        request: Request<PageViewCategoryDeltaRequest>,
+    ) -> Result<Response<PageViewCategoryDeltaResponse>, Status> {
         let req = request.into_inner();
 
         let baseline_start = parse_date(&req.baseline_start_date)?;
@@ -250,7 +256,7 @@ impl TopicTrendService for TopicTrendGrpcService {
         let limit = req.limit.unwrap_or(100) as usize;
         let depth = req.depth.unwrap_or(0);
 
-        let delta_items = DeltaService::get_category_delta(
+        let delta_items = PageViewDeltaService::get_category_delta(
             Arc::clone(&self.state),
             &req.wiki,
             baseline_start,
@@ -263,9 +269,9 @@ impl TopicTrendService for TopicTrendGrpcService {
         .await
         .map_err(Status::from)?;
 
-        let categories: Vec<CategoryDeltaItem> = delta_items
+        let categories: Vec<PageViewCategoryDeltaItem> = delta_items
             .into_iter()
-            .map(|item| CategoryDeltaItem {
+            .map(|item| PageViewCategoryDeltaItem {
                 category_qid: item.category_qid,
                 category_title: item.category_title,
                 baseline_views: item.baseline_views,
@@ -278,17 +284,17 @@ impl TopicTrendService for TopicTrendGrpcService {
         let baseline_period = format!("{} to {}", baseline_start, baseline_end);
         let impact_period = format!("{} to {}", impact_start, impact_end);
 
-        Ok(Response::new(CategoryDeltaResponse {
+        Ok(Response::new(PageViewCategoryDeltaResponse {
             categories,
             baseline_period,
             impact_period,
         }))
     }
 
-    async fn get_article_delta(
+    async fn get_article_page_view_delta(
         &self,
-        request: Request<ArticleDeltaRequest>,
-    ) -> Result<Response<ArticleDeltaResponse>, Status> {
+        request: Request<PageViewArticleDeltaRequest>,
+    ) -> Result<Response<PageViewArticleDeltaResponse>, Status> {
         let req = request.into_inner();
 
         let baseline_start = parse_date(&req.baseline_start_date)?;
@@ -298,7 +304,7 @@ impl TopicTrendService for TopicTrendGrpcService {
         let limit = req.limit.unwrap_or(100) as usize;
         let depth = req.depth.unwrap_or(0);
 
-        let delta_items = DeltaService::get_article_delta(
+        let delta_items = PageViewDeltaService::get_article_delta(
             Arc::clone(&self.state),
             &req.wiki,
             req.category_qid,
@@ -312,9 +318,9 @@ impl TopicTrendService for TopicTrendGrpcService {
         .await
         .map_err(Status::from)?;
 
-        let articles: Vec<ArticleDeltaItem> = delta_items
+        let articles: Vec<PageViewArticleDeltaItem> = delta_items
             .into_iter()
-            .map(|item| ArticleDeltaItem {
+            .map(|item| PageViewArticleDeltaItem {
                 article_qid: item.article_qid,
                 article_title: item.article_title,
                 baseline_views: item.baseline_views,
@@ -333,7 +339,112 @@ impl TopicTrendService for TopicTrendGrpcService {
         let baseline_period = format!("{} to {}", baseline_start, baseline_end);
         let impact_period = format!("{} to {}", impact_start, impact_end);
 
-        Ok(Response::new(ArticleDeltaResponse {
+        Ok(Response::new(PageViewArticleDeltaResponse {
+            articles,
+            category_qid: req.category_qid,
+            category_title,
+            baseline_period,
+            impact_period,
+        }))
+    }
+
+    async fn get_category_page_edit_delta(
+        &self,
+        request: Request<PageEditCategoryDeltaRequest>,
+    ) -> Result<Response<PageEditCategoryDeltaResponse>, Status> {
+        let req = request.into_inner();
+
+        let baseline_start = parse_date(&req.baseline_start_date)?;
+        let baseline_end = parse_date(&req.baseline_end_date)?;
+        let impact_start = parse_date(&req.impact_start_date)?;
+        let impact_end = parse_date(&req.impact_end_date)?;
+        let limit = req.limit.unwrap_or(100) as usize;
+        let depth = req.depth.unwrap_or(0);
+
+        let delta_items = PageEditDeltaService::get_category_delta(
+            Arc::clone(&self.state),
+            &req.wiki,
+            baseline_start,
+            baseline_end,
+            impact_start,
+            impact_end,
+            limit,
+            depth,
+        )
+        .await
+        .map_err(Status::from)?;
+
+        let categories: Vec<PageEditCategoryDeltaItem> = delta_items
+            .into_iter()
+            .map(|item| PageEditCategoryDeltaItem {
+                category_qid: item.category_qid,
+                category_title: item.category_title,
+                baseline_edits: item.baseline_edits,
+                impact_edits: item.impact_edits,
+                delta_percentage: item.delta_percentage,
+                absolute_delta: item.absolute_delta,
+            })
+            .collect();
+
+        let baseline_period = format!("{} to {}", baseline_start, baseline_end);
+        let impact_period = format!("{} to {}", impact_start, impact_end);
+
+        Ok(Response::new(PageEditCategoryDeltaResponse {
+            categories,
+            baseline_period,
+            impact_period,
+        }))
+    }
+
+    async fn get_article_page_edit_delta(
+        &self,
+        request: Request<PageEditArticleDeltaRequest>,
+    ) -> Result<Response<PageEditArticleDeltaResponse>, Status> {
+        let req = request.into_inner();
+
+        let baseline_start = parse_date(&req.baseline_start_date)?;
+        let baseline_end = parse_date(&req.baseline_end_date)?;
+        let impact_start = parse_date(&req.impact_start_date)?;
+        let impact_end = parse_date(&req.impact_end_date)?;
+        let limit = req.limit.unwrap_or(100) as usize;
+        let depth = req.depth.unwrap_or(0);
+
+        let delta_items = PageEditDeltaService::get_article_delta(
+            Arc::clone(&self.state),
+            &req.wiki,
+            req.category_qid,
+            baseline_start,
+            baseline_end,
+            impact_start,
+            impact_end,
+            limit,
+            depth,
+        )
+        .await
+        .map_err(Status::from)?;
+
+        let articles: Vec<PageEditArticleDeltaItem> = delta_items
+            .into_iter()
+            .map(|item| PageEditArticleDeltaItem {
+                article_qid: item.article_qid,
+                article_title: item.article_title,
+                baseline_edits: item.baseline_edits,
+                impact_edits: item.impact_edits,
+                delta_percentage: item.delta_percentage,
+                absolute_delta: item.absolute_delta,
+            })
+            .collect();
+
+        // Get category title
+        let category_title =
+            QidService::get_title_by_qid(Arc::clone(&self.state), &req.wiki, req.category_qid)
+                .await
+                .unwrap_or_else(|_| format!("Q{}", req.category_qid));
+
+        let baseline_period = format!("{} to {}", baseline_start, baseline_end);
+        let impact_period = format!("{} to {}", impact_start, impact_end);
+
+        Ok(Response::new(PageEditArticleDeltaResponse {
             articles,
             category_qid: req.category_qid,
             category_title,

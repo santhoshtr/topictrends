@@ -79,7 +79,7 @@ async function fetchDeltaData(
 		limit: limit || 100,
 	});
 
-	const API_URL = `https://topictrends.wmcloud.org/api/delta/categories?${params.toString()}`;
+	const API_URL = `https://topictrends.wmcloud.org/api/pageedits/delta/categories?${params.toString()}`;
 
 	try {
 		const response = await fetch(API_URL);
@@ -115,7 +115,7 @@ async function fetchArticleDeltaData(
 		limit: limit || 50,
 	});
 
-	const API_URL = `https://topictrends.wmcloud.org/api/delta/articles?${params.toString()}`;
+	const API_URL = `https://topictrends.wmcloud.org/api/pageedits/delta/articles?${params.toString()}`;
 
 	try {
 		const response = await fetch(API_URL);
@@ -213,20 +213,20 @@ function createCategoryAccordion(category, type) {
 	const sign = category.delta_percentage >= 0 ? "+" : "";
 	deltaDiv.textContent = `${sign}${category.delta_percentage.toFixed(2)}%`;
 
-	// Views (baseline → impact)
-	const viewsDiv = document.createElement("div");
-	viewsDiv.className = "category-views";
+	// Edits (baseline → impact)
+	const editsDiv = document.createElement("div");
+	editsDiv.className = "category-edits";
 
-	const viewsLabel = document.createElement("span");
-	viewsLabel.className = "views-label";
-	viewsLabel.textContent = "Views";
+	const editsLabel = document.createElement("span");
+	editsLabel.className = "edits-label";
+	editsLabel.textContent = "Edits";
 
-	const viewsRange = document.createElement("span");
-	viewsRange.className = "views-range";
-	viewsRange.textContent = `${category.baseline_views.toLocaleString()} → ${category.impact_views.toLocaleString()}`;
+	const editsRange = document.createElement("span");
+	editsRange.className = "edits-range";
+	editsRange.textContent = `${category.baseline_edits.toLocaleString()} → ${category.impact_edits.toLocaleString()}`;
 
-	viewsDiv.appendChild(viewsLabel);
-	viewsDiv.appendChild(viewsRange);
+	editsDiv.appendChild(editsLabel);
+	editsDiv.appendChild(editsRange);
 
 	// Plot button
 	const plotLink = document.createElement("a");
@@ -257,7 +257,7 @@ function createCategoryAccordion(category, type) {
 	// Assemble summary
 	summary.appendChild(nameSpan);
 	summary.appendChild(deltaDiv);
-	summary.appendChild(viewsDiv);
+	summary.appendChild(editsDiv);
 	summary.appendChild(plotLink);
 	details.appendChild(summary);
 
@@ -401,19 +401,19 @@ function createArticleElement(article, wiki) {
 	const sign = article.delta_percentage >= 0 ? "+" : "";
 	deltaSpan.textContent = `${sign}${article.delta_percentage.toFixed(2)}%`;
 
-	// Views (baseline → impact)
-	const viewsDiv = document.createElement("div");
-	viewsDiv.className = "article-views";
+	// Edits (baseline → impact)
+	const editsDiv = document.createElement("div");
+	editsDiv.className = "article-edits";
 
-	const viewsLabel = document.createElement("span");
-	viewsLabel.className = "views-label";
-	viewsLabel.textContent = "Views";
+	const editsLabel = document.createElement("span");
+	editsLabel.className = "edits-label";
+	editsLabel.textContent = "Edits";
 
-	const viewsValue = document.createElement("span");
-	viewsValue.textContent = `${article.baseline_views.toLocaleString()} → ${article.impact_views.toLocaleString()}`;
+	const editsValue = document.createElement("span");
+	editsValue.textContent = `${article.baseline_edits.toLocaleString()} → ${article.impact_edits.toLocaleString()}`;
 
-	viewsDiv.appendChild(viewsLabel);
-	viewsDiv.appendChild(viewsValue);
+	editsDiv.appendChild(editsLabel);
+	editsDiv.appendChild(editsValue);
 
 	// Plot button
 	const plotLink = document.createElement("a");
@@ -435,7 +435,7 @@ function createArticleElement(article, wiki) {
 	// Assemble article item
 	div.appendChild(titleLink);
 	div.appendChild(deltaSpan);
-	div.appendChild(viewsDiv);
+	div.appendChild(editsDiv);
 	div.appendChild(plotLink);
 
 	return div;

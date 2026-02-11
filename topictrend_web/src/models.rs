@@ -6,10 +6,38 @@ use std::{
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use sqlx::{MySql, Pool};
+use topictrend::pageedits_engine::PageEditsEngine;
 use topictrend::pageview_engine::PageViewEngine;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MetricType {
+    PageView,
+    PageEdit,
+}
+
+pub enum MetricEngine {
+    PageView(Arc<RwLock<PageViewEngine>>),
+    PageEdit(Arc<RwLock<PageEditsEngine>>),
+}
+
+impl MetricEngine {
+    pub fn as_pageview(&self) -> Option<&Arc<RwLock<PageViewEngine>>> {
+        match self {
+            MetricEngine::PageView(engine) => Some(engine),
+            MetricEngine::PageEdit(_) => None,
+        }
+    }
+
+    pub fn as_pageedit(&self) -> Option<&Arc<RwLock<PageEditsEngine>>> {
+        match self {
+            MetricEngine::PageEdit(engine) => Some(engine),
+            MetricEngine::PageView(_) => None,
+        }
+    }
+}
+
 pub struct AppState {
-    pub engines: Arc<RwLock<HashMap<String, Arc<RwLock<PageViewEngine>>>>>,
+    pub engines: Arc<RwLock<HashMap<(String, MetricType), MetricEngine>>>,
     pub db_pools: Arc<RwLock<HashMap<String, Pool<MySql>>>>,
     pub db_username: String,
     pub db_password: String,
@@ -75,7 +103,7 @@ pub struct TopCategoriesParams {
 }
 
 #[derive(Deserialize)]
-pub struct CategoryDeltaParams {
+pub struct PageViewCategoryDeltaParams {
     pub wiki: String,
     pub baseline_start_date: NaiveDate,
     pub baseline_end_date: NaiveDate,
@@ -86,7 +114,30 @@ pub struct CategoryDeltaParams {
 }
 
 #[derive(Deserialize)]
-pub struct ArticleDeltaParams {
+pub struct PageViewArticleDeltaParams {
+    pub wiki: String,
+    pub category_qid: u32,
+    pub baseline_start_date: NaiveDate,
+    pub baseline_end_date: NaiveDate,
+    pub impact_start_date: NaiveDate,
+    pub impact_end_date: NaiveDate,
+    pub limit: Option<u32>,
+    pub depth: Option<u32>,
+}
+
+#[derive(Deserialize)]
+pub struct PageEditCategoryDeltaParams {
+    pub wiki: String,
+    pub baseline_start_date: NaiveDate,
+    pub baseline_end_date: NaiveDate,
+    pub impact_start_date: NaiveDate,
+    pub impact_end_date: NaiveDate,
+    pub limit: Option<u32>,
+    pub depth: Option<u32>,
+}
+
+#[derive(Deserialize)]
+pub struct PageEditArticleDeltaParams {
     pub wiki: String,
     pub category_qid: u32,
     pub baseline_start_date: NaiveDate,
@@ -153,7 +204,7 @@ pub struct CategoryRankResponse {
 }
 
 #[derive(Serialize)]
-pub struct CategoryDeltaItemResponse {
+pub struct PageViewCategoryDeltaItemResponse {
     pub category_qid: u32,
     pub category_title: String,
     pub baseline_views: u64,
@@ -163,14 +214,14 @@ pub struct CategoryDeltaItemResponse {
 }
 
 #[derive(Serialize)]
-pub struct CategoryDeltaResponse {
-    pub categories: Vec<CategoryDeltaItemResponse>,
+pub struct PageViewCategoryDeltaResponse {
+    pub categories: Vec<PageViewCategoryDeltaItemResponse>,
     pub baseline_period: String,
     pub impact_period: String,
 }
 
 #[derive(Serialize)]
-pub struct ArticleDeltaItemResponse {
+pub struct PageViewArticleDeltaItemResponse {
     pub article_qid: u32,
     pub article_title: String,
     pub baseline_views: u64,
@@ -180,8 +231,44 @@ pub struct ArticleDeltaItemResponse {
 }
 
 #[derive(Serialize)]
-pub struct ArticleDeltaResponse {
-    pub articles: Vec<ArticleDeltaItemResponse>,
+pub struct PageViewArticleDeltaResponse {
+    pub articles: Vec<PageViewArticleDeltaItemResponse>,
+    pub category_qid: u32,
+    pub category_title: String,
+    pub baseline_period: String,
+    pub impact_period: String,
+}
+
+#[derive(Serialize)]
+pub struct PageEditCategoryDeltaItemResponse {
+    pub category_qid: u32,
+    pub category_title: String,
+    pub baseline_edits: u64,
+    pub impact_edits: u64,
+    pub delta_percentage: f64,
+    pub absolute_delta: i64,
+}
+
+#[derive(Serialize)]
+pub struct PageEditCategoryDeltaResponse {
+    pub categories: Vec<PageEditCategoryDeltaItemResponse>,
+    pub baseline_period: String,
+    pub impact_period: String,
+}
+
+#[derive(Serialize)]
+pub struct PageEditArticleDeltaItemResponse {
+    pub article_qid: u32,
+    pub article_title: String,
+    pub baseline_edits: u64,
+    pub impact_edits: u64,
+    pub delta_percentage: f64,
+    pub absolute_delta: i64,
+}
+
+#[derive(Serialize)]
+pub struct PageEditArticleDeltaResponse {
+    pub articles: Vec<PageEditArticleDeltaItemResponse>,
     pub category_qid: u32,
     pub category_title: String,
     pub baseline_period: String,
