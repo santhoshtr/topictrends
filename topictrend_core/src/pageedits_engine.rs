@@ -605,14 +605,7 @@ mod tests {
         // This test requires real data: data/mlwiki/pageedits/pageedits.parquet
         // Run with: cargo test -p topictrend_core test_load_real_mlwiki_data -- --ignored --nocapture
 
-        let result = PageEditsEngine::new("mlwiki");
-        assert!(
-            result.is_ok(),
-            "Failed to load PageEditsEngine: {:?}",
-            result.err()
-        );
-
-        let engine = result.unwrap();
+        let engine = PageEditsEngine::new("mlwiki");
 
         // Check basic stats
         println!("Loaded {} dates", engine.daily_edits.len());
@@ -626,8 +619,8 @@ mod tests {
         let end = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
 
         // Try to get any article - we don't know specific QIDs, just verify it doesn't crash
-        let trend_result = engine.get_article_trend(1, start, end);
-        assert!(trend_result.is_ok(), "get_article_trend should not error");
+        let trend = engine.get_article_trend(1, start, end);
+        println!("Article 1 trend has {} data points", trend.len());
 
         println!("Successfully loaded and queried mlwiki pageedits!");
     }
