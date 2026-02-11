@@ -16,6 +16,7 @@
 		background-color: var(--background-color-base);
 		color: var(--color-base);
 		line-height: 1.5;
+		padding-top: var(--size-300);
 	}
 
 	/* Add smooth scrolling for modern browsers */

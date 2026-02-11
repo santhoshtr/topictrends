@@ -36,6 +36,7 @@
 		background-color: var(--background-color-base);
 		color: var(--color-base);
 		line-height: 1.5;
+		padding-top: var(--size-300);
 	}
 }
 
@@ -190,5 +191,44 @@
 
 	footer {
 		align-self: end;
+	}
+}
+
+.about-content {
+	max-width: 800px;
+	margin: 0 auto;
+	padding: var(--spacing-xl);
+
+	h1 {
+		font-size: var(--font-size-2xl);
+		color: var(--color-base);
+		margin-bottom: var(--spacing-lg);
+	}
+
+	h2 {
+		font-size: var(--font-size-xl);
+		color: var(--color-base);
+		margin-top: var(--spacing-xl);
+		margin-bottom: var(--spacing-md);
+	}
+
+	section {
+		margin-bottom: var(--spacing-xl);
+	}
+
+	p {
+		line-height: 1.6;
+		color: var(--color-base);
+		margin-bottom: var(--spacing-md);
+	}
+
+	ul {
+		padding-left: var(--spacing-xl);
+		margin-bottom: var(--spacing-md);
+	}
+
+	li {
+		margin-bottom: var(--spacing-sm);
+		line-height: 1.6;
 	}
 }
