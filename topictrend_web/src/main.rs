@@ -58,6 +58,10 @@ async fn run_http_server(
             "/search",
             get(|| async { Html(include_str!("../static/search.html")) }),
         )
+        .route(
+            "/about",
+            get(|| async { Html(include_str!("../static/about.html")) }),
+        )
         .nest_service("/static", static_files)
         .route(
             "/api/pageviews/category",
