@@ -3,6 +3,7 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
@@ -15,24 +16,27 @@ struct PageEditRecord {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
 
-    let (output_file, chunk_size) = if args.len() >= 2 {
-        let output = &args[1];
-        let chunk = if args.len() >= 3 {
-            args[2].parse().unwrap_or(100_000)
+    let (wiki, output_file, chunk_size) = if args.len() >= 3 {
+        let wiki = &args[1];
+        let output = &args[2];
+        let chunk = if args.len() >= 4 {
+            args[3].parse().unwrap_or(100_000)
         } else {
             100_000
         };
-        (output.as_str(), chunk)
+        (wiki.as_str(), output.as_str(), chunk)
     } else {
-        eprintln!("Usage: <program> <output_file> [chunk_size]");
+        eprintln!("Usage: <program> <wiki> <output_file> [chunk_size]");
+        eprintln!("Example: get-pageedits mlwiki output.parquet 100000");
         std::process::exit(1);
     };
 
     println!("=== Wikipedia Page Edits to Parquet Converter ===");
+    println!("Wiki: {}", wiki);
     println!("Output: {}", output_file);
     println!("Chunk size: {}", chunk_size);
 
-    convert_pageedits_to_parquet(output_file, chunk_size)?;
+    convert_pageedits_to_parquet(wiki, output_file, chunk_size)?;
 
     Ok(())
 }
@@ -73,34 +77,64 @@ fn parse_line(line: &str) -> Result<PageEditRecord, Box<dyn std::error::Error>> 
     Ok(PageEditRecord { article_id, date })
 }
 
-/// Process a chunk of edit records and aggregate by (article_id, date)
-fn process_chunk(records: Vec<PageEditRecord>) -> Result<DataFrame, PolarsError> {
-    // Aggregate: count edits per (article_id, date) pair
+/// Load articles.parquet to get page_id → qid mapping
+fn load_pageid_to_qid_mapping(wiki: &str) -> Result<HashMap<u32, u32>, Box<dyn std::error::Error>> {
+    let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "data".to_string());
+    let articles_path = format!("{}/{}/articles.parquet", data_dir, wiki);
+
+    println!("Loading article mappings from: {}", articles_path);
+
+    let path = PlRefPath::try_from_path(Path::new(&articles_path))?;
+    let df = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
+
+    let page_ids = df.column("page_id")?.u32()?;
+    let qids = df.column("qid")?.u32()?;
+
+    let mut mapping = HashMap::new();
+    for i in 0..df.height() {
+        if let (Some(page_id), Some(qid)) = (page_ids.get(i), qids.get(i)) {
+            mapping.insert(page_id, qid);
+        }
+    }
+
+    println!("Loaded {} page_id → qid mappings", mapping.len());
+    Ok(mapping)
+}
+
+/// Process a chunk of edit records and aggregate by (article_qid, date)
+/// Translates page_id to qid using the provided mapping
+fn process_chunk(
+    records: Vec<PageEditRecord>,
+    pageid_to_qid: &HashMap<u32, u32>,
+) -> Result<DataFrame, PolarsError> {
+    // Aggregate: count edits per (article_qid, date) pair
     let mut aggregates: HashMap<(u32, String), u32> = HashMap::new();
 
     for record in records {
-        *aggregates
-            .entry((record.article_id, record.date))
-            .or_insert(0) += 1;
+        // Translate page_id to qid
+        if let Some(&qid) = pageid_to_qid.get(&record.article_id) {
+            *aggregates.entry((qid, record.date)).or_insert(0) += 1;
+        }
+        // Skip records without qid mapping (articles without Wikidata items)
     }
 
     // Convert aggregated data to vectors for DataFrame
-    let mut article_ids = Vec::with_capacity(aggregates.len());
+    let mut article_qids = Vec::with_capacity(aggregates.len());
     let mut dates = Vec::with_capacity(aggregates.len());
     let mut edit_counts = Vec::with_capacity(aggregates.len());
 
-    for ((article_id, date), count) in aggregates {
-        article_ids.push(article_id);
+    for ((qid, date), count) in aggregates {
+        article_qids.push(qid);
         dates.push(date);
         edit_counts.push(count);
     }
 
-    let height = article_ids.len();
+    let height = article_qids.len();
 
     DataFrame::new(
         height,
         vec![
-            Column::new("article_id".into(), article_ids),
+            Column::new("article_qid".into(), article_qids),
             Column::new("date".into(), dates),
             Column::new("edit_count".into(), edit_counts),
         ],
@@ -108,10 +142,15 @@ fn process_chunk(records: Vec<PageEditRecord>) -> Result<DataFrame, PolarsError>
 }
 
 fn convert_pageedits_to_parquet(
+    wiki: &str,
     output_path: &str,
     chunk_size: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting conversion...");
+
+    // Load page_id → qid mapping first
+    let pageid_to_qid = load_pageid_to_qid_mapping(wiki)?;
+    let pageid_to_qid = Arc::new(pageid_to_qid);
 
     let stdin = std::io::stdin();
     let reader = BufReader::new(stdin.lock());
@@ -173,7 +212,7 @@ fn convert_pageedits_to_parquet(
     let dataframes: Vec<DataFrame> = chunks
         .into_par_iter()
         .filter_map(|chunk| {
-            let result = process_chunk(chunk);
+            let result = process_chunk(chunk, &pageid_to_qid);
             if let Err(e) = &result {
                 eprintln!("Error processing chunk: {}", e);
             }
@@ -190,9 +229,9 @@ fn convert_pageedits_to_parquet(
     // Convert DataFrame to LazyFrame
     let lazy_frames: Vec<LazyFrame> = dataframes.into_iter().map(|df| df.lazy()).collect();
 
-    // Combine all chunks and aggregate again (in case same article_id+date across chunks)
+    // Combine all chunks and aggregate again (in case same article_qid+date across chunks)
     let combined = concat(&lazy_frames, UnionArgs::default())?
-        .group_by([col("article_id"), col("date")])
+        .group_by([col("article_qid"), col("date")])
         .agg([col("edit_count").sum()]);
 
     println!("Writing to parquet file {} ", &output_path);

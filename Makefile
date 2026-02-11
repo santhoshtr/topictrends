@@ -119,7 +119,7 @@ $(DATA_DIR)/%/pageedits/pageedits.parquet:
 	mkdir -p $$(dirname $@); \
 	URL="https://dumps.wikimedia.org/other/mediawiki_history/$(EDIT_SNAPSHOT)/$$WIKI/$(EDIT_SNAPSHOT).$$WIKI.all-time.tsv.bz2"; \
 	echo "Processing page edits for $$WIKI from snapshot $(EDIT_SNAPSHOT)..."; \
-	curl -fsSL "$$URL" | bzip2 -dc | $(CARGO_RELEASE)/get-pageedits $@ || { echo "Error downloading/processing page edits for $$WIKI"; exit 1; }
+	curl -fsSL "$$URL" | bzip2 -dc | $(CARGO_RELEASE)/get-pageedits $$WIKI $@ || { echo "Error downloading/processing page edits for $$WIKI"; exit 1; }
 
 # Wikipedia list
 $(DATA_DIR)/wikipedia.list: | $(DATA_DIR)

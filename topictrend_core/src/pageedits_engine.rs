@@ -231,7 +231,7 @@ impl PageEditsEngine {
         let path = PlRefPath::try_from_path(Path::new(&parquet_path))?;
         let df = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
 
-        let article_ids = df.column("article_id")?.u32()?;
+        let article_qids = df.column("article_qid")?.u32()?;
         let dates = df.column("date")?.str()?;
         let edit_counts = df.column("edit_count")?.u32()?;
 
@@ -242,7 +242,7 @@ impl PageEditsEngine {
 
         for i in 0..df.height() {
             if let (Some(article_qid), Some(date_str), Some(edit_count)) =
-                (article_ids.get(i), dates.get(i), edit_counts.get(i))
+                (article_qids.get(i), dates.get(i), edit_counts.get(i))
             {
                 // Translate QID to dense_id
                 if let Some(dense_id) = wikigraph.art_original_to_dense.get(article_qid) {
