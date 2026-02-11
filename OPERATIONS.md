@@ -61,7 +61,7 @@ make qdrant
 # Start the web server
 make web
 
-# Server listens on http://localhost:8000
+# Server listens on http://localhost:8765
 ```
 
 ## Architecture Overview
@@ -106,21 +106,36 @@ Wikipedia SQL Replicas
 
 ### Environment Variables
 
-Create a `.env` file in the project root:
+Create a `.env` file in the project root or set these environment variables before running:
 
 ```bash
-# Embedding service endpoint (if using semantic search)
+# Database credentials (REQUIRED)
+DB_USERNAME=<wikimedia replica user>
+DB_PASSWORD=<wikimedia replica password>
+
+# Embedding service endpoint (optional, only for semantic search)
 EMBEDDING_SERVER=http://localhost:50051
 
-# Qdrant vector database endpoint
-QUADRANT_SERVER=http://localhost:6334
+# Qdrant vector database endpoint (optional, only for semantic search)
+QDRANT_SERVER=http://localhost:6333
 
-# Data directory path
+# Web server port (optional, defaults to 8765)
+PORT=8765
+
+# gRPC server port (optional, defaults to 50051)
+GRPC_PORT=50051
+
+# Data directory path (optional, defaults to "data")
 DATA_DIR=data
-
-# Optional: Database connection details
-# DATABASE_URL=mysql://user:pass@host/database
 ```
+
+**Required Variables:**
+- `DB_USERNAME` and `DB_PASSWORD` are required for database access to Wikimedia SQL replicas
+- Server will fail to start without these credentials
+
+**Optional Variables:**
+- `EMBEDDING_SERVER` and `QDRANT_SERVER` are only needed if using semantic search endpoints
+- `PORT` and `GRPC_PORT` override defaults if needed
 
 ### Database Replica Access
 
@@ -239,19 +254,27 @@ make data/enwiki/category_graph.parquet --always-make
 ### Startup
 
 ```bash
+# Ensure environment variables are set
+export DB_USERNAME=<user>
+export DB_PASSWORD=<password>
+
 # Build and run
 make web
 
 # Or manually:
 cargo build --release
 ./target/release/topictrend_web
+
+# Run on a custom port
+PORT=8000 ./target/release/topictrend_web
 ```
 
 The server:
 1. Loads topology from Parquet files into memory (CSR structure)
-2. Mmap's daily pageview binaries
-3. Listens on `0.0.0.0:8000`
-4. Establishes connection pool to MariaDB replica for title translation
+2. Mmaps daily pageview binaries
+3. Starts HTTP server on `0.0.0.0:8765` (or custom `PORT`)
+4. Starts gRPC server on `0.0.0.0:50051` (or custom `GRPC_PORT`)
+5. Establishes connection pool to MariaDB replica for title translation
 
 ### Dependencies
 
@@ -264,28 +287,26 @@ If MariaDB is unavailable, the server will fail to start. If Qdrant is unavailab
 ### Health Checks
 
 ```bash
-# Server health
-curl http://localhost:8000/health
+# Test a working endpoint to verify server is running
+curl http://localhost:8765/api/pageviews/category?wiki=enwiki&title=Science
 
-# Expected response: 200 OK with system status
+# Expected response: Category data with views
 
-# Semantic search readiness (if enabled)
-curl http://localhost:8000/api/search/categories?query=test&wiki=enwiki
-
-# Should return 2xx if Qdrant is available, 5xx if unavailable
+# If using a custom port:
+curl http://localhost:8765/api/pageviews/category?wiki=enwiki&title=Science
 ```
 
 ### Shutdown
 
 ```bash
-# Graceful shutdown (Axum handles existing requests)
-curl -X POST http://localhost:8000/shutdown
-
-# Or via signal
+# Via signal (graceful)
 pkill -TERM topictrend_web
+
+# Via keyboard interrupt
+# Press Ctrl+C in the terminal where the server is running
 ```
 
-The server commits its state (write-ahead logs if applicable) and closes database connections cleanly.
+The server closes database connections cleanly on shutdown.
 
 ## Semantic Search Setup
 
@@ -303,7 +324,6 @@ make qdrant
 # Or manually:
 docker run -d --rm \
   -p 6333:6333 \
-  -p 6334:6334 \
   --name qdrant \
   qdrant/qdrant
 
@@ -312,10 +332,11 @@ docker run -d --rm \
 
 **Configuration:**
 - **Port 6333**: HTTP API
-- **Port 6334**: gRPC API (used by Rust)
 - **Storage**: In-container (ephemeral, or use volume for persistence)
 
 ### Step 2: Start Embedding Service
+
+The embedding service runs as a gRPC server on port 50051 (default).
 
 ```bash
 cd services/embedding
@@ -333,16 +354,21 @@ python embedding_server.py
 - **Model**: `sentence-transformers/all-MiniLM-L12-v2` (384-dimensional)
 - **First run**: Downloads model from Hugging Face (~100MB)
 
+**Set environment variable for web server:**
+```bash
+export EMBEDDING_SERVER=http://localhost:50051
+```
+
 ### Step 3: Index English Wikipedia Categories
 
-This is a one-time operation that builds the Qdrant collection.
+This is a one-time operation that builds the Qdrant collection. Use the topictrend_taxonomy binary:
 
 ```bash
 cargo build --release
-./target/release/topictrend_web --init-embeddings
+./target/release/topictrend_taxonomy
 
-# Or via make target (if available):
-make init-embeddings
+# Or check the Makefile for available targets
+make help | grep -i embedding
 ```
 
 **Process:**
@@ -362,7 +388,7 @@ make init-embeddings
 
 ```bash
 # Test semantic search
-curl "http://localhost:8000/api/search/categories?wiki=enwiki&query=artificial+intelligence&limit=5"
+curl "http://localhost:8765/api/search/categories?wiki=enwiki&query=artificial+intelligence&limit=5"
 
 # Expected response:
 # {
@@ -380,13 +406,13 @@ curl "http://localhost:8000/api/search/categories?wiki=enwiki&query=artificial+i
 
 ```bash
 # Check server is running
-curl http://localhost:8000/health
+curl http://localhost:8765/health
 
 # Check topology loaded
-curl http://localhost:8000/api/stats
+curl http://localhost:8765/api/stats
 
 # Check MariaDB connectivity
-curl http://localhost:8000/api/db-status
+curl http://localhost:8765/api/db-status
 ```
 
 ### Performance Baselines
@@ -544,7 +570,7 @@ watch -n 0.1 'ps aux | grep get-categorygraph'
 make init
 
 # 3. Verify data quality
-curl http://localhost:8000/api/stats
+curl http://localhost:8765/api/stats
 
 # 4. Check for errors
 tail -f /var/log/topictrend_web.log
@@ -553,14 +579,14 @@ tail -f /var/log/topictrend_web.log
 ./target/release/topictrend_web --init-embeddings
 
 # 6. Test endpoints
-curl http://localhost:8000/api/pageviews/category?qid=42&wiki=enwiki
+curl http://localhost:8765/api/pageviews/category?qid=42&wiki=enwiki
 ```
 
 ### Daily Monitoring
 
 ```bash
 # Check server is healthy
-curl http://localhost:8000/health
+curl http://localhost:8765/health
 
 # Monitor database connections
 mariadb -e "SHOW PROCESSLIST" | grep topictrend
