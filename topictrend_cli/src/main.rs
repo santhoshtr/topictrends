@@ -1,6 +1,9 @@
 use clap::{Arg, ArgMatches, Command};
 use std::{error::Error, time::Instant};
-use topictrend::{graphbuilder::GraphBuilder, pageview_engine::PageViewEngine, wikigraph};
+use topictrend::{
+    graphbuilder::GraphBuilder, pageedits_engine::PageEditsEngine, pageview_engine::PageViewEngine,
+    wikigraph,
+};
 
 mod pageviews;
 
@@ -124,6 +127,66 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .help("End date in YYYY-MM-DD format"),
                 ),
         )
+        .subcommand(
+            Command::new("article-edits")
+                .about("Retrieve edit trend for a specific article")
+                .arg(
+                    Arg::new("article")
+                        .long("article")
+                        .short('a')
+                        .required(true)
+                        .value_parser(clap::value_parser!(u32))
+                        .help("The QID of the article in the wiki"),
+                )
+                .arg(
+                    Arg::new("start-date")
+                        .long("start-date")
+                        .short('s')
+                        .required(false)
+                        .help("Start date in YYYY-MM-DD format"),
+                )
+                .arg(
+                    Arg::new("end-date")
+                        .long("end-date")
+                        .short('e')
+                        .required(false)
+                        .help("End date in YYYY-MM-DD format"),
+                ),
+        )
+        .subcommand(
+            Command::new("category-edits")
+                .about("Retrieve edit trend for a category (all articles in the category)")
+                .arg(
+                    Arg::new("category")
+                        .long("category")
+                        .short('c')
+                        .required(true)
+                        .value_parser(clap::value_parser!(u32))
+                        .help("The QID of the category in the wiki"),
+                )
+                .arg(
+                    Arg::new("depth")
+                        .long("depth")
+                        .short('d')
+                        .default_value("0")
+                        .value_parser(clap::value_parser!(u32))
+                        .help("Depth for recursive queries"),
+                )
+                .arg(
+                    Arg::new("start-date")
+                        .long("start-date")
+                        .short('s')
+                        .required(false)
+                        .help("Start date in YYYY-MM-DD format"),
+                )
+                .arg(
+                    Arg::new("end-date")
+                        .long("end-date")
+                        .short('e')
+                        .required(false)
+                        .help("End date in YYYY-MM-DD format"),
+                ),
+        )
         .get_matches();
 
     let wiki_id: &str = matches.get_one::<String>("wiki").unwrap();
@@ -159,6 +222,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             handle_get_article_categories(&graph, sub_m)
         }
         Some(("category-trend", sub_m)) => handle_category_trend(wiki_id, sub_m),
+        Some(("article-edits", sub_m)) => handle_article_edits(wiki_id, sub_m),
+        Some(("category-edits", sub_m)) => handle_category_edits(wiki_id, sub_m),
         _ => println!("No valid subcommand provided. Use --help for usage."),
     }
 
@@ -300,4 +365,77 @@ fn handle_category_trend(wiki_id: &str, matches: &ArgMatches) {
         println!(" - {}: {} views", trend.0, trend.1);
     }
     println!("Trend calculation completed in {:.2?}s", start.elapsed());
+}
+
+fn handle_article_edits(wiki_id: &str, matches: &ArgMatches) {
+    let start = Instant::now();
+
+    let article_qid: &u32 = matches.get_one::<u32>("article").unwrap();
+    let start_date = matches
+        .get_one::<String>("start-date")
+        .and_then(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
+        .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(365));
+    let end_date = matches
+        .get_one::<String>("end-date")
+        .and_then(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
+        .unwrap_or_else(|| chrono::Local::now().date_naive());
+
+    let engine = PageEditsEngine::new(wiki_id);
+
+    let raw_data = engine.get_article_trend(*article_qid, start_date, end_date);
+
+    println!(
+        "Edit trend for article {} (start: {}, end: {}):",
+        article_qid, start_date, end_date
+    );
+
+    let total_edits: u64 = raw_data.iter().map(|(_, count)| count).sum();
+    println!("Total edits: {}", total_edits);
+    println!("Days with edits: {}", raw_data.len());
+
+    if !raw_data.is_empty() {
+        println!("\nSample (first 10 days):");
+        for (date, count) in raw_data.iter().take(10) {
+            println!(" - {}: {} edits", date, count);
+        }
+    }
+
+    println!("\nCompleted in {:.2?}", start.elapsed());
+}
+
+fn handle_category_edits(wiki_id: &str, matches: &ArgMatches) {
+    let start = Instant::now();
+
+    let category_qid: &u32 = matches.get_one::<u32>("category").unwrap();
+    let depth: &u32 = matches.get_one::<u32>("depth").unwrap();
+    let start_date = matches
+        .get_one::<String>("start-date")
+        .and_then(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
+        .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(365));
+    let end_date = matches
+        .get_one::<String>("end-date")
+        .and_then(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
+        .unwrap_or_else(|| chrono::Local::now().date_naive());
+
+    let mut engine = PageEditsEngine::new(wiki_id);
+
+    let raw_data = engine.get_category_trend(*category_qid, *depth, start_date, end_date);
+
+    println!(
+        "Edit trend for category {} (depth: {}, start: {}, end: {}):",
+        category_qid, depth, start_date, end_date
+    );
+
+    let total_edits: u64 = raw_data.iter().map(|(_, count)| count).sum();
+    println!("Total edits: {}", total_edits);
+    println!("Days with edits: {}", raw_data.len());
+
+    if !raw_data.is_empty() {
+        println!("\nSample (first 10 days):");
+        for (date, count) in raw_data.iter().take(10) {
+            println!(" - {}: {} edits", date, count);
+        }
+    }
+
+    println!("\nCompleted in {:.2?}", start.elapsed());
 }
