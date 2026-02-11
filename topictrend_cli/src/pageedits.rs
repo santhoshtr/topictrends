@@ -235,12 +235,25 @@ fn convert_pageedits_to_parquet(
         .agg([col("edit_count").sum()]);
 
     println!("Writing to parquet file {} ", &output_path);
-    let mut file = File::create(output_path)?;
-    let mut dataframe = combined.collect()?;
 
+    // Create output file with error handling
+    let mut file = File::create(output_path)
+        .map_err(|e| format!("Failed to create output file '{}': {}", output_path, e))?;
+
+    // Collect the final dataframe
+    let mut dataframe = combined
+        .collect()
+        .map_err(|e| format!("Failed to collect final dataframe: {}", e))?;
+
+    // Write to parquet with error handling
     ParquetWriter::new(&mut file)
         .with_compression(ParquetCompression::Snappy)
-        .finish(&mut dataframe)?;
+        .finish(&mut dataframe)
+        .map_err(|e| format!("Failed to write parquet file '{}': {}", output_path, e))?;
+
+    // Ensure all data is written to disk
+    file.sync_all()
+        .map_err(|e| format!("Failed to sync file to disk '{}': {}", output_path, e))?;
 
     println!("\n✓ Conversion complete!");
     println!("  Lines processed: {}", lines_processed);
