@@ -43,16 +43,16 @@ async fn run_http_server(
             get(|| async { Html(include_str!("../static/index.html")) }),
         )
         .route(
-            "/pageviews-delta",
+            "/pageviews/delta",
             get(|| async { Html(include_str!("../static/pageview-delta.html")) }),
         )
         .route(
-            "/pageedits-delta",
+            "/pageedits/delta",
             get(|| async { Html(include_str!("../static/pageedit-delta.html")) }),
         )
         .route(
             "/delta",
-            get(|| async { Redirect::permanent("/pageviews-delta") }),
+            get(|| async { Redirect::permanent("/pageviews/delta") }),
         )
         .route(
             "/search",
