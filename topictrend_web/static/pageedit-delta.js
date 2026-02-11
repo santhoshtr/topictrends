@@ -247,7 +247,7 @@ function createCategoryAccordion(category, type) {
 	startDate.setMonth(startDate.getMonth() - 1); // One month ago
 
 	const formatDate = (date) => date.toISOString().split("T")[0];
-	plotLink.href = `https://topictrends.wmcloud.org/?type=category&wiki=${wiki}&start_date=${formatDate(startDate)}&end_date=${formatDate(endDate)}&depth=${depth}&category=${category.category_title}`;
+	plotLink.href = `/pageedits/trends?type=category&wiki=${wiki}&start_date=${formatDate(startDate)}&end_date=${formatDate(endDate)}&depth=${depth}&category=${category.category_title}`;
 
 	// Prevent accordion toggle when clicking plot button
 	plotLink.addEventListener("click", (e) => {
@@ -430,7 +430,7 @@ function createArticleElement(article, wiki) {
 	startDate.setMonth(startDate.getMonth() - 1); // One month ago
 
 	const formatDate = (date) => date.toISOString().split("T")[0];
-	plotLink.href = `https://topictrends.wmcloud.org/?type=article&wiki=${wiki}&start_date=${formatDate(startDate)}&end_date=${formatDate(endDate)}&article=${article.article_title}`;
+	plotLink.href = `/pageedits/trends?type=article&wiki=${wiki}&start_date=${formatDate(startDate)}&end_date=${formatDate(endDate)}&article=${article.article_title}`;
 
 	// Assemble article item
 	div.appendChild(titleLink);

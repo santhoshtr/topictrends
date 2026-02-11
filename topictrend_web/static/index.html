@@ -5,100 +5,61 @@
   <meta charset="UTF-8">
   <meta name="color-scheme" content="light dark">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Topic Trends</title>
-  <meta description="Category wise pageview trends analysis for Wikipedia" />
+  <title>Topic Trends - Wikipedia Analytics</title>
+  <meta description="TopicTrends - Wikipedia pageview and page edit analytics" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@wikimedia/codex-design-tokens/theme-wikimedia-ui.css">
   <link rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/@wikimedia/codex-design-tokens/theme-wikimedia-ui-mode-dark.css"
     media="( prefers-color-scheme: dark )">
   <link rel="stylesheet" href="https://tools-static.wmflabs.org/cdnjs/ajax/libs/codex/1.19.1/codex.style.css">
   <link rel="stylesheet" href="/static/styles.css">
-  <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
   <script src="/static/components/app-header.js" type="module"></script>
 </head>
 
 <body>
-  <app-header page-type="pageviews"></app-header>
+  <app-header page-type="home"></app-header>
   
   <div class="app-container">
-    <div class="sidebar">
-      <form id="trend-form">
-        <div class="form-item ">
-          <div class="form-item ">
-            <label for="wiki">Wiki</label>
-          </div>
-          <div class="form-item row">
-            <select id="wiki" class="cdx-select">
-              <option value="enwiki">English</option>
-              <option value="hiwiki">Hindi</option>
-              <option value="idwiki">Indonesian</option>
-              <option value="mlwiki">Malayalam</option>
-              <option value="eswiki">Spanish</option>
-              <option value="tawiki">Tamil</option>
-            </select>
-            <button class="cdx-button cdx-button--action-progressive cdx-button--weight-primary" id="wikitrends-btn">
-              <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
-                fill="currentColor">
-                <path
-                  d="m296-320 122-122 80 80 142-141v63h80v-200H520v80h63l-85 85-80-80-178 179 56 56Zm-96 200q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm0-560v560-560Z" />
-              </svg>
-            </button>
-          </div>
-        </div>
-        <div class="form-item">
-          <input type="radio" id="tab-category" name="type" value="category" checked />
-          <input type="radio" id="tab-article" name="type" value="article" />
-          <div class="tab">
-            <label for="tab-category" class="cdx-label">Category</label>
-            <label for="tab-article" class="cdx-label">Article</label>
-          </div>
-          <div class="tab-content">
-            <div class="tab-content-category">
-              <wiki-category-selector id="category" name="category"
-                placeholder="Search category"></wiki-category-selector>
+    <main class="about-content">
+      <h1>About Topic Trends</h1>
+      
+      <section>
+        <h2>Overview</h2>
+        <p>
+          Topic Trends is a high-performance Wikipedia analytics engine that provides insights into 
+          pageview patterns and editing activity across Wikipedia categories and articles.
+        </p>
+      </section>
 
-            </div>
-            <div class="tab-content-article">
-              <wiki-article-selector id="article" name="article" placeholder="Search article"></wiki-article-selector>
-            </div>
-          </div>
-        </div>
-        <div class="form-item row">
-          <div class="form-item">
-            <label for=" start_date">Start Date</label>
-            <input type="date" id="start_date" name="start-date" required>
-          </div>
-          <div class="form-item">
-            <label for=" end_date">End Date</label>
-            <input type="date" id="end_date" name="end-date" required>
-          </div>
-        </div>
-        <div class="form-item">
-          <button type="submit"
-            class="cdx-button cdx-button--action-progressive cdx-button--weight-primary">Submit</button>
-        </div>
-        <input name="depth" id="depth" value="4" type="hidden">
-        <input name="category_qid" id="category_qid" type="hidden">
-        <input name="article_qid" id="article_qid" type="hidden">
-      </form>
-      <a href="/pageviews/delta">Page view trends by topic for this wiki</a>
-      <section id="category-list"></section>
+      <section>
+        <h2>Features</h2>
+        <ul>
+          <li><strong>Pageview Analytics:</strong> Track and visualize pageview trends for categories and articles over time</li>
+          <li><strong>Page Edit Analytics:</strong> Monitor editing activity patterns across Wikipedia content</li>
+          <li><strong>Delta Analysis:</strong> Compare pageview and edit metrics between different time periods</li>
+          <li><strong>Category Exploration:</strong> Navigate Wikipedia's category hierarchy and analyze topic trends</li>
+          <li><strong>Multi-Wiki Support:</strong> Analyze data across multiple Wikipedia language editions</li>
+        </ul>
+      </section>
 
-    </div>
-    <div class="main">
-      <div id="chart" class="chart"></div>
-      <section id="top-articles"></section>
-      <footer>
-        <p id="status" class="status"></p>
-      </footer>
-    </div>
-    <script src="/static/main.js" type="module"></script>
-    <script src="/static/wikiarticleselector.js" type="module"></script>
-    <script src="/static/wikicategoryselector.js" type="module"></script>
-    <script src="/static/components/wiki-trends.js" type="module"></script>
-    <script src="/static/components/wiki-category.js" type="module"></script>
-    <script src="/static/components/wiki-article-pageviews.js" type="module"></script>
-    </div>
+      <section>
+        <h2>Technology</h2>
+        <p>
+          Built with Rust for high-performance data processing, Topic Trends uses efficient algorithms 
+          and data structures to handle large-scale Wikipedia analytics. The web interface follows 
+          the Wikimedia Codex design system for a consistent user experience.
+        </p>
+      </section>
+
+      <section>
+        <h2>Data Sources</h2>
+        <p>
+          All data is sourced from publicly available Wikipedia dumps and pageview statistics, 
+          processed and aggregated to provide meaningful insights into Wikipedia usage patterns.
+        </p>
+      </section>
+    </main>
+  </div>
 </body>
 
 </html>

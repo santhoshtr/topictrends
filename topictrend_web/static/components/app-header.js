@@ -17,12 +17,12 @@ class AppHeader extends HTMLElement {
 	}
 
 	getTitle() {
-		const pageType = this.getAttribute("page-type") || "pageviews";
+		const pageType = this.getAttribute("page-type") || "home";
 		const titleMap = {
+			home: "Topic Trends",
 			pageviews: "Topic Trends - Pageviews",
 			pageedits: "Topic Trends - Page Edits",
 			search: "Topic Trends - Search",
-			about: "Topic Trends - About",
 		};
 		return titleMap[pageType] || "Topic Trends";
 	}
@@ -32,17 +32,20 @@ class AppHeader extends HTMLElement {
 		if (path === "/" || path === "/index.html") {
 			return "/";
 		}
-		if (path.startsWith("/pageviews")) {
+		if (path === "/pageviews/trends") {
+			return "/pageviews/trends";
+		}
+		if (path === "/pageviews/delta") {
 			return "/pageviews/delta";
 		}
-		if (path.startsWith("/pageedits")) {
+		if (path === "/pageedits/trends") {
+			return "/pageedits/trends";
+		}
+		if (path === "/pageedits/delta") {
 			return "/pageedits/delta";
 		}
-		if (path.startsWith("/search")) {
+		if (path === "/search") {
 			return "/search";
-		}
-		if (path.startsWith("/about")) {
-			return "/about";
 		}
 		return "/";
 	}
@@ -52,10 +55,12 @@ class AppHeader extends HTMLElement {
 		const activePath = this.getActiveLink();
 
 		const navLinks = [
-			{ label: "Page views", href: "/" },
-			{ label: "Page edits", href: "/pageedits/delta" },
-			{ label: "Search Categories", href: "/search" },
-			{ label: "About", href: "/about" },
+			{ label: "Home", href: "/" },
+			{ label: "Pageview Trends", href: "/pageviews/trends" },
+			{ label: "Pageview Delta", href: "/pageviews/delta" },
+			{ label: "Page Edit Trends", href: "/pageedits/trends" },
+			{ label: "Page Edit Delta", href: "/pageedits/delta" },
+			{ label: "Search", href: "/search" },
 		];
 
 		const navHtml = navLinks
