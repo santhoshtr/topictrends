@@ -43,8 +43,16 @@ async fn run_http_server(
             get(|| async { Html(include_str!("../static/index.html")) }),
         )
         .route(
+            "/pageviews/trends",
+            get(|| async { Html(include_str!("../static/pageview-trends.html")) }),
+        )
+        .route(
             "/pageviews/delta",
             get(|| async { Html(include_str!("../static/pageview-delta.html")) }),
+        )
+        .route(
+            "/pageedits/trends",
+            get(|| async { Html(include_str!("../static/pageedit-trends.html")) }),
         )
         .route(
             "/pageedits/delta",
@@ -58,10 +66,6 @@ async fn run_http_server(
             "/search",
             get(|| async { Html(include_str!("../static/search.html")) }),
         )
-        .route(
-            "/about",
-            get(|| async { Html(include_str!("../static/about.html")) }),
-        )
         .nest_service("/static", static_files)
         .route(
             "/api/pageviews/category",
@@ -70,6 +74,14 @@ async fn run_http_server(
         .route(
             "/api/pageviews/article",
             get(handlers::get_article_trend_handler),
+        )
+        .route(
+            "/api/pageedits/category",
+            get(handlers::get_category_edit_trend_handler),
+        )
+        .route(
+            "/api/pageedits/article",
+            get(handlers::get_article_edit_trend_handler),
         )
         .route(
             "/api/list/sub_categories",

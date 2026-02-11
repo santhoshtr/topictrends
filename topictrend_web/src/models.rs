@@ -156,6 +156,12 @@ pub struct DailyViews {
 }
 
 #[derive(Serialize)]
+pub struct DailyEdits {
+    pub date: NaiveDate,
+    pub edits: u64,
+}
+
+#[derive(Serialize)]
 pub struct ArticleTrendResponse {
     pub qid: u32,
     pub title: String,
@@ -178,6 +184,21 @@ pub struct CategoriesTrendResponse {
 }
 
 #[derive(Serialize)]
+pub struct ArticleEditTrendResponse {
+    pub qid: u32,
+    pub title: String,
+    pub edits: Vec<DailyEdits>,
+}
+
+#[derive(Serialize)]
+pub struct CategoryEditTrendResponse {
+    pub qid: u32,
+    pub title: String,
+    pub edits: Vec<DailyEdits>,
+    pub top_articles: Vec<TopArticleEdits>,
+}
+
+#[derive(Serialize)]
 pub struct CategoryInfo {
     pub qid: u32,
     pub title: String,
@@ -188,6 +209,13 @@ pub struct TopArticle {
     pub qid: u32,
     pub title: String,
     pub views: u32,
+}
+
+#[derive(Serialize)]
+pub struct TopArticleEdits {
+    pub qid: u32,
+    pub title: String,
+    pub edits: u64,
 }
 
 #[derive(Serialize)]

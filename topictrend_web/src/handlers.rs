@@ -9,20 +9,18 @@ use std::sync::Arc;
 
 use crate::{
     models::{
-        AppState, ArticleItem, ArticleTrendParams, ArticlesInCategoryResponse,
-        CategoryRankResponse, CategorySearchItemResponse, CategorySearchParams,
-        CategorySearchResponse, CategoryTrendParams, DailyViews, ListArticlesInCategoryParams,
-        PageEditArticleDeltaParams, PageEditArticleDeltaResponse, PageEditCategoryDeltaParams,
-        PageEditCategoryDeltaResponse, PageViewArticleDeltaParams, PageViewArticleDeltaResponse,
-        PageViewCategoryDeltaParams, PageViewCategoryDeltaResponse, SubCategoryParams, TopArticle,
-        TopCategoriesParams, TopCategory,
+        AppState, ArticleEditTrendResponse, ArticleItem, ArticleTrendParams, ArticleTrendResponse,
+        ArticlesInCategoryResponse, CategoryEditTrendResponse, CategoryRankResponse,
+        CategorySearchItemResponse, CategorySearchParams, CategorySearchResponse,
+        CategoryTrendParams, CategoryTrendResponse, DailyEdits, DailyViews,
+        ListArticlesInCategoryParams, PageEditArticleDeltaParams, PageEditArticleDeltaResponse,
+        PageEditCategoryDeltaParams, PageEditCategoryDeltaResponse, PageViewArticleDeltaParams,
+        PageViewArticleDeltaResponse, PageViewCategoryDeltaParams, PageViewCategoryDeltaResponse,
+        SubCategoryParams, TopArticle, TopArticleEdits, TopCategoriesParams, TopCategory,
     },
     services::core::CategoryService,
 };
-use crate::{
-    models::{ArticleTrendResponse, CategoryTrendResponse},
-    services::PageViewsService,
-};
+use crate::services::{PageEditsService, PageViewsService};
 use crate::{
     models::{CategoriesTrendParams, CategoriesTrendResponse},
     services::{
@@ -158,6 +156,72 @@ pub async fn get_article_trend_handler(
         qid: result.qid,
         title: result.title,
         views: daily_views,
+    }))
+}
+
+pub async fn get_category_edit_trend_handler(
+    Query(params): Query<CategoryTrendParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<CategoryEditTrendResponse>, ApiError> {
+    let result = PageEditsService::get_category_edit_trend(
+        state,
+        &params.wiki,
+        &params.category,
+        params.category_qid,
+        params.depth,
+        params.start_date,
+        params.end_date,
+    )
+    .await?;
+
+    let daily_edits: Vec<DailyEdits> = result
+        .edits
+        .into_iter()
+        .map(|(date, edits)| DailyEdits { date, edits })
+        .collect();
+
+    let top_articles: Vec<TopArticleEdits> = result
+        .top_articles
+        .into_iter()
+        .map(|art| TopArticleEdits {
+            qid: art.qid,
+            title: art.title,
+            edits: art.edits,
+        })
+        .collect();
+
+    Ok(Json(CategoryEditTrendResponse {
+        qid: result.qid,
+        title: result.title,
+        edits: daily_edits,
+        top_articles,
+    }))
+}
+
+pub async fn get_article_edit_trend_handler(
+    Query(params): Query<ArticleTrendParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<ArticleEditTrendResponse>, ApiError> {
+    let result = PageEditsService::get_article_edit_trend(
+        state,
+        &params.wiki,
+        &params.article,
+        params.article_qid,
+        params.start_date,
+        params.end_date,
+    )
+    .await?;
+
+    let daily_edits = result
+        .edits
+        .into_iter()
+        .map(|(date, edits)| DailyEdits { date, edits })
+        .collect();
+
+    Ok(Json(ArticleEditTrendResponse {
+        qid: result.qid,
+        title: result.title,
+        edits: daily_edits,
     }))
 }
 
