@@ -46,6 +46,9 @@ path = "src/main.rs"
 # name = "top-categories"
 # path = "src/top_categories.rs"
 #
+[[bin]]
+name = "get-pageedits"
+path = "src/pageedits.rs"
 [dependencies]
 topictrend_core = { path = "../topictrend_core" }
 parquet = { workspace = true }

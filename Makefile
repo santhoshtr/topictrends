@@ -17,6 +17,7 @@ DATA_DIR ?= data
 WIKIS := $(shell cat $(DATA_DIR)/wikipedia.list 2>/dev/null)
 QUERIES_DIR := queries
 PAGEVIEWS_DIR := $(DATA_DIR)/pageviews
+EDIT_SNAPSHOT ?= 2026-01
 
 .DEFAULT_GOAL := run
 
@@ -34,8 +35,10 @@ help:
 	@echo "  help    - Show this help message"
 	@echo ""
 	@echo "Environment variables:"
-	@echo "  DATE    - Date to process (YYYY-MM-DD format, defaults to yesterday)"
+	@echo "  DATE          - Date to process (YYYY-MM-DD format, defaults to yesterday)"
+	@echo "  EDIT_SNAPSHOT - MediaWiki history dump version (defaults to 2026-01)"
 	@echo "  Example: make run DATE=2025-01-15"
+	@echo "  Example: make data/mlwiki/pageedits/pageedits.parquet EDIT_SNAPSHOT=2025-12"
 
 # Main run target
 run: init $(WIKIS)
@@ -55,7 +58,8 @@ $(WIKIS): %: \
 	$(DATA_DIR)/%/categories.parquet \
 	$(DATA_DIR)/%/article_category.parquet \
 	$(DATA_DIR)/%/category_graph.parquet \
-	$(DATA_DIR)/%/pageviews/$(YEAR)/$(MONTH)/$(DAY).bin
+	$(DATA_DIR)/%/pageviews/$(YEAR)/$(MONTH)/$(DAY).bin \
+	$(DATA_DIR)/%/pageedits/pageedits.parquet
 
 # Helper function for database queries
 dbquery = mariadb --quick --host $*.analytics.db.svc.wikimedia.cloud --database $*_p
@@ -107,6 +111,15 @@ $(DATA_DIR)/pageviews/%.parquet:
 	URL="https://dumps.wikimedia.org/other/pageview_complete/$$YEAR/$$YEAR-$$MONTH/pageviews-$$YEAR$$MONTH$$DAY-user.bz2"; \
 	curl -fsSL "$$URL" | bzip2 -dc \
 		| $(CARGO_RELEASE)/get-pageviews $@ || { echo "Error downloading pageviews"; exit 1; }
+
+# Page edits from MediaWiki history dumps
+# Expands to data/mlwiki/pageedits/pageedits.parquet (example)
+$(DATA_DIR)/%/pageedits/pageedits.parquet:
+	@WIKI=$*; \
+	mkdir -p $$(dirname $@); \
+	URL="https://dumps.wikimedia.org/other/mediawiki_history/$(EDIT_SNAPSHOT)/$$WIKI/$(EDIT_SNAPSHOT).$$WIKI.all-time.tsv.bz2"; \
+	echo "Processing page edits for $$WIKI from snapshot $(EDIT_SNAPSHOT)..."; \
+	curl -fsSL "$$URL" | bzip2 -dc | $(CARGO_RELEASE)/get-pageedits $@ || { echo "Error downloading/processing page edits for $$WIKI"; exit 1; }
 
 # Wikipedia list
 $(DATA_DIR)/wikipedia.list: | $(DATA_DIR)
@@ -173,6 +186,7 @@ notebook:
            $(DATA_DIR)/%/categories.parquet \
            $(DATA_DIR)/%/category_graph.parquet \
            $(DATA_DIR)/%/article_category.parquet \
-           $(DATA_DIR)/pageviews/%.parquet
+           $(DATA_DIR)/pageviews/%.parquet \
+           $(DATA_DIR)/%/pageedits/pageedits.parquet
 # Prevent parallel issues with shared resources
 .NOTPARALLEL: $(DATA_DIR)/pageviews/%.parquet
