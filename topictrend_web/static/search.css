@@ -36,7 +36,8 @@
 		background-color: var(--background-color-base);
 		color: var(--color-base);
 		line-height: 1.5;
-		padding-top: var(--size-300);
+		display: grid;
+		grid-template-rows: 48px calc(100dvh - 48px);
 	}
 }
 
@@ -44,8 +45,6 @@
 	.app-container {
 		display: grid;
 		grid-template-columns: 400px 2fr;
-		height: 100dvh;
-		overflow-y: auto;
 	}
 
 	.sidebar {
