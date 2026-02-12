@@ -446,7 +446,7 @@ document.addEventListener("DOMContentLoaded", () => {
 		showSection("wiki-trends");
 
 		let topicTrends = document.querySelector("wiki-trends");
-		const selectedWiki = wiki.value;
+		const selectedWiki = document.getElementById("wiki").value;
 		const startDate = document.getElementById("start_date").value;
 		const endDate = document.getElementById("end_date").value;
 
