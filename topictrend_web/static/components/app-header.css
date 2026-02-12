@@ -1,9 +1,5 @@
 :host {
 	display: block;
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
 	z-index: 100;
 	--font-family-sans-serif:
 		system-ui, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, Helvetica, Arial,
