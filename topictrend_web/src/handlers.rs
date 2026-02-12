@@ -7,6 +7,7 @@ use axum::{
 use axum_macros::debug_handler;
 use std::sync::Arc;
 
+use crate::services::{PageEditsService, PageViewsService};
 use crate::{
     models::{
         AppState, ArticleEditTrendResponse, ArticleItem, ArticleTrendParams, ArticleTrendResponse,
@@ -20,7 +21,6 @@ use crate::{
     },
     services::core::CategoryService,
 };
-use crate::services::{PageEditsService, PageViewsService};
 use crate::{
     models::{CategoriesTrendParams, CategoriesTrendResponse},
     services::{

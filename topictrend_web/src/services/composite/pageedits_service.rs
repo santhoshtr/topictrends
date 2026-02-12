@@ -91,10 +91,9 @@ impl PageEditsService {
             .collect();
 
         // Get category title
-        let category_title =
-            QidService::get_title_by_qid(Arc::clone(&state), wiki, category_qid)
-                .await
-                .unwrap_or_else(|_| category.to_string());
+        let category_title = QidService::get_title_by_qid(Arc::clone(&state), wiki, category_qid)
+            .await
+            .unwrap_or_else(|_| category.to_string());
 
         Ok(CategoryEditTrendResult {
             qid: category_qid,
@@ -123,7 +122,9 @@ impl PageEditsService {
         };
 
         // Get raw pageedit data
-        let data = PageEditService::get_article_edits(Arc::clone(&state), wiki, article_qid, start, end).await?;
+        let data =
+            PageEditService::get_article_edits(Arc::clone(&state), wiki, article_qid, start, end)
+                .await?;
 
         // Get article title
         let article_title = QidService::get_title_by_qid(Arc::clone(&state), wiki, article_qid)

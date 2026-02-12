@@ -2,8 +2,8 @@ use polars::prelude::*;
 use rayon::prelude::*;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Debug, Clone)]
 struct PageView {
