@@ -1,4 +1,7 @@
 import { autocomp } from "./autocomp.js";
+import { initializeChart, updateChart } from "./utils/chart-utils.js";
+import { showMessage } from "./utils/ui-utils.js";
+import { populateWikiDropdown } from "./utils/wiki-utils.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
 	document.getElementById("trend-form").addEventListener("submit", onSubmit);
@@ -103,95 +106,16 @@ async function onSubmit(event) {
 
 let chartInstance = null;
 
-function initializeChart() {
-	const theme = window.matchMedia("(prefers-color-scheme: dark)").matches
-		? "dark"
-		: "light";
-	const chartElement = document.getElementById("chart");
-	chartInstance = echarts.init(chartElement, theme, {
-		renderer: "svg",
-	});
-
-	const initialOption = {
-		darkMode: "auto",
-		color: [
-			"#4b77d6",
-			"#eeb533",
-			"#fd7865",
-			"#80cdb3",
-			"#269f4b",
-			"#b0c1f0",
-			"#9182c2",
-			"#d9b4cd",
-			"#b0832b",
-			"#a2a9b1",
-		],
-		title: {
-			text: "Page Edits Trend",
-		},
-		tooltip: {
-			trigger: "axis",
-		},
-		legend: {
-			top: "bottom",
-			left: "center",
-		},
-		xAxis: {
-			type: "category",
-			data: [],
-		},
-		yAxis: {
-			type: "value",
-		},
-		series: [],
-		toolbox: {
-			show: true,
-			feature: {
-				dataZoom: {
-					yAxisIndex: "none",
-				},
-				dataView: { readOnly: false },
-				magicType: { type: ["line", "bar"] },
-				restore: {},
-				saveAsImage: {},
-			},
-		},
-	};
-
-	chartInstance.setOption(initialOption);
-	window.onresize = chartInstance.resize;
+function ensureChartInitialized() {
+	if (!chartInstance) {
+		const chartElement = document.getElementById("chart");
+		chartInstance = initializeChart(chartElement, "Page Edits Trend");
+	}
 }
 
-function updateChart(data, label) {
-	if (!chartInstance) {
-		initializeChart();
-	}
-
-	const existingOption = chartInstance.getOption();
-
-	// Update xAxis data if new dates are present
-	const newDates = data.map((item) => item.date);
-	const existingDates = existingOption.xAxis[0].data;
-	const mergedDates = Array.from(new Set([...existingDates, ...newDates]));
-	mergedDates.sort();
-	chartInstance.setOption({
-		xAxis: {
-			data: mergedDates,
-		},
-	});
-
-	// Add a new series for the new data
-	chartInstance.setOption({
-		series: [
-			...existingOption.series,
-			{
-				name: label,
-				data: data.map((item) => item.edits),
-				type: "line",
-				smooth: true,
-			},
-		],
-	});
+function updateChartWithData(data, label) {
+	ensureChartInitialized();
+	updateChart(chartInstance, data, label);
 }
 
 async function renderSubCategories(wiki, category, depth = 4) {
@@ -293,16 +217,6 @@ document.addEventListener("DOMContentLoaded", () => {
 	startDatePicker.value = `${year}-${month}-${day}`;
 });
 
-function showMessage(message, type) {
-	const messageEl = document.getElementById("status");
-	messageEl.classList.remove("error-message");
-	messageEl.classList.remove("success-message");
-	messageEl.classList.add(
-		type === "error" ? "error-message" : "success-message",
-	);
-	messageEl.textContent = message;
-}
-
 async function fetchCategoryPageEdits(
 	wiki,
 	category,
@@ -325,7 +239,7 @@ async function fetchCategoryPageEdits(
 		}
 
 		const data = await response.json();
-		updateChart(data.edits, label);
+		updateChartWithData(data.edits, label);
 		const endTime = performance.now();
 		const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
 		showMessage(`Fetched ${label} in ${timeTaken} seconds.`, "success");
@@ -355,7 +269,7 @@ async function fetchArticlePageEdits(wiki, article, startDate, endDate) {
 		}
 
 		const data = await response.json();
-		updateChart(data.edits, label);
+		updateChartWithData(data.edits, label);
 		const endTime = performance.now();
 		const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
 		showMessage(`Fetched ${label} in ${timeTaken} seconds.`, "success");
@@ -409,33 +323,6 @@ function populateFormFromQueryParams() {
 
 	if (type && wiki && startDate && endDate) {
 		onSubmit(new Event("submit"));
-	}
-}
-
-async function populateWikiDropdown() {
-	try {
-		const response = await fetch("/static/wikis.json");
-		if (!response.ok) {
-			throw new Error(`HTTP error! status: ${response.status}`);
-		}
-
-		const wikis = await response.json();
-		const wikiSelect = document.getElementById("wiki");
-
-		wikiSelect.innerHTML = "";
-
-		wikis.forEach((wiki) => {
-			const option = document.createElement("option");
-			option.value = wiki.code;
-			const displayName = `${wiki.langcode} - ${wiki.name}`;
-			option.textContent = displayName;
-			wikiSelect.appendChild(option);
-		});
-
-		console.log(`Loaded ${wikis.length} wikis to dropdown`);
-	} catch (error) {
-		console.error("Failed to load wiki list:", error);
-		console.log("📋 Using fallback wiki list");
 	}
 }
 
