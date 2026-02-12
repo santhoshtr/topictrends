@@ -227,9 +227,9 @@
 	.category-summary {
 		cursor: pointer;
 		list-style: none;
-		padding: var(--spacing-150);
+		padding: var(--spacing-50);
 		display: grid;
-		grid-template-columns: auto 1fr auto auto auto;
+		grid-template-columns: auto 4fr 1fr 2fr 1fr;
 		gap: var(--spacing-100);
 		align-items: center;
 		background-color: var(--background-color-interactive-subtle);
@@ -302,11 +302,10 @@
 
 	.category-views {
 		display: flex;
-		flex-direction: column;
+		flex-direction: row;
 		gap: var(--spacing-12);
 		font-size: var(--font-size-small);
 		color: var(--color-subtle);
-		min-inline-size: 14rem;
 		text-align: end;
 		font-variant-numeric: tabular-nums;
 

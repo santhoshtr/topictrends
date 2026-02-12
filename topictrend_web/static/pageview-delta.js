@@ -217,15 +217,10 @@ function createCategoryAccordion(category, type) {
 	const viewsDiv = document.createElement("div");
 	viewsDiv.className = "category-views";
 
-	const viewsLabel = document.createElement("span");
-	viewsLabel.className = "views-label";
-	viewsLabel.textContent = "Views";
-
 	const viewsRange = document.createElement("span");
 	viewsRange.className = "views-range";
 	viewsRange.textContent = `${category.baseline_views.toLocaleString()} → ${category.impact_views.toLocaleString()}`;
 
-	viewsDiv.appendChild(viewsLabel);
 	viewsDiv.appendChild(viewsRange);
 
 	// Plot button
