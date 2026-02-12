@@ -1,3 +1,19 @@
+import {
+	createCategoryAccordion as createBaseAccordion,
+	renderCategoryAccordions as renderBaseAccordions,
+} from "./utils/accordion-utils.js";
+import { formatDateToISO } from "./utils/date-utils.js";
+import { showMessage } from "./utils/ui-utils.js";
+import { buildWikipediaUrl, populateWikiDropdown } from "./utils/wiki-utils.js";
+
+// Configuration for pageview delta accordions
+const ACCORDION_CONFIG = {
+	metricName: "views",
+	baselineKey: "baseline_views",
+	impactKey: "impact_views",
+	trendsUrl: "/pageviews/trends",
+};
+
 document.addEventListener("DOMContentLoaded", async () => {
 	document.getElementById("delta-form").addEventListener("submit", onSubmit);
 
@@ -442,15 +458,7 @@ function createArticleElement(article, wiki) {
  * @param {string} title - Article title
  * @returns {string} - Full Wikipedia URL
  */
-function buildWikipediaUrl(wiki, title) {
-	// Extract language code from wiki (e.g., 'enwiki' -> 'en')
-	const langCode = wiki.replace("wiki", "");
-
-	// URL encode the title
-	const encodedTitle = encodeURIComponent(title.replace(/ /g, "_"));
-
-	return `https://${langCode}.wikipedia.org/wiki/${encodedTitle}`;
-}
+// Using imported buildWikipediaUrl from wiki-utils.js
 
 document.addEventListener("DOMContentLoaded", () => {
 	const startDatePicker = document.getElementById("baseline_start_date");
@@ -490,22 +498,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	impactStartDatePicker.value = `${year}-${month}-${day}`;
 });
 
-function showMessage(message, type) {
-	const messageEl = document.getElementById("status");
-	messageEl.classList.remove("error-message");
-	messageEl.classList.remove("success-message");
-	messageEl.classList.remove("info-message");
-
-	if (type === "error") {
-		messageEl.classList.add("error-message");
-	} else if (type === "success") {
-		messageEl.classList.add("success-message");
-	} else if (type === "info") {
-		messageEl.classList.add("info-message");
-	}
-
-	messageEl.textContent = message;
-}
+// Using imported showMessage from ui-utils.js
 
 function populateFormFromQueryParams() {
 	const urlParams = new URLSearchParams(window.location.search);
@@ -543,29 +536,4 @@ function populateFormFromQueryParams() {
 	}
 }
 
-async function populateWikiDropdown() {
-	try {
-		const response = await fetch("/static/wikis.json");
-		if (!response.ok) {
-			throw new Error(`HTTP error! status: ${response.status}`);
-		}
-
-		const wikis = await response.json();
-		const wikiSelect = document.getElementById("wiki");
-
-		wikiSelect.innerHTML = "";
-
-		wikis.forEach((wiki) => {
-			const option = document.createElement("option");
-			option.value = wiki.code;
-			const displayName = `${wiki.langcode} - ${wiki.name}`;
-			option.textContent = displayName;
-			wikiSelect.appendChild(option);
-		});
-
-		console.log(`Loaded ${wikis.length} wikis to dropdown`);
-	} catch (error) {
-		console.error("Failed to load wiki list:", error);
-		console.log("📋 Using fallback wiki list");
-	}
-}
+// Using imported populateWikiDropdown from wiki-utils.js
