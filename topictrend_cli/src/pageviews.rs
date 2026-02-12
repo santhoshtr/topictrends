@@ -2,8 +2,8 @@ use polars::prelude::*;
 use rayon::prelude::*;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 struct PageView {
@@ -41,8 +41,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn parse_line(line: &str) -> Result<PageView, Box<dyn std::error::Error>> {
     let parts: Vec<&str> = line.splitn(6, ' ').collect();
 
-    if parts.len() < 5 {
-        return Err("Invalid line format".into());
+    // Require 6 columns for valid pageview records with page IDs
+    if parts.len() < 6 {
+        return Err("Invalid line format: insufficient columns".into());
+    }
+
+    // Skip rows where page_id is "null" or cannot be parsed as u32
+    if parts[2] == "null" || parts[2] == "-" {
+        return Err("Missing page_id".into());
     }
 
     Ok(PageView {
@@ -72,8 +78,10 @@ fn process_chunk(records: Vec<PageView>) -> Result<DataFrame, PolarsError> {
         .collect();
     let daily_views: Vec<u32> = records.iter().map(|r| r.daily_views).collect();
 
+    let height = records.len();
+
     DataFrame::new(
-        1,
+        height,
         vec![
             Column::new("wiki".into(), wiki),
             Column::new("page_id".into(), page_id),
