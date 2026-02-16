@@ -62,6 +62,8 @@
 		display: grid;
 		grid-template-rows: auto 1fr;
 		height: 100%;
+		max-width: 1600px;
+		margin: auto;
 		place-content: center;
 	}
 
