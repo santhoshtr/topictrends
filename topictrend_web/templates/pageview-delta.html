@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}PageView Delta Analysis{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/delta.css">
+{% endblock %}
+
+{% block content %}
+<div class="app-container">
+  <div class="form-container">
+    <form id="delta-form">
+      <div class="form-item ">
+        <div class="form-item ">
+          <label for="wiki">Wiki</label>
+        </div>
+        <div class="form-item">
+          <select id="wiki" class="cdx-select">
+            <option value="enwiki">English</option>
+            <option value="hiwiki">Hindi</option>
+            <option value="idwiki">Indonesian</option>
+            <option value="mlwiki">Malayalam</option>
+            <option value="eswiki">Spanish</option>
+            <option value="tawiki">Tamil</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-item row">
+        <div class="form-item">
+          <label for="baseline_start_date">Baseline Start Date</label>
+          <input type="date" id="baseline_start_date" name="baseline_start-date" required>
+        </div>
+        <div class="form-item">
+          <label for="baseline_end_date">Baseline End Date</label>
+          <input type="date" id="baseline_end_date" name="baseline_end-date" required>
+        </div>
+      </div>
+      <div class="form-item row">
+        <div class="form-item">
+          <label for="impact_start_date">Impact Start Date</label>
+          <input type="date" id="impact_start_date" name="Impact_start-date" required>
+        </div>
+        <div class="form-item">
+          <label for="impact_end_date">Impact End Date</label>
+          <input type="date" id="impact_end_date" name="impact_end-date" required>
+        </div>
+      </div>
+
+      <div class="form-item">
+        <label for="limit">Number of categories</label>
+        <input name="limit" id="limit" value="20" type="number">
+      </div>
+      <div class="form-item">
+        <label for="depth">Category depth</label>
+        <input name="depth" id="depth" value="4" type="number">
+      </div>
+      <div class="form-item">
+        <button type="submit"
+          class="cdx-button cdx-button--action-progressive cdx-button--weight-primary">Submit</button>
+      </div>
+    </form>
+  </div>
+  <div class="main">
+    <div id="results-container" class="results-container">
+      <section id="gains-section" class="delta-section">
+        <h2 class="section-header">
+          <span class="section-icon">📈</span>
+          <span>Gains</span>
+          <span class="section-count"></span>
+        </h2>
+        <div id="gains-list" class="category-list"></div>
+      </section>
+      
+      <section id="losses-section" class="delta-section">
+        <h2 class="section-header">
+          <span class="section-icon">📉</span>
+          <span>Losses</span>
+          <span class="section-count"></span>
+        </h2>
+        <div id="losses-list" class="category-list"></div>
+      </section>
+      
+      <div id="empty-state" class="empty-state">
+        <p>Submit the form to see category delta analysis</p>
+      </div>
+    </div>
+    <footer>
+      <p id="status" class="status"></p>
+    </footer>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/pageview-delta.js" type="module"></script>
+{% endblock %}

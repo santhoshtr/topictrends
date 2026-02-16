@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="color-scheme" content="light dark">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Topic Trends - Wikipedia Analytics{% endblock %}</title>
+  <meta name="description" content="TopicTrends - Wikipedia pageview and page edit analytics" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@wikimedia/codex-design-tokens/theme-wikimedia-ui.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@wikimedia/codex-design-tokens/theme-wikimedia-ui-mode-dark.css" media="(prefers-color-scheme: dark)">
+  <link rel="stylesheet" href="https://tools-static.wmflabs.org/cdnjs/ajax/libs/codex/1.19.1/codex.style.css">
+  <link rel="stylesheet" href="/static/components/app-header.css">
+  {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+  {% include "header.html" %}
+  
+  {% block content %}{% endblock %}
+
+  {% block extra_js %}{% endblock %}
+</body>
+
+</html>

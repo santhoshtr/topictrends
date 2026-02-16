@@ -2,17 +2,19 @@ mod grpc_service;
 mod handlers;
 mod models;
 mod services;
+mod templates;
 mod wiki;
 
 use crate::grpc_service::{
     TopicTrendGrpcService, topictrend_proto::topic_trend_service_server::TopicTrendServiceServer,
 };
 use crate::models::AppState;
+use crate::templates::{render_template, PageContext};
 use axum::http::header::{CACHE_CONTROL, HeaderValue};
 use axum::{
     Router,
     http::{Method, StatusCode, header::*},
-    response::{Html, Redirect},
+    response::Redirect,
     routing::{get, get_service},
 };
 use std::{net::SocketAddr, sync::Arc};
@@ -40,23 +42,33 @@ async fn run_http_server(
     let app = Router::new()
         .route(
             "/",
-            get(|| async { Html(include_str!("../static/index.html")) }),
+            get(|| async {
+                render_template("index.html", PageContext::home())
+            }),
         )
         .route(
             "/pageviews/trends",
-            get(|| async { Html(include_str!("../static/pageview-trends.html")) }),
+            get(|| async {
+                render_template("pageview-trends.html", PageContext::pageview_trends())
+            }),
         )
         .route(
             "/pageviews/delta",
-            get(|| async { Html(include_str!("../static/pageview-delta.html")) }),
+            get(|| async {
+                render_template("pageview-delta.html", PageContext::pageview_delta())
+            }),
         )
         .route(
             "/pageedits/trends",
-            get(|| async { Html(include_str!("../static/pageedit-trends.html")) }),
+            get(|| async {
+                render_template("pageedit-trends.html", PageContext::pageedit_trends())
+            }),
         )
         .route(
             "/pageedits/delta",
-            get(|| async { Html(include_str!("../static/pageedit-delta.html")) }),
+            get(|| async {
+                render_template("pageedit-delta.html", PageContext::pageedit_delta())
+            }),
         )
         .route(
             "/delta",
@@ -64,7 +76,9 @@ async fn run_http_server(
         )
         .route(
             "/search",
-            get(|| async { Html(include_str!("../static/search.html")) }),
+            get(|| async {
+                render_template("search.html", PageContext::search())
+            }),
         )
         .nest_service("/static", static_files)
         .route(

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Topic Trends - Wikipedia Analytics{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/styles.css">
+{% endblock %}
+
+{% block content %}
+<div class="app-container">
+  <main class="about-content">
+    <h1>About Topic Trends</h1>
+    
+    <section>
+      <p>
+        Topic Trends is a high-performance Wikipedia analytics engine that provides insights into 
+        pageview patterns and editing activity across Wikipedia categories and articles.
+      </p>
+    </section>
+
+    <section>
+      <h2>Features</h2>
+      <ul>
+        <li><strong><a href="/pageviews/trends">Pageview Trends</a>:</strong> Track and visualize pageview trends for categories and articles over time</li>
+        <li><strong><a href="/pageedits/trends">Page Edit Trends</a>:</strong> Monitor editing activity patterns across Wikipedia content</li>
+        <li><strong><a href="/pageviews/delta">Pageview Delta</a> & <a href="/pageedits/delta">Page Edit Delta</a>:</strong> Compare pageview and edit metrics between different time periods</li>
+        <li><strong><a href="/search">Category Search</a>:</strong> Navigate Wikipedia's category hierarchy and analyze topic trends</li>
+        <li><strong>Multi-Wiki Support:</strong> Analyze data across multiple Wikipedia language editions</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Technology</h2>
+      <p>
+        Built with Rust for high-performance data processing, Topic Trends uses efficient algorithms 
+        and data structures to handle large-scale Wikipedia analytics. The web interface follows 
+        the Wikimedia Codex design system for a consistent user experience.
+      </p>
+    </section>
+
+    <section>
+      <h2>Data Sources</h2>
+      <p>
+        All data is sourced from publicly available Wikipedia dumps and pageview statistics, 
+        processed and aggregated to provide meaningful insights into Wikipedia usage patterns.
+      </p>
+    </section>
+
+    <footer class="about-footer">
+      <p>
+        <strong>Author:</strong> Santhosh Thottingal 
+        (<a href="mailto:sthottingal@wikimedia.org">sthottingal@wikimedia.org</a>)
+      </p>
+      <p>
+        <strong>Source Code:</strong> 
+        <a href="https://gitlab.wikimedia.org/santhosh/topictrends" target="_blank" rel="noopener noreferrer">
+          gitlab.wikimedia.org/santhosh/topictrends
+        </a>
+      </p>
+    </footer>
+  </main>
+</div>
+{% endblock %}
