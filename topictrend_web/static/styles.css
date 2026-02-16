@@ -44,21 +44,24 @@
 @layer components {
 	.app-container {
 		display: grid;
-		grid-template-columns: 400px 2fr;
+		grid-template-rows: auto 1fr;
+		height: 100%;
+		place-content: center;
 	}
 
-	.sidebar {
-		border-right: 1px solid var(--border-color-base);
+	.form-container {
 		display: flex;
 		flex-direction: column;
-		gap: 2em;
-		overflow: hidden;
+		gap: 1em;
 		padding: 1em;
+		background-color: var(--background-color-base);
 
 		form {
 			display: flex;
-			flex-direction: column;
+			flex-direction: row;
+			flex-wrap: wrap;
 			gap: 1em;
+			align-items: end;
 
 			.form-item {
 				display: flex;
@@ -183,7 +186,8 @@
 	overflow-y: auto;
 
 	.chart {
-		width: calc(100vw - 420px);
+		width: 100%;
+		max-width: calc(100vw - 2em);
 		height: 66dvh;
 		display: none;
 	}
@@ -194,7 +198,7 @@
 }
 
 .about-content {
-	grid-column: 1 / 3;
+	grid-row: 1 / 3;
 	width: 80ch;
 	max-width: 1200px;
 	margin: 0 auto;

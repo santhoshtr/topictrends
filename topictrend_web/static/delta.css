@@ -31,21 +31,23 @@
 @layer components {
 	.app-container {
 		display: grid;
-		grid-template-columns: 400px 2fr;
+		grid-template-rows: auto 1fr;
+		height: 100%;
 	}
 
-	.sidebar {
-		border-right: 1px solid var(--border-color-base);
+	.form-container {
 		display: flex;
 		flex-direction: column;
-		gap: 2em;
-		overflow: hidden;
+		gap: 1em;
 		padding: 1em;
+		background-color: var(--background-color-base);
 
 		& form {
 			display: flex;
-			flex-direction: column;
+			flex-direction: row;
+			flex-wrap: wrap;
 			gap: 1em;
+			align-items: end;
 
 			& .form-item {
 				display: flex;
