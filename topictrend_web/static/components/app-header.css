@@ -48,7 +48,8 @@
 	padding: 0;
 }
 
-.nav-link {
+.nav-link,
+.nav-button {
 	color: var(--color-subtle);
 	text-decoration: none;
 	font-size: var(--font-size-base);
@@ -60,15 +61,96 @@
 		background-color var(--transition-medium);
 }
 
-.nav-link:hover {
+.nav-button {
+	background: none;
+	border: none;
+	cursor: pointer;
+	font-family: inherit;
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-xs);
+	anchor-name: --nav-button;
+}
+
+.nav-button#pageviews-anchor {
+	anchor-name: --pageviews-anchor;
+}
+
+.nav-button#pageedits-anchor {
+	anchor-name: --pageedits-anchor;
+}
+
+.nav-button .chevron {
+	font-size: 0.75em;
+	opacity: 0.7;
+}
+
+.nav-link:hover,
+.nav-button:hover {
 	color: var(--color-progressive--hover);
 }
 
-.nav-link:active {
+.nav-link:active,
+.nav-button:active {
 	color: var(--color-progressive--active);
 }
 
-.nav-link.active {
+.nav-link.active,
+.nav-button.active {
 	color: var(--color-progressive);
 	font-weight: var(--font-weight-bold);
+}
+
+.nav-menu {
+	margin: 0;
+	padding: 0;
+	background-color: var(--background-color-base);
+	border: var(--border-width-base) solid var(--border-color-subtle);
+	border-radius: var(--border-radius-base);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	min-width: 150px;
+}
+
+/* Anchor positioning for popovers */
+.nav-menu[anchor="pageviews-anchor"] {
+	position-anchor: --pageviews-anchor;
+	position-area: block-end;
+	margin-block-start: var(--spacing-xs);
+}
+
+.nav-menu[anchor="pageedits-anchor"] {
+	position-anchor: --pageedits-anchor;
+	position-area: block-end;
+	margin-block-start: var(--spacing-xs);
+}
+
+/* Fallback for browsers without anchor positioning */
+@supports not (anchor-name: --test) {
+	.nav-menu {
+		position: absolute;
+		inset-block-start: calc(100% + var(--spacing-xs));
+		inset-inline-start: 0;
+	}
+}
+
+.nav-menu a {
+	display: block;
+	color: var(--color-base);
+	text-decoration: none;
+	padding: var(--spacing-sm) var(--spacing-md);
+	border-radius: var(--border-radius-base);
+	transition:
+		background-color var(--transition-medium),
+		color var(--transition-medium);
+}
+
+.nav-menu a:hover {
+	background-color: var(--background-color-interactive);
+	color: var(--color-progressive--hover);
+}
+
+.nav-menu a.active {
+	color: var(--color-progressive);
+	font-weight: var(--font-weight-bold);
+	background-color: var(--background-color-progressive-subtle);
 }
