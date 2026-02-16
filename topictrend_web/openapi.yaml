@@ -1,0 +1,971 @@
+openapi: 3.1.0
+
+info:
+  title: TopicTrends HTTP API
+  description: |
+    TopicTrends HTTP API exposed by the Axum web server.
+
+    Notes:
+    - All endpoints are `GET` and accept parameters via query string.
+    - Dates are encoded as `YYYY-MM-DD`.
+    - Error responses are returned as JSON: `{ "error": "..." }`.
+  version: 0.1.0
+
+servers:
+  - url: https://topictrends.wmcloud.org
+    description: Production
+  - url: http://localhost:8765
+    description: Local development
+
+tags:
+  - name: Pageviews
+    description: Pageview trend endpoints
+  - name: Pageedits
+    description: Page edit trend endpoints
+  - name: Delta
+    description: Delta analysis endpoints
+  - name: Search
+    description: Semantic category search endpoints
+  - name: Lists
+    description: Listing and graph helper endpoints
+
+paths:
+  /api/pageviews/category:
+    get:
+      operationId: getCategoryPageviewTrend
+      tags: [Pageviews]
+      summary: Category pageview trend
+      description: Daily pageviews for a category (optionally including subcategories).
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/Category"
+        - $ref: "#/components/parameters/CategoryQidOptional"
+        - $ref: "#/components/parameters/DepthOptional"
+        - $ref: "#/components/parameters/StartDateOptional"
+        - $ref: "#/components/parameters/EndDateOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryTrendResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/pageviews/article:
+    get:
+      operationId: getArticlePageviewTrend
+      tags: [Pageviews]
+      summary: Article pageview trend
+      description: Daily pageviews for an article.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/Article"
+        - $ref: "#/components/parameters/ArticleQidOptional"
+        - $ref: "#/components/parameters/StartDateOptional"
+        - $ref: "#/components/parameters/EndDateOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArticleTrendResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/pageedits/category:
+    get:
+      operationId: getCategoryPageeditTrend
+      tags: [Pageedits]
+      summary: Category page edit trend
+      description: Daily edits for a category (optionally including subcategories).
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/Category"
+        - $ref: "#/components/parameters/CategoryQidOptional"
+        - $ref: "#/components/parameters/DepthOptional"
+        - $ref: "#/components/parameters/StartDateOptional"
+        - $ref: "#/components/parameters/EndDateOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryEditTrendResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/pageedits/article:
+    get:
+      operationId: getArticlePageeditTrend
+      tags: [Pageedits]
+      summary: Article page edit trend
+      description: Daily edits for an article.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/Article"
+        - $ref: "#/components/parameters/ArticleQidOptional"
+        - $ref: "#/components/parameters/StartDateOptional"
+        - $ref: "#/components/parameters/EndDateOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArticleEditTrendResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/list/sub_categories:
+    get:
+      operationId: listSubCategories
+      tags: [Lists]
+      summary: List subcategories
+      description: |
+        Returns subcategories for a category.
+
+        The response is a JSON object mapping category QID (as string key) to title.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/Category"
+        - $ref: "#/components/parameters/CategoryQidOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QidTitleMap"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/list/top_categories:
+    get:
+      operationId: listTopCategories
+      tags: [Lists]
+      summary: Top categories by pageviews
+      description: Returns top categories ranked by total views in the period.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/StartDateOptional"
+        - $ref: "#/components/parameters/EndDateOptional"
+        - $ref: "#/components/parameters/TopNOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryRankResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/pageviews/delta/categories:
+    get:
+      operationId: getCategoryPageviewDelta
+      tags: [Delta]
+      summary: Category pageview delta
+      description: Delta of category pageviews between a baseline and an impact period.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/BaselineStartDate"
+        - $ref: "#/components/parameters/BaselineEndDate"
+        - $ref: "#/components/parameters/ImpactStartDate"
+        - $ref: "#/components/parameters/ImpactEndDate"
+        - $ref: "#/components/parameters/LimitOptional"
+        - $ref: "#/components/parameters/DepthOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageViewCategoryDeltaResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/pageviews/delta/articles:
+    get:
+      operationId: getArticlePageviewDelta
+      tags: [Delta]
+      summary: Article pageview delta
+      description: Delta of article pageviews within a category between two periods.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/CategoryQidRequired"
+        - $ref: "#/components/parameters/BaselineStartDate"
+        - $ref: "#/components/parameters/BaselineEndDate"
+        - $ref: "#/components/parameters/ImpactStartDate"
+        - $ref: "#/components/parameters/ImpactEndDate"
+        - $ref: "#/components/parameters/LimitOptional"
+        - $ref: "#/components/parameters/DepthOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageViewArticleDeltaResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/pageedits/delta/categories:
+    get:
+      operationId: getCategoryPageeditDelta
+      tags: [Delta]
+      summary: Category page edit delta
+      description: Delta of category edits between a baseline and an impact period.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/BaselineStartDate"
+        - $ref: "#/components/parameters/BaselineEndDate"
+        - $ref: "#/components/parameters/ImpactStartDate"
+        - $ref: "#/components/parameters/ImpactEndDate"
+        - $ref: "#/components/parameters/LimitOptional"
+        - $ref: "#/components/parameters/DepthOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageEditCategoryDeltaResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/pageedits/delta/articles:
+    get:
+      operationId: getArticlePageeditDelta
+      tags: [Delta]
+      summary: Article page edit delta
+      description: Delta of article edits within a category between two periods.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/CategoryQidRequired"
+        - $ref: "#/components/parameters/BaselineStartDate"
+        - $ref: "#/components/parameters/BaselineEndDate"
+        - $ref: "#/components/parameters/ImpactStartDate"
+        - $ref: "#/components/parameters/ImpactEndDate"
+        - $ref: "#/components/parameters/LimitOptional"
+        - $ref: "#/components/parameters/DepthOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageEditArticleDeltaResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/search/categories:
+    get:
+      operationId: searchCategories
+      tags: [Search]
+      summary: Semantic search for categories
+      description: Searches categories (embedding-based) and returns matches above a threshold.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/Query"
+        - $ref: "#/components/parameters/MatchThresholdOptional"
+        - $ref: "#/components/parameters/SearchLimitOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategorySearchResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/list/articles:
+    get:
+      operationId: listArticlesInCategory
+      tags: [Lists]
+      summary: List articles in category
+      description: |
+        Returns article QIDs (direct members only) and titles for a category.
+
+        Note: at least one of `category` or `category_qid` must be provided.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/CategoryOptional"
+        - $ref: "#/components/parameters/CategoryQidOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArticlesInCategoryResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/pageviews/categories:
+    get:
+      operationId: getCategoriesPageviewTrendBySearch
+      tags: [Pageviews, Search]
+      summary: Pageview trends for searched categories
+      description: |
+        Searches categories by `category_query` (embedding-based), then returns a combined trend.
+
+        Note: The current implementation searches the English index and then maps titles to the
+        requested `wiki` where possible.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/CategoryQuery"
+        - $ref: "#/components/parameters/StartDateOptional"
+        - $ref: "#/components/parameters/EndDateOptional"
+        - $ref: "#/components/parameters/MatchThresholdOptional"
+        - $ref: "#/components/parameters/SearchLimitOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoriesTrendResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  parameters:
+    Wiki:
+      name: wiki
+      in: query
+      required: true
+      description: Wikipedia edition database name (e.g., `enwiki`, `mlwiki`).
+      schema:
+        type: string
+        minLength: 1
+
+    Category:
+      name: category
+      in: query
+      required: true
+      description: Category title in the given wiki (without the `Category:` prefix).
+      schema:
+        type: string
+        minLength: 1
+
+    CategoryOptional:
+      name: category
+      in: query
+      required: false
+      description: Category title in the given wiki (without the `Category:` prefix).
+      schema:
+        type: string
+        minLength: 1
+
+    Article:
+      name: article
+      in: query
+      required: true
+      description: Article title in the given wiki.
+      schema:
+        type: string
+        minLength: 1
+
+    Query:
+      name: query
+      in: query
+      required: true
+      description: Search query string.
+      schema:
+        type: string
+        minLength: 1
+
+    CategoryQuery:
+      name: category_query
+      in: query
+      required: true
+      description: Search query used to find categories.
+      schema:
+        type: string
+        minLength: 1
+
+    CategoryQidOptional:
+      name: category_qid
+      in: query
+      required: false
+      description: Wikidata QID as a numeric ID (e.g., `42` for Q42).
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+
+    CategoryQidRequired:
+      name: category_qid
+      in: query
+      required: true
+      description: Wikidata QID as a numeric ID (e.g., `42` for Q42).
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+
+    ArticleQidOptional:
+      name: article_qid
+      in: query
+      required: false
+      description: Wikidata QID as a numeric ID (e.g., `42` for Q42).
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+
+    DepthOptional:
+      name: depth
+      in: query
+      required: false
+      description: Traversal depth (0 = direct members only).
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+
+    LimitOptional:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return.
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+
+    TopNOptional:
+      name: top_n
+      in: query
+      required: false
+      description: Number of top categories to return.
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+
+    MatchThresholdOptional:
+      name: match_threshold
+      in: query
+      required: false
+      description: Minimum match score threshold.
+      schema:
+        type: number
+        format: float
+        minimum: 0
+        maximum: 1
+
+    SearchLimitOptional:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of search candidates to consider.
+      schema:
+        type: integer
+        format: int64
+        minimum: 0
+
+    StartDateOptional:
+      name: start_date
+      in: query
+      required: false
+      description: Start date (inclusive).
+      schema:
+        type: string
+        format: date
+
+    EndDateOptional:
+      name: end_date
+      in: query
+      required: false
+      description: End date (inclusive).
+      schema:
+        type: string
+        format: date
+
+    BaselineStartDate:
+      name: baseline_start_date
+      in: query
+      required: true
+      description: Baseline period start date (inclusive).
+      schema:
+        type: string
+        format: date
+
+    BaselineEndDate:
+      name: baseline_end_date
+      in: query
+      required: true
+      description: Baseline period end date (inclusive).
+      schema:
+        type: string
+        format: date
+
+    ImpactStartDate:
+      name: impact_start_date
+      in: query
+      required: true
+      description: Impact period start date (inclusive).
+      schema:
+        type: string
+        format: date
+
+    ImpactEndDate:
+      name: impact_end_date
+      in: query
+      required: true
+      description: Impact period end date (inclusive).
+      schema:
+        type: string
+        format: date
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            default:
+              value:
+                error: Resource not found
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            default:
+              value:
+                error: Internal server error
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    Date:
+      type: string
+      format: date
+      examples: ["2026-02-16"]
+
+    DailyViews:
+      type: object
+      required: [date, views]
+      properties:
+        date:
+          $ref: "#/components/schemas/Date"
+        views:
+          type: integer
+          format: int64
+          minimum: 0
+
+    DailyEdits:
+      type: object
+      required: [date, edits]
+      properties:
+        date:
+          $ref: "#/components/schemas/Date"
+        edits:
+          type: integer
+          format: int64
+          minimum: 0
+
+    TopArticle:
+      type: object
+      required: [qid, title, views]
+      properties:
+        qid:
+          type: integer
+          format: int32
+          minimum: 0
+        title:
+          type: string
+        views:
+          type: integer
+          format: int32
+          minimum: 0
+
+    TopArticleEdits:
+      type: object
+      required: [qid, title, edits]
+      properties:
+        qid:
+          type: integer
+          format: int32
+          minimum: 0
+        title:
+          type: string
+        edits:
+          type: integer
+          format: int64
+          minimum: 0
+
+    ArticleTrendResponse:
+      type: object
+      required: [qid, title, views]
+      properties:
+        qid:
+          type: integer
+          format: int32
+          minimum: 0
+        title:
+          type: string
+        views:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailyViews"
+
+    CategoryTrendResponse:
+      type: object
+      required: [qid, title, views, top_articles]
+      properties:
+        qid:
+          type: integer
+          format: int32
+          minimum: 0
+        title:
+          type: string
+        views:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailyViews"
+        top_articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopArticle"
+
+    ArticleEditTrendResponse:
+      type: object
+      required: [qid, title, edits]
+      properties:
+        qid:
+          type: integer
+          format: int32
+          minimum: 0
+        title:
+          type: string
+        edits:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailyEdits"
+
+    CategoryEditTrendResponse:
+      type: object
+      required: [qid, title, edits, top_articles]
+      properties:
+        qid:
+          type: integer
+          format: int32
+          minimum: 0
+        title:
+          type: string
+        edits:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailyEdits"
+        top_articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopArticleEdits"
+
+    CategoryInfo:
+      type: object
+      required: [qid, title]
+      properties:
+        qid:
+          type: integer
+          format: int32
+          minimum: 0
+        title:
+          type: string
+
+    CategoriesTrendResponse:
+      type: object
+      required: [categories, cumulative_views, top_articles]
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryInfo"
+        cumulative_views:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailyViews"
+        top_articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopArticle"
+
+    TopCategory:
+      type: object
+      required: [qid, title, views, top_articles]
+      properties:
+        qid:
+          type: integer
+          format: int32
+          minimum: 0
+        title:
+          type: string
+        views:
+          type: integer
+          format: int32
+          minimum: 0
+        top_articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopArticle"
+
+    CategoryRankResponse:
+      type: object
+      required: [categories]
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopCategory"
+
+    PageViewCategoryDeltaItemResponse:
+      type: object
+      required:
+        [category_qid, category_title, baseline_views, impact_views, delta_percentage, absolute_delta]
+      properties:
+        category_qid:
+          type: integer
+          format: int32
+          minimum: 0
+        category_title:
+          type: string
+        baseline_views:
+          type: integer
+          format: int64
+        impact_views:
+          type: integer
+          format: int64
+        delta_percentage:
+          type: number
+          format: double
+        absolute_delta:
+          type: integer
+          format: int64
+
+    PageViewCategoryDeltaResponse:
+      type: object
+      required: [categories, baseline_period, impact_period]
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/PageViewCategoryDeltaItemResponse"
+        baseline_period:
+          type: string
+        impact_period:
+          type: string
+
+    PageViewArticleDeltaItemResponse:
+      type: object
+      required:
+        [article_qid, article_title, baseline_views, impact_views, delta_percentage, absolute_delta]
+      properties:
+        article_qid:
+          type: integer
+          format: int32
+          minimum: 0
+        article_title:
+          type: string
+        baseline_views:
+          type: integer
+          format: int64
+        impact_views:
+          type: integer
+          format: int64
+        delta_percentage:
+          type: number
+          format: double
+        absolute_delta:
+          type: integer
+          format: int64
+
+    PageViewArticleDeltaResponse:
+      type: object
+      required: [articles, category_qid, category_title, baseline_period, impact_period]
+      properties:
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/PageViewArticleDeltaItemResponse"
+        category_qid:
+          type: integer
+          format: int32
+          minimum: 0
+        category_title:
+          type: string
+        baseline_period:
+          type: string
+        impact_period:
+          type: string
+
+    PageEditCategoryDeltaItemResponse:
+      type: object
+      required:
+        [category_qid, category_title, baseline_edits, impact_edits, delta_percentage, absolute_delta]
+      properties:
+        category_qid:
+          type: integer
+          format: int32
+          minimum: 0
+        category_title:
+          type: string
+        baseline_edits:
+          type: integer
+          format: int64
+        impact_edits:
+          type: integer
+          format: int64
+        delta_percentage:
+          type: number
+          format: double
+        absolute_delta:
+          type: integer
+          format: int64
+
+    PageEditCategoryDeltaResponse:
+      type: object
+      required: [categories, baseline_period, impact_period]
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/PageEditCategoryDeltaItemResponse"
+        baseline_period:
+          type: string
+        impact_period:
+          type: string
+
+    PageEditArticleDeltaItemResponse:
+      type: object
+      required:
+        [article_qid, article_title, baseline_edits, impact_edits, delta_percentage, absolute_delta]
+      properties:
+        article_qid:
+          type: integer
+          format: int32
+          minimum: 0
+        article_title:
+          type: string
+        baseline_edits:
+          type: integer
+          format: int64
+        impact_edits:
+          type: integer
+          format: int64
+        delta_percentage:
+          type: number
+          format: double
+        absolute_delta:
+          type: integer
+          format: int64
+
+    PageEditArticleDeltaResponse:
+      type: object
+      required: [articles, category_qid, category_title, baseline_period, impact_period]
+      properties:
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/PageEditArticleDeltaItemResponse"
+        category_qid:
+          type: integer
+          format: int32
+          minimum: 0
+        category_title:
+          type: string
+        baseline_period:
+          type: string
+        impact_period:
+          type: string
+
+    CategorySearchItemResponse:
+      type: object
+      required: [category_qid, category_title_en, category_title, match_score]
+      properties:
+        category_qid:
+          type: integer
+          format: int32
+          minimum: 0
+        category_title_en:
+          type: string
+        category_title:
+          type: string
+        match_score:
+          type: number
+          format: float
+
+    CategorySearchResponse:
+      type: object
+      required: [categories]
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategorySearchItemResponse"
+
+    ArticleItem:
+      type: object
+      required: [qid, title]
+      properties:
+        qid:
+          type: integer
+          format: int32
+          minimum: 0
+        title:
+          type: string
+
+    ArticlesInCategoryResponse:
+      type: object
+      required: [articles]
+      properties:
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArticleItem"
+
+    QidTitleMap:
+      type: object
+      additionalProperties:
+        type: string
