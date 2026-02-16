@@ -44,8 +44,6 @@
 		background-color: var(--background-color-base);
 		color: var(--color-base);
 		line-height: 1.5;
-		display: grid;
-		grid-template-rows: 48px calc(100dvh - 48px);
 	}
 
 	/* Smooth scrolling for modern browsers */
