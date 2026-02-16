@@ -14,6 +14,7 @@ use axum::http::header::{CACHE_CONTROL, HeaderValue};
 use axum::{
     Router,
     http::{Method, StatusCode, header::*},
+    response::Html,
     response::Redirect,
     routing::{get, get_service},
 };
@@ -22,6 +23,9 @@ use tonic::transport::Server;
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::{cors::CorsLayer, services::ServeDir};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+const OPENAPI_YAML: &str = include_str!("../openapi.yaml");
+const SWAGGER_UI_HTML: &str = include_str!("../static/swagger-ui.html");
 
 async fn run_http_server(
     state: Arc<AppState>,
@@ -80,6 +84,16 @@ async fn run_http_server(
                 render_template("search.html", PageContext::search())
             }),
         )
+        .route(
+            "/openapi.yaml",
+            get(|| async {
+                (
+                    [(CONTENT_TYPE, HeaderValue::from_static("application/yaml"))],
+                    OPENAPI_YAML,
+                )
+            }),
+        )
+        .route("/docs", get(|| async { Html(SWAGGER_UI_HTML) }))
         .nest_service("/static", static_files)
         .route(
             "/api/pageviews/category",
