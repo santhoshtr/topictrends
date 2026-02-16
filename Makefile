@@ -39,6 +39,9 @@ help:
 	@echo "  EDIT_SNAPSHOT - MediaWiki history dump version (defaults to 2026-01)"
 	@echo "  Example: make run DATE=2025-01-15"
 	@echo "  Example: make data/mlwiki/pageedits/pageedits.parquet EDIT_SNAPSHOT=2025-12"
+	@echo ""
+	@echo "Note: Page edits processing automatically handles both single-file and"
+	@echo "      multi-part dumps (e.g., arwiki with year-split files)."
 
 # Main run target
 run: init $(WIKIS)
@@ -113,13 +116,48 @@ $(DATA_DIR)/pageviews/%.parquet:
 		| $(CARGO_RELEASE)/get-pageviews $@ || { echo "Error downloading pageviews"; exit 1; }
 
 # Page edits from MediaWiki history dumps
+# Supports both single all-time file and multi-part dumps
 # Expands to data/mlwiki/pageedits/pageedits.parquet (example)
 $(DATA_DIR)/%/pageedits/pageedits.parquet:
 	@WIKI=$*; \
 	mkdir -p $$(dirname $@); \
-	URL="https://dumps.wikimedia.org/other/mediawiki_history/$(EDIT_SNAPSHOT)/$$WIKI/$(EDIT_SNAPSHOT).$$WIKI.all-time.tsv.bz2"; \
+	BASE_URL="https://dumps.wikimedia.org/other/mediawiki_history/$(EDIT_SNAPSHOT)/$$WIKI/"; \
+	TEMP_DIR="/tmp/topictrend-$$WIKI-pageedits-$$$$"; \
+	mkdir -p "$$TEMP_DIR"; \
 	echo "Processing page edits for $$WIKI from snapshot $(EDIT_SNAPSHOT)..."; \
-	curl -fsSL "$$URL" | bzip2 -dc | $(CARGO_RELEASE)/get-pageedits $$WIKI $@ || { echo "Error downloading/processing page edits for $$WIKI"; exit 1; }
+	echo "Downloading dump files from $$BASE_URL"; \
+	wget -r -l1 -np -nd -c -A "*.bz2" -P "$$TEMP_DIR" --show-progress -nv "$$BASE_URL" || { \
+		echo "Error downloading dump files for $$WIKI" >&2; \
+		rm -rf "$$TEMP_DIR"; \
+		exit 1; \
+	}; \
+	shopt -s nullglob; \
+	FILES=("$$TEMP_DIR"/*.bz2); \
+	if [ "$${#FILES[@]}" -eq 0 ]; then \
+		echo "No .bz2 files found at $$BASE_URL" >&2; \
+		rm -rf "$$TEMP_DIR"; \
+		exit 1; \
+	fi; \
+	TOTAL="$${#FILES[@]}"; \
+	echo "Found $$TOTAL dump file(s)"; \
+	i=0; \
+	{ \
+		for f in "$${FILES[@]}"; do \
+			i=$$((i+1)); \
+			echo "[$$i/$$TOTAL] Processing $$(basename "$$f")..." >&2; \
+			bzip2 -dc "$$f" || { \
+				echo "Error decompressing $$(basename "$$f")" >&2; \
+				rm -rf "$$TEMP_DIR"; \
+				exit 1; \
+			}; \
+		done; \
+	} | $(CARGO_RELEASE)/get-pageedits $$WIKI $@ || { \
+		echo "Error processing page edits for $$WIKI" >&2; \
+		rm -rf "$$TEMP_DIR"; \
+		exit 1; \
+	}; \
+	rm -rf "$$TEMP_DIR"; \
+	echo "Cleaned up temporary files from $$TEMP_DIR"
 
 # Wikipedia list
 $(DATA_DIR)/wikipedia.list: | $(DATA_DIR)
