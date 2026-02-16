@@ -11,7 +11,7 @@
 		width: 100%;
 
 		& .chart {
-			width: 100%;
+			width: 90vw;
 			max-width: calc(100vw - 2em);
 			height: 66dvh;
 			display: none;
