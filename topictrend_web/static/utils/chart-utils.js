@@ -108,7 +108,7 @@ export function updateChart(chartInstance, data, label) {
 			...existingOption.series,
 			{
 				name: label,
-				data: data.map((item) => item.views),
+				data: data.map((item) => item.views || item.edits),
 				type: "line",
 				smooth: true,
 			},
