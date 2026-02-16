@@ -3,29 +3,29 @@
   <nav>
     <ul class="header-nav">
       <li>
-        <button 
-          popovertarget="pageviews-menu" 
+        <button
+          popovertarget="pageviews-menu"
           class="nav-button {% if is_pageviews_active %}active{% endif %}"
           id="pageviews-anchor"
         >
           Page views <span class="chevron"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" width="16" height="16"><path d="M17,9.17a1,1,0,0,0-1.41,0L12,12.71,8.46,9.17a1,1,0,0,0-1.41,0,1,1,0,0,0,0,1.42l4.24,4.24a1,1,0,0,0,1.42,0L17,10.59A1,1,0,0,0,17,9.17Z" fill="currentColor"></path></svg></span>
         </button>
         <div popover id="pageviews-menu" class="nav-menu" anchor="pageviews-anchor">
-          <a href="/pageviews/trends" class="{% if is_trends_pageviews %}active{% endif %}">Trends</a>
-          <a href="/pageviews/delta" class="{% if is_delta_pageviews %}active{% endif %}">Delta</a>
+          <a href="/pageviews/trends" class="{% if is_trends_pageviews %}active{% endif %}">Topic-wise trends</a>
+          <a href="/pageviews/delta" class="{% if is_delta_pageviews %}active{% endif %}">Topics with major pageview shifts</a>
         </div>
       </li>
       <li>
-        <button 
-          popovertarget="pageedits-menu" 
+        <button
+          popovertarget="pageedits-menu"
           class="nav-button {% if is_pageedits_active %}active{% endif %}"
           id="pageedits-anchor"
         >
           Page edits <span class="chevron"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" width="16" height="16"><path d="M17,9.17a1,1,0,0,0-1.41,0L12,12.71,8.46,9.17a1,1,0,0,0-1.41,0,1,1,0,0,0,0,1.42l4.24,4.24a1,1,0,0,0,1.42,0L17,10.59A1,1,0,0,0,17,9.17Z" fill="currentColor"></path></svg></span>
         </button>
         <div popover id="pageedits-menu" class="nav-menu" anchor="pageedits-anchor">
-          <a href="/pageedits/trends" class="{% if is_trends_pageedits %}active{% endif %}">Trends</a>
-          <a href="/pageedits/delta" class="{% if is_delta_pageedits %}active{% endif %}">Delta</a>
+          <a href="/pageedits/trends" class="{% if is_trends_pageedits %}active{% endif %}">Topic-wise trends</a>
+          <a href="/pageedits/delta" title="Find out topics with major shifts in page edits over a time period" class="{% if is_delta_pageedits %}active{% endif %}">Topics with major edit shifts</a>
         </div>
       </li>
       <li>
