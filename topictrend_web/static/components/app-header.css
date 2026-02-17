@@ -9,6 +9,7 @@
 	background-color: var(--background-color-base);
 	border-bottom: var(--border-width-base) solid var(--border-color-subtle);
 	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+	gap: var(--spacing-lg, 1rem);
 }
 
 .header-title {
@@ -17,6 +18,16 @@
 	color: var(--color-base);
 	margin: 0;
 	white-space: nowrap;
+}
+
+.header-wiki-selector {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-sm, 0.5rem);
+}
+
+.header-wiki-selector .cdx-select {
+	min-width: 150px;
 }
 
 .header-nav {

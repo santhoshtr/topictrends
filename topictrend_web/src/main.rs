@@ -9,7 +9,7 @@ use crate::grpc_service::{
     TopicTrendGrpcService, topictrend_proto::topic_trend_service_server::TopicTrendServiceServer,
 };
 use crate::models::AppState;
-use crate::templates::{render_template, PageContext};
+use crate::templates::{PageContext, render_template};
 use axum::http::header::{CACHE_CONTROL, HeaderValue};
 use axum::{
     Router,
@@ -46,9 +46,7 @@ async fn run_http_server(
     let app = Router::new()
         .route(
             "/",
-            get(|| async {
-                render_template("index.html", PageContext::home())
-            }),
+            get(|| async { render_template("index.html", PageContext::home()) }),
         )
         .route(
             "/pageviews/trends",
@@ -58,9 +56,7 @@ async fn run_http_server(
         )
         .route(
             "/pageviews/delta",
-            get(|| async {
-                render_template("pageview-delta.html", PageContext::pageview_delta())
-            }),
+            get(|| async { render_template("pageview-delta.html", PageContext::pageview_delta()) }),
         )
         .route(
             "/pageedits/trends",
@@ -70,9 +66,7 @@ async fn run_http_server(
         )
         .route(
             "/pageedits/delta",
-            get(|| async {
-                render_template("pageedit-delta.html", PageContext::pageedit_delta())
-            }),
+            get(|| async { render_template("pageedit-delta.html", PageContext::pageedit_delta()) }),
         )
         .route(
             "/delta",
@@ -80,9 +74,7 @@ async fn run_http_server(
         )
         .route(
             "/search",
-            get(|| async {
-                render_template("search.html", PageContext::search())
-            }),
+            get(|| async { render_template("search.html", PageContext::search()) }),
         )
         .route(
             "/openapi.yaml",

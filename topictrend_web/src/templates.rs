@@ -37,6 +37,7 @@ pub struct PageContext {
     pub is_delta_pageviews: bool,
     pub is_trends_pageedits: bool,
     pub is_delta_pageedits: bool,
+    pub form_id: Option<String>,
 }
 
 impl PageContext {
@@ -50,6 +51,7 @@ impl PageContext {
             is_delta_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
+            form_id: None,
         }
     }
 
@@ -63,6 +65,7 @@ impl PageContext {
             is_delta_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
+            form_id: Some("trend-form".to_string()),
         }
     }
 
@@ -76,6 +79,7 @@ impl PageContext {
             is_delta_pageviews: true,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
+            form_id: Some("delta-form".to_string()),
         }
     }
 
@@ -89,6 +93,7 @@ impl PageContext {
             is_delta_pageviews: false,
             is_trends_pageedits: true,
             is_delta_pageedits: false,
+            form_id: Some("trend-form".to_string()),
         }
     }
 
@@ -102,6 +107,7 @@ impl PageContext {
             is_delta_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: true,
+            form_id: Some("delta-form".to_string()),
         }
     }
 
@@ -115,6 +121,7 @@ impl PageContext {
             is_delta_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
+            form_id: Some("search-form".to_string()),
         }
     }
 }
@@ -132,6 +139,7 @@ pub fn render_template(
     context.insert("is_delta_pageviews", &page_context.is_delta_pageviews);
     context.insert("is_trends_pageedits", &page_context.is_trends_pageedits);
     context.insert("is_delta_pageedits", &page_context.is_delta_pageedits);
+    context.insert("form_id", &page_context.form_id);
 
     TEMPLATES
         .render(template_name, &context)
