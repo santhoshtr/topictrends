@@ -129,60 +129,64 @@ $(DATA_DIR)/%/pageedits/pageedits.parquet:
 	TEMP_DIR="/tmp/topictrend-$$WIKI-pageedits-$$$$"; \
 	mkdir -p "$$TEMP_DIR"; \
 	echo "Processing page edits for $$WIKI from snapshot $(EDIT_SNAPSHOT)..."; \
-	echo "Downloading dump files from $$BASE_URL"; \
-	wget -r -l1 -np -nd -c -A "*.bz2" -P "$$TEMP_DIR" --show-progress -nv "$$BASE_URL" || { \
-		echo "Error downloading dump files for $$WIKI" >&2; \
+	echo "Fetching file list from $$BASE_URL"; \
+	FILELIST="$$TEMP_DIR/filelist.txt"; \
+	wget -q -O - "$$BASE_URL" | grep -oP 'href="\K[^"]*\.bz2(?=")' > "$$FILELIST" || { \
+		echo "Error fetching file list from $$BASE_URL" >&2; \
 		rm -rf "$$TEMP_DIR"; \
 		exit 1; \
 	}; \
-	shopt -s nullglob; \
-	FILES=("$$TEMP_DIR"/*.bz2); \
-	if [ "$${#FILES[@]}" -eq 0 ]; then \
+	if [ ! -s "$$FILELIST" ]; then \
 		echo "No .bz2 files found at $$BASE_URL" >&2; \
 		rm -rf "$$TEMP_DIR"; \
 		exit 1; \
 	fi; \
-	FILTERED_FILES=(); \
+	echo "Filtering files by year (MIN_EDIT_YEAR=$(MIN_EDIT_YEAR))..."; \
+	FILTERED_LIST="$$TEMP_DIR/filtered.txt"; \
 	SKIPPED=0; \
-	for file in "$${FILES[@]}"; do \
-		basename="$$(basename "$$file")"; \
-		year_part="$$(echo "$$basename" | cut -d'.' -f3)"; \
+	while IFS= read -r filename; do \
+		year_part="$$(echo "$$filename" | cut -d'.' -f3)"; \
 		if [ "$$year_part" = "all-time" ]; then \
-			FILTERED_FILES+=("$$file"); \
+			echo "$$filename" >> "$$FILTERED_LIST"; \
 		else \
 			year="$${year_part:0:4}"; \
 			if [[ "$$year" =~ ^[0-9]{4}$$ ]] && [ "$$year" -ge "$(MIN_EDIT_YEAR)" ]; then \
-				FILTERED_FILES+=("$$file"); \
+				echo "$$filename" >> "$$FILTERED_LIST"; \
 			else \
 				SKIPPED=$$((SKIPPED+1)); \
-				echo "Skipping $$basename (year $$year < $(MIN_EDIT_YEAR))" >&2; \
 			fi; \
 		fi; \
-	done; \
-	FILES=("$${FILTERED_FILES[@]}"); \
-	if [ "$${#FILES[@]}" -eq 0 ]; then \
+	done < "$$FILELIST"; \
+	if [ ! -s "$$FILTERED_LIST" ]; then \
 		echo "No files remain after year filtering (MIN_EDIT_YEAR=$(MIN_EDIT_YEAR))" >&2; \
 		rm -rf "$$TEMP_DIR"; \
 		exit 1; \
 	fi; \
 	if [ "$$SKIPPED" -gt 0 ]; then \
-		echo "Skipped $$SKIPPED file(s) before year $(MIN_EDIT_YEAR)" >&2; \
+		echo "Skipped $$SKIPPED file(s) before year $(MIN_EDIT_YEAR)"; \
 	fi; \
-	TOTAL="$${#FILES[@]}"; \
-	echo "Found $$TOTAL dump file(s) to process"; \
+	TOTAL=$$(wc -l < "$$FILTERED_LIST"); \
+	echo "Found $$TOTAL dump file(s) to download and process"; \
 	i=0; \
 	{ \
-		for f in "$${FILES[@]}"; do \
+		while IFS= read -r filename; do \
 			i=$$((i+1)); \
-			echo "[$$i/$$TOTAL] Processing $$(basename "$$f")..." >&2; \
-			bzip2 -dc "$$f" || { \
-				echo "Error decompressing $$(basename "$$f")" >&2; \
+			echo "[$$i/$$TOTAL] Downloading $$filename..." >&2; \
+			FILE_PATH="$$TEMP_DIR/$$filename"; \
+			wget -q --show-progress -O "$$FILE_PATH" "$$BASE_URL$$filename" || { \
+				echo "Error downloading $$filename" >&2; \
 				rm -rf "$$TEMP_DIR"; \
 				exit 1; \
 			}; \
-			rm -f "$$f"; \
-			echo "Deleted $$(basename "$$f") to free disk space" >&2; \
-		done; \
+			echo "[$$i/$$TOTAL] Decompressing $$filename..." >&2; \
+			bzip2 -dc "$$FILE_PATH" || { \
+				echo "Error decompressing $$filename" >&2; \
+				rm -rf "$$TEMP_DIR"; \
+				exit 1; \
+			}; \
+			rm -f "$$FILE_PATH"; \
+			echo "Deleted $$filename to free disk space" >&2; \
+		done < "$$FILTERED_LIST"; \
 	} | $(CARGO_RELEASE)/get-pageedits $$WIKI $@ || { \
 		echo "Error processing page edits for $$WIKI" >&2; \
 		rm -rf "$$TEMP_DIR"; \
