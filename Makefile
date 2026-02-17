@@ -18,6 +18,7 @@ WIKIS := $(shell cat $(DATA_DIR)/wikipedia.list 2>/dev/null)
 QUERIES_DIR := queries
 PAGEVIEWS_DIR := $(DATA_DIR)/pageviews
 EDIT_SNAPSHOT ?= 2026-01
+MIN_EDIT_YEAR ?= 2020
 
 .DEFAULT_GOAL := run
 
@@ -37,11 +38,14 @@ help:
 	@echo "Environment variables:"
 	@echo "  DATE          - Date to process (YYYY-MM-DD format, defaults to yesterday)"
 	@echo "  EDIT_SNAPSHOT - MediaWiki history dump version (defaults to 2026-01)"
+	@echo "  MIN_EDIT_YEAR - Minimum year for page edit files (defaults to 2020)"
 	@echo "  Example: make run DATE=2025-01-15"
 	@echo "  Example: make data/mlwiki/pageedits/pageedits.parquet EDIT_SNAPSHOT=2025-12"
+	@echo "  Example: make data/arwiki/pageedits/pageedits.parquet MIN_EDIT_YEAR=2015"
 	@echo ""
 	@echo "Note: Page edits processing automatically handles both single-file and"
 	@echo "      multi-part dumps (e.g., arwiki with year-split files)."
+	@echo "      Files with 'all-time' are always processed regardless of MIN_EDIT_YEAR."
 
 # Main run target
 run: init $(WIKIS)
@@ -138,8 +142,34 @@ $(DATA_DIR)/%/pageedits/pageedits.parquet:
 		rm -rf "$$TEMP_DIR"; \
 		exit 1; \
 	fi; \
+	FILTERED_FILES=(); \
+	SKIPPED=0; \
+	for file in "$${FILES[@]}"; do \
+		basename="$$(basename "$$file")"; \
+		year_part="$$(echo "$$basename" | cut -d'.' -f3)"; \
+		if [ "$$year_part" = "all-time" ]; then \
+			FILTERED_FILES+=("$$file"); \
+		else \
+			year="$${year_part:0:4}"; \
+			if [[ "$$year" =~ ^[0-9]{4}$$ ]] && [ "$$year" -ge "$(MIN_EDIT_YEAR)" ]; then \
+				FILTERED_FILES+=("$$file"); \
+			else \
+				SKIPPED=$$((SKIPPED+1)); \
+				echo "Skipping $$basename (year $$year < $(MIN_EDIT_YEAR))" >&2; \
+			fi; \
+		fi; \
+	done; \
+	FILES=("$${FILTERED_FILES[@]}"); \
+	if [ "$${#FILES[@]}" -eq 0 ]; then \
+		echo "No files remain after year filtering (MIN_EDIT_YEAR=$(MIN_EDIT_YEAR))" >&2; \
+		rm -rf "$$TEMP_DIR"; \
+		exit 1; \
+	fi; \
+	if [ "$$SKIPPED" -gt 0 ]; then \
+		echo "Skipped $$SKIPPED file(s) before year $(MIN_EDIT_YEAR)" >&2; \
+	fi; \
 	TOTAL="$${#FILES[@]}"; \
-	echo "Found $$TOTAL dump file(s)"; \
+	echo "Found $$TOTAL dump file(s) to process"; \
 	i=0; \
 	{ \
 		for f in "$${FILES[@]}"; do \
