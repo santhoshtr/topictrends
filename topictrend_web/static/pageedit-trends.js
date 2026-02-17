@@ -1,5 +1,6 @@
 import { autocomp } from "./autocomp.js";
 import { initializeChart, updateChart } from "./utils/chart-utils.js";
+import { hideProgress, showProgress } from "./utils/progress-bar.js";
 import { showMessage } from "./utils/ui-utils.js";
 import { populateWikiDropdown } from "./utils/wiki-utils.js";
 
@@ -122,52 +123,57 @@ async function renderSubCategories(wiki, category, depth = 4) {
 	const categoryListContainer = document.getElementById("category-list");
 	const apiUrl = `/api/list/sub_categories?wiki=${wiki}&category=${category}`;
 
-	const response = await fetch(apiUrl);
-	const subcategories = await response.json();
-	if (!response.ok) {
-		throw new Error("Failed to fetch data");
-	}
+	try {
+		showProgress();
+		const response = await fetch(apiUrl);
+		const subcategories = await response.json();
+		if (!response.ok) {
+			throw new Error("Failed to fetch data");
+		}
 
-	categoryListContainer.innerHTML = "";
+		categoryListContainer.innerHTML = "";
 
-	const subheading = document.createElement("h3");
-	subheading.textContent = "Subcategories";
-	categoryListContainer.appendChild(subheading);
+		const subheading = document.createElement("h3");
+		subheading.textContent = "Subcategories";
+		categoryListContainer.appendChild(subheading);
 
-	const ul = document.createElement("ul");
-	Object.entries(subcategories).forEach(([qid, title]) => {
-		const li = document.createElement("li");
-		li.id = qid;
+		const ul = document.createElement("ul");
+		Object.entries(subcategories).forEach(([qid, title]) => {
+			const li = document.createElement("li");
+			li.id = qid;
 
-		const wikiCategory = document.createElement("wiki-category");
-		wikiCategory.setAttribute("title", title);
-		wikiCategory.setAttribute("qid", qid);
-		wikiCategory.setAttribute("views", "0");
+			const wikiCategory = document.createElement("wiki-category");
+			wikiCategory.setAttribute("title", title);
+			wikiCategory.setAttribute("qid", qid);
+			wikiCategory.setAttribute("views", "0");
 
-		const plotButton = document.createElement("button");
-		plotButton.title = "Plot page edits for this category";
-		plotButton.className = "plot-button";
-		plotButton.innerHTML = `
+			const plotButton = document.createElement("button");
+			plotButton.title = "Plot page edits for this category";
+			plotButton.className = "plot-button";
+			plotButton.innerHTML = `
       <svg xmlns="http://www.w3.org/2000/svg" 
         height="16px" viewBox="0 -960 960 960"
         width="16px" fill="currentColor">
       <path d="m140-220-60-60 300-300 160 160 284-320 56 56-340 384-160-160-240 240Z"/>
       </svg>
       `;
-		plotButton.addEventListener("click", (event) => {
-			event.preventDefault();
-			const startDate = document.getElementById("start_date").value;
-			const endDate = document.getElementById("end_date").value;
+			plotButton.addEventListener("click", (event) => {
+				event.preventDefault();
+				const startDate = document.getElementById("start_date").value;
+				const endDate = document.getElementById("end_date").value;
 
-			fetchCategoryPageEdits(wiki, title, startDate, endDate, depth);
+				fetchCategoryPageEdits(wiki, title, startDate, endDate, depth);
+			});
+
+			li.appendChild(wikiCategory);
+			li.appendChild(plotButton);
+			ul.appendChild(li);
 		});
 
-		li.appendChild(wikiCategory);
-		li.appendChild(plotButton);
-		ul.appendChild(li);
-	});
-
-	categoryListContainer.appendChild(ul);
+		categoryListContainer.appendChild(ul);
+	} finally {
+		hideProgress();
+	}
 }
 
 function renderTopArticles(wiki, topArticles) {
@@ -232,6 +238,7 @@ async function fetchCategoryPageEdits(
 	const label = `Category: ${wiki} - ${category.replaceAll("_", " ")}`;
 
 	try {
+		showProgress();
 		const startTime = performance.now();
 		const response = await fetch(apiUrl);
 		if (!response.ok) {
@@ -250,6 +257,8 @@ async function fetchCategoryPageEdits(
 	} catch (error) {
 		console.error("Error:", error);
 		showMessage("Failed to fetch category data. Please try again.", "error");
+	} finally {
+		hideProgress();
 	}
 }
 
@@ -262,6 +271,7 @@ async function fetchArticlePageEdits(wiki, article, startDate, endDate) {
 	const label = `Article: ${wiki} - ${article.replaceAll("_", " ")}`;
 
 	try {
+		showProgress();
 		const startTime = performance.now();
 		const response = await fetch(apiUrl);
 		if (!response.ok) {
@@ -276,6 +286,8 @@ async function fetchArticlePageEdits(wiki, article, startDate, endDate) {
 	} catch (error) {
 		console.error("Error:", error);
 		showMessage("Failed to fetch article data. Please try again.", "error");
+	} finally {
+		hideProgress();
 	}
 }
 

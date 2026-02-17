@@ -3,6 +3,7 @@ import {
 	renderCategoryAccordions as renderBaseAccordions,
 } from "./utils/accordion-utils.js";
 import { formatDateToISO } from "./utils/date-utils.js";
+import { hideProgress, showProgress } from "./utils/progress-bar.js";
 import { showMessage } from "./utils/ui-utils.js";
 import { buildWikipediaUrl, populateWikiDropdown } from "./utils/wiki-utils.js";
 
@@ -98,6 +99,7 @@ async function fetchDeltaData(
 	const API_URL = `https://topictrends.wmcloud.org/api/pageedits/delta/categories?${params.toString()}`;
 
 	try {
+		showProgress();
 		const response = await fetch(API_URL);
 		if (!response.ok) {
 			throw new Error(`HTTP error! status: ${response.status}`);
@@ -107,6 +109,8 @@ async function fetchDeltaData(
 	} catch (error) {
 		console.error("Error fetching data:", error);
 		showMessage(`Error loading data: ${error.message}`, "error");
+	} finally {
+		hideProgress();
 	}
 }
 
@@ -134,6 +138,7 @@ async function fetchArticleDeltaData(
 	const API_URL = `https://topictrends.wmcloud.org/api/pageedits/delta/articles?${params.toString()}`;
 
 	try {
+		showProgress();
 		const response = await fetch(API_URL);
 		if (!response.ok) {
 			throw new Error(`HTTP error! status: ${response.status}`);
@@ -143,6 +148,8 @@ async function fetchArticleDeltaData(
 	} catch (error) {
 		console.error("Error fetching articles data:", error);
 		showMessage(`Error loading articles data: ${error.message}`, "error");
+	} finally {
+		hideProgress();
 	}
 }
 

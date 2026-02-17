@@ -1,4 +1,5 @@
 import { initializeChart, updateChart } from "./utils/chart-utils.js";
+import { hideProgress, showProgress } from "./utils/progress-bar.js";
 import { showMessage } from "./utils/ui-utils.js";
 import { populateWikiDropdown } from "./utils/wiki-utils.js";
 
@@ -101,6 +102,7 @@ async function fetchCategoryPageviews(
 	const label = `Category: ${wiki} - ${category.replaceAll("_", " ")}`;
 
 	try {
+		showProgress();
 		const startTime = performance.now();
 		const response = await fetch(apiUrl);
 		if (!response.ok) {
@@ -121,6 +123,8 @@ async function fetchCategoryPageviews(
 	} catch (error) {
 		console.error("Error:", error);
 		showMessage("Failed to fetch category data. Please try again.", "error");
+	} finally {
+		hideProgress();
 	}
 }
 
@@ -229,6 +233,7 @@ async function searchCategory(wiki, query, match_threshold) {
 	)}&match_threshold=${match_threshold}`;
 
 	try {
+		showProgress();
 		const startTime = performance.now();
 		const response = await fetch(apiUrl);
 		if (!response.ok) {
@@ -243,6 +248,8 @@ async function searchCategory(wiki, query, match_threshold) {
 	} catch (error) {
 		console.error("Error:", error);
 		showMessage("Failed to fetch category data. Please try again.", "error");
+	} finally {
+		hideProgress();
 	}
 }
 
@@ -250,6 +257,7 @@ async function listArticles(wiki, category_qid) {
 	const apiUrl = `/api/list/articles?wiki=${wiki}&category_qid=${category_qid}`;
 
 	try {
+		showProgress();
 		const startTime = performance.now();
 		const response = await fetch(apiUrl);
 		if (!response.ok) {
@@ -268,6 +276,8 @@ async function listArticles(wiki, category_qid) {
 		console.error("Error:", error);
 		showMessage("Failed to fetch articles. Please try again.", "error");
 		throw error;
+	} finally {
+		hideProgress();
 	}
 }
 

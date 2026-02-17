@@ -2,12 +2,15 @@
  * Wikipedia and wiki-related utilities
  */
 
+import { hideProgress, showProgress } from "./progress-bar.js";
+
 /**
  * Populate the wiki dropdown with available wikis from wikis.json
  * @returns {Promise<void>}
  */
 export async function populateWikiDropdown() {
 	try {
+		showProgress();
 		const response = await fetch("/static/wikis.json");
 		if (!response.ok) {
 			throw new Error(`HTTP error! status: ${response.status}`);
@@ -30,6 +33,8 @@ export async function populateWikiDropdown() {
 	} catch (error) {
 		console.error("Failed to load wiki list:", error);
 		console.log("📋 Using fallback wiki list");
+	} finally {
+		hideProgress();
 	}
 }
 

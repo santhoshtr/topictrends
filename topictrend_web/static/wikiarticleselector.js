@@ -1,4 +1,5 @@
 import { autocomp } from "./autocomp.js";
+import { hideProgress, showProgress } from "./utils/progress-bar.js";
 
 class WikiArticleSelector extends HTMLElement {
 	constructor() {
@@ -94,6 +95,7 @@ class WikiArticleSelector extends HTMLElement {
 
 	async searchWikipediaTitles(language, query) {
 		try {
+			showProgress();
 			const response = await fetch(
 				`https://${language}.wikipedia.org/w/api.php?action=query&list=prefixsearch&psprofile=fuzzy&pssearch=${encodeURIComponent(query)}&limit=10&origin=*&format=json`,
 			);
@@ -107,6 +109,8 @@ class WikiArticleSelector extends HTMLElement {
 		} catch (error) {
 			console.error("Error searching Wikipedia titles:", error);
 			return [];
+		} finally {
+			hideProgress();
 		}
 	}
 

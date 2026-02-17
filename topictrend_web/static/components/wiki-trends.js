@@ -1,4 +1,7 @@
 const styleURL = new URL("./wiki-trends.css", import.meta.url);
+
+import { hideProgress, showProgress } from "../utils/progress-bar.js";
+
 class TopicTrends extends HTMLElement {
 	constructor() {
 		super();
@@ -40,6 +43,7 @@ class TopicTrends extends HTMLElement {
 		this.render();
 
 		try {
+			showProgress();
 			let url = `https://topictrends.wmcloud.org/api/list/top_categories?wiki=${this.wiki}&top_n=50`;
 
 			if (this.start_date) {
@@ -105,6 +109,7 @@ class TopicTrends extends HTMLElement {
 			this.error = error.message;
 		} finally {
 			this.loading = false;
+			hideProgress();
 			this.render();
 		}
 	}

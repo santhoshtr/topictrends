@@ -1,4 +1,5 @@
 import { autocomp } from "./autocomp.js";
+import { hideProgress, showProgress } from "./utils/progress-bar.js";
 
 class WikiCategorySelector extends HTMLElement {
 	constructor() {
@@ -91,6 +92,7 @@ class WikiCategorySelector extends HTMLElement {
 
 	async searchWikipediaCategories(language, query) {
 		try {
+			showProgress();
 			const response = await fetch(
 				`https://${language}.wikipedia.org/w/api.php?action=query&list=prefixsearch&psnamespace=14&psprofile=fuzzy&pssearch=${encodeURIComponent(query)}&limit=10&origin=*&format=json`,
 			);
@@ -106,6 +108,8 @@ class WikiCategorySelector extends HTMLElement {
 		} catch (error) {
 			console.error("Error searching Wikipedia categories:", error);
 			return [];
+		} finally {
+			hideProgress();
 		}
 	}
 
