@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@wikimedia/codex-design-tokens/theme-wikimedia-ui-mode-dark.css" media="(prefers-color-scheme: dark)">
   <link rel="stylesheet" href="https://tools-static.wmflabs.org/cdnjs/ajax/libs/codex/1.19.1/codex.style.css">
   <link rel="stylesheet" href="/static/components/app-header.css">
+  <link rel="stylesheet" href="/static/components/progress-bar.css">
   {% block extra_css %}{% endblock %}
 </head>
 
@@ -19,6 +20,7 @@
   
   {% block content %}{% endblock %}
 
+  <script type="module" src="/static/utils/progress-bar.js"></script>
   {% block extra_js %}{% endblock %}
 </body>
 

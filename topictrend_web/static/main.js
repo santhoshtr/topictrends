@@ -1,5 +1,6 @@
 import { autocomp } from "./autocomp.js";
 import { initializeChart, updateChart } from "./utils/chart-utils.js";
+import { hideProgress, showProgress } from "./utils/progress-bar.js";
 import { showMessage } from "./utils/ui-utils.js";
 import { populateWikiDropdown } from "./utils/wiki-utils.js";
 
@@ -122,8 +123,10 @@ async function renderSubCategories(wiki, category, depth = 4) {
 	const categoryListContainer = document.getElementById("category-list");
 	const apiUrl = `/api/list/sub_categories?wiki=${wiki}&category=${category}`;
 
+	showProgress();
 	const response = await fetch(apiUrl);
 	const subcategories = await response.json();
+	hideProgress();
 	if (!response.ok) {
 		throw new Error("Failed to fetch data");
 	}
@@ -233,12 +236,14 @@ async function fetchCategoryPageviews(
 
 	try {
 		const startTime = performance.now();
+		showProgress();
 		const response = await fetch(apiUrl);
 		if (!response.ok) {
 			throw new Error("Failed to fetch data");
 		}
 
 		const data = await response.json();
+		hideProgress();
 		updateChartWithData(data.views, label);
 		const endTime = performance.now();
 		const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
@@ -248,6 +253,7 @@ async function fetchCategoryPageviews(
 			renderTopArticles(wiki, data.top_articles);
 		}
 	} catch (error) {
+		hideProgress();
 		console.error("Error:", error);
 		showMessage("Failed to fetch category data. Please try again.", "error");
 	}
@@ -263,17 +269,20 @@ async function fetchArticlePageviews(wiki, article, startDate, endDate) {
 
 	try {
 		const startTime = performance.now();
+		showProgress();
 		const response = await fetch(apiUrl);
 		if (!response.ok) {
 			throw new Error("Failed to fetch data");
 		}
 
 		const data = await response.json();
+		hideProgress();
 		updateChartWithData(data.views, label);
 		const endTime = performance.now();
 		const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
 		showMessage(`Fetched ${label} in ${timeTaken} seconds.`, "success");
 	} catch (error) {
+		hideProgress();
 		console.error("Error:", error);
 		showMessage("Failed to fetch article data. Please try again.", "error");
 	}
