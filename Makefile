@@ -149,6 +149,8 @@ $(DATA_DIR)/%/pageedits/pageedits.parquet:
 				rm -rf "$$TEMP_DIR"; \
 				exit 1; \
 			}; \
+			rm -f "$$f"; \
+			echo "Deleted $$(basename "$$f") to free disk space" >&2; \
 		done; \
 	} | $(CARGO_RELEASE)/get-pageedits $$WIKI $@ || { \
 		echo "Error processing page edits for $$WIKI" >&2; \
