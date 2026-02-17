@@ -61,7 +61,8 @@ $(WIKIS): %: \
 	$(DATA_DIR)/%/categories.parquet \
 	$(DATA_DIR)/%/article_category.parquet \
 	$(DATA_DIR)/%/category_graph.parquet \
-	$(DATA_DIR)/%/pageviews/$(YEAR)/$(MONTH)/$(DAY).bin
+	$(DATA_DIR)/%/pageviews/$(YEAR)/$(MONTH)/$(DAY).bin \
+	$(DATA_DIR)/%/pageedits/pageedits.parquet
 
 # Helper function for database queries
 dbquery = mariadb --quick --host $*.analytics.db.svc.wikimedia.cloud --database $*_p
