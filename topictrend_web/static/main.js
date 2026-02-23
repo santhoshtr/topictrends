@@ -342,7 +342,7 @@ function populateFormFromQueryParams() {
 document.addEventListener("DOMContentLoaded", () => {
 	const loadButton = document.getElementById("wikitrends-btn");
 
-	loadButton.addEventListener("click", () => {
+	loadButton?.addEventListener("click", () => {
 		showSection("wiki-trends");
 
 		let topicTrends = document.querySelector("wiki-trends");
