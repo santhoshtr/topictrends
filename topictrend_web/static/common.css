@@ -213,7 +213,12 @@
 			height: 66dvh;
 			display: none;
 		}
-
+		& .examples {
+			max-width: 80ch;
+			place-items: start;
+			padding: 1em;
+			line-height: 2;
+		}
 		& footer {
 			align-self: end;
 		}

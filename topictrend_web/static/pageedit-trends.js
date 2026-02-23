@@ -55,6 +55,8 @@ function showSection(section) {
 async function onSubmit(event) {
 	event.preventDefault();
 
+	document.querySelector(".examples").hidden = true;
+
 	const params = new URLSearchParams();
 	const type = document.querySelector('input[name="type"]:checked').value;
 	const wiki = document.getElementById("wiki").value;
@@ -335,6 +337,8 @@ function populateFormFromQueryParams() {
 
 	if (type && wiki && startDate && endDate) {
 		onSubmit(new Event("submit"));
+	} else {
+		document.querySelector(".examples").hidden = false;
 	}
 }
 

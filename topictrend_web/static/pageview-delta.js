@@ -25,6 +25,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function onSubmit(event) {
 	event.preventDefault();
 
+	document.querySelector(".examples").hidden = true;
+
 	const params = new URLSearchParams();
 	const wiki = document.getElementById("wiki").value;
 	const baselineStartDate = document.getElementById(
@@ -540,6 +542,8 @@ function populateFormFromQueryParams() {
 	if (wiki) {
 		document.getElementById("wiki").value = wiki;
 		onSubmit(new Event("submit"));
+	} else {
+		document.querySelector(".examples").hidden = false;
 	}
 }
 

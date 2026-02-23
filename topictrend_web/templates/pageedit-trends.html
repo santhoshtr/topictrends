@@ -50,7 +50,23 @@
     <section id="category-list"></section>
 
   </div>
-  <div class="main">
+  <div class="main">    <section class="examples" hidden>
+  <h2>Examples</h2>
+         <ul>
+           <li><a href="/pageviews/trends?type=category&wiki=enwiki&start_date=2026-01-01&end_date=2026-02-23&depth=4&category=Winter_olympics_2026">
+               Plot the English wikipedia pageviews for "Winter olympics 2026" between Jan 1st 2026 to Feb 2026.
+             </a>. Note that there is no English Wikipedia category named exactly "Winter olympics 2026". This illustrates how semantic queries works.
+           </li>
+           <li><a href="/pageviews/trends?type=category&wiki=frwiki&start_date=2026-01-23&end_date=2026-02-23&depth=4&category=Winter_olympics_2026">
+               Plot the French wikipedia pageviews for "Winter olympics 2026" between Jan 1st 2026 to Feb 2026.
+             </a>. Note that there is no French Wikipedia category named "Winter olympics 2026". In French it should have been "Jeux olympiques d'hiver de 2026". This illustrates how cross-language queries works.
+           </li>
+           <li><a href="https://topictrends.wmcloud.org/pageviews/trends?type=article&wiki=enwiki&start_date=2026-01-01&end_date=2026-02-23&depth=4&article=Eileen_Gu">
+               Plot the pageviews of "Eileen Gu" article in English for a given time period.
+             </a>
+           </li>
+         </ul>
+</section>
     <div id="chart" class="chart"></div>
     <section id="top-articles"></section>
     <footer>
