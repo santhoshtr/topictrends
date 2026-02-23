@@ -25,6 +25,43 @@ pub struct ArticleEditRank {
 }
 
 impl PageEditsService {
+    async fn resolve_category_qid_or_search(
+        state: Arc<AppState>,
+        wiki: &str,
+        category: &str,
+        depth: Option<u32>,
+        start_date: Option<NaiveDate>,
+        end_date: Option<NaiveDate>,
+    ) -> Result<CategoryEditTrendResult, CoreServiceError> {
+        let limit = 1000u64;
+        let match_threshold = 0.6;
+
+        let search_results =
+            topictrend_taxonomy::search(category.to_string(), "enwiki".to_string(), limit)
+                .await
+                .map_err(|e| {
+                    CoreServiceError::InternalError(format!("Taxonomy search failed: {}", e))
+                })?;
+
+        let category_qid = search_results
+            .into_iter()
+            .filter(|result| result.score >= match_threshold)
+            .map(|result| result.qid)
+            .next()
+            .ok_or(CoreServiceError::NotFound)?;
+
+        Box::pin(Self::get_category_edit_trend(
+            state,
+            wiki,
+            category,
+            Some(category_qid),
+            depth,
+            start_date,
+            end_date,
+        ))
+        .await
+    }
+
     pub async fn get_category_edit_trend(
         state: Arc<AppState>,
         wiki: &str,
@@ -42,7 +79,20 @@ impl PageEditsService {
         let category_qid = if let Some(qid) = category_qid {
             qid
         } else {
-            QidService::get_qid_by_title(Arc::clone(&state), wiki, category, 14).await?
+            match QidService::get_qid_by_title(Arc::clone(&state), wiki, category, 14).await {
+                Ok(qid) => qid,
+                Err(_) => {
+                    return Self::resolve_category_qid_or_search(
+                        Arc::clone(&state),
+                        wiki,
+                        category,
+                        Some(depth),
+                        start_date,
+                        end_date,
+                    )
+                    .await;
+                }
+            }
         };
 
         // Get raw pageedit data
