@@ -8,30 +8,40 @@ use serde::{Deserialize, Serialize};
 use sqlx::{MySql, Pool};
 use topictrend::pageedits_engine::PageEditsEngine;
 use topictrend::pageview_engine::PageViewEngine;
+use topictrend::wikigraph::WikiGraph;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MetricType {
     PageView,
     PageEdit,
+    Graph,
 }
 
 pub enum MetricEngine {
     PageView(Arc<RwLock<PageViewEngine>>),
     PageEdit(Arc<RwLock<PageEditsEngine>>),
+    Graph(Arc<RwLock<WikiGraph>>),
 }
 
 impl MetricEngine {
     pub fn as_pageview(&self) -> Option<&Arc<RwLock<PageViewEngine>>> {
         match self {
             MetricEngine::PageView(engine) => Some(engine),
-            MetricEngine::PageEdit(_) => None,
+            MetricEngine::PageEdit(_) | MetricEngine::Graph(_) => None,
         }
     }
 
     pub fn as_pageedit(&self) -> Option<&Arc<RwLock<PageEditsEngine>>> {
         match self {
             MetricEngine::PageEdit(engine) => Some(engine),
-            MetricEngine::PageView(_) => None,
+            MetricEngine::PageView(_) | MetricEngine::Graph(_) => None,
+        }
+    }
+
+    pub fn as_graph(&self) -> Option<&Arc<RwLock<WikiGraph>>> {
+        match self {
+            MetricEngine::Graph(engine) => Some(engine),
+            MetricEngine::PageView(_) | MetricEngine::PageEdit(_) => None,
         }
     }
 }
