@@ -107,12 +107,14 @@
 	position-anchor: --pageviews-anchor;
 	position-area: block-end;
 	margin-block-start: var(--spacing-xs, 0.25rem);
+	left: calc(anchor(left) + 0.5em);
 }
 
 .nav-menu[anchor="pageedits-anchor"] {
 	position-anchor: --pageedits-anchor;
 	position-area: block-end;
 	margin-block-start: var(--spacing-xs, 0.25rem);
+	left: calc(anchor(left) + 0.5em);
 }
 
 /* Fallback for browsers without anchor positioning */
