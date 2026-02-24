@@ -341,6 +341,15 @@ pub struct ListArticlesInCategoryParams {
     pub category_qid: Option<u32>,
 }
 
+#[derive(Deserialize)]
+pub struct ContentGapParams {
+    pub category: Option<String>,
+    pub category_qid: Option<u32>,
+    pub wikis: String,
+    pub depth: Option<u32>,
+    pub include_articles: Option<bool>,
+}
+
 #[derive(Serialize)]
 pub struct ArticlesInCategoryResponse {
     pub articles: Vec<ArticleItem>,
@@ -350,4 +359,29 @@ pub struct ArticlesInCategoryResponse {
 pub struct ArticleItem {
     pub qid: u32,
     pub title: String,
+}
+
+#[derive(Serialize)]
+pub struct ContentGapWikiResult {
+    pub wiki: String,
+    pub article_count: usize,
+    pub article_qids: Vec<u32>,
+    pub articles: Option<Vec<ArticleItem>>,
+}
+
+#[derive(Serialize)]
+pub struct ContentGapMissingResult {
+    pub count: usize,
+    pub article_qids: Vec<u32>,
+}
+
+#[derive(Serialize)]
+pub struct ContentGapResult {
+    pub category: String,
+    pub category_qid: u32,
+    pub depth: u32,
+    pub wikis: Vec<ContentGapWikiResult>,
+    pub overlap_count: usize,
+    pub overlap_article_qids: Vec<u32>,
+    pub missing_from: HashMap<String, ContentGapMissingResult>,
 }

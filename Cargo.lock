@@ -4916,6 +4916,7 @@ dependencies = [
  "prost 0.14.1",
  "prost-build",
  "prost-types 0.14.1",
+ "roaring",
  "serde",
  "serde_json",
  "sqlx",
