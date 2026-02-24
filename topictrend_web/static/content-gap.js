@@ -205,7 +205,7 @@ function buildTrendsUrl(page, wiki, category, depth) {
 		category,
 		depth,
 	});
-	return `${page === "pageviews" ? "/pageviews" : "/pageedits"}?${params}`;
+	return `${page === "pageviews" ? "/pageviews/trends" : "/pageedits/trends"}?${params}`;
 }
 
 function populateFormFromQueryParams() {
