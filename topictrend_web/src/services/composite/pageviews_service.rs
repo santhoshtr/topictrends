@@ -1,4 +1,5 @@
 use crate::models::AppState;
+use crate::services::composite::taxonomy_search_category_qids;
 use crate::services::core::{CategoryService, CoreServiceError, PageViewService, QidService};
 use chrono::NaiveDate;
 use std::collections::HashMap;
@@ -50,51 +51,6 @@ pub struct ArticleWithViews {
 }
 
 impl PageViewsService {
-    async fn resolve_category_qid_or_search(
-        state: Arc<AppState>,
-        wiki: &str,
-        category: &str,
-        start_date: Option<NaiveDate>,
-        end_date: Option<NaiveDate>,
-    ) -> Result<CategoryTrendResult, ServiceError> {
-        let limit = 1000u64;
-        let match_threshold = 0.6;
-
-        let search_results =
-            topictrend_taxonomy::search(category.to_string(), "enwiki".to_string(), limit)
-                .await
-                .map_err(|e| {
-                    CoreServiceError::InternalError(format!("Taxonomy search failed: {}", e))
-                })?;
-
-        let category_qids: Vec<u32> = search_results
-            .into_iter()
-            .filter(|result| result.score >= match_threshold)
-            .map(|result| result.qid)
-            .collect();
-
-        if category_qids.is_empty() {
-            return Err(CoreServiceError::NotFound.into());
-        }
-
-        let categories_result = Self::get_categories_trend(
-            Arc::clone(&state),
-            wiki,
-            category_qids,
-            Some(1),
-            start_date,
-            end_date,
-        )
-        .await?;
-
-        Ok(CategoryTrendResult {
-            qid: 0,
-            title: category.to_string(),
-            views: categories_result.cumulative_views,
-            top_articles: categories_result.top_articles,
-        })
-    }
-
     pub async fn get_category_trend(
         state: Arc<AppState>,
         wiki: &str,
@@ -115,14 +71,22 @@ impl PageViewsService {
             match QidService::get_qid_by_title(Arc::clone(&state), wiki, category, 14).await {
                 Ok(qid) => qid,
                 Err(_) => {
-                    return Self::resolve_category_qid_or_search(
+                    let category_qids = taxonomy_search_category_qids(category).await?;
+                    let categories_result = Self::get_categories_trend(
                         Arc::clone(&state),
                         wiki,
-                        category,
+                        category_qids,
+                        Some(1),
                         start_date,
                         end_date,
                     )
-                    .await;
+                    .await?;
+                    return Ok(CategoryTrendResult {
+                        qid: 0,
+                        title: category.to_string(),
+                        views: categories_result.cumulative_views,
+                        top_articles: categories_result.top_articles,
+                    });
                 }
             }
         };

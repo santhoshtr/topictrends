@@ -25,7 +25,7 @@ use crate::{
 use crate::{
     models::{CategoriesTrendParams, CategoriesTrendResponse},
     services::{
-        composite::{PageEditDeltaService, PageViewDeltaService},
+        composite::{PageEditDeltaService, PageViewDeltaService, taxonomy_search_category_qids},
         core::{CoreServiceError, QidService},
     },
 };
@@ -673,7 +673,13 @@ pub async fn get_content_gap_handler(
                 "Either category or category_qid must be provided".to_string(),
             )
         })?;
-        QidService::get_qid_by_title(Arc::clone(&state), "enwiki", category, 14).await?
+        match QidService::get_qid_by_title(Arc::clone(&state), "enwiki", category, 14).await {
+            Ok(qid) => qid,
+            Err(_) => {
+                let qids = taxonomy_search_category_qids(category).await?;
+                *qids.first().ok_or(CoreServiceError::NotFound)?
+            }
+        }
     };
 
     let category_label = params
