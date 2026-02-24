@@ -1,0 +1,196 @@
+@import url("common.css");
+
+/* Content gap page styles */
+
+.form-container {
+	& .depth-input {
+		width: 5rem;
+	}
+}
+
+/* Results section */
+.main {
+	padding: 1.5rem;
+	overflow-y: auto;
+	align-items: start;
+}
+
+#content-gap-results {
+	width: 100%;
+}
+
+.results-header {
+	margin-bottom: 1.5rem;
+
+	& h2 {
+		font-size: var(--font-size-xl);
+		font-weight: 600;
+		margin-bottom: 0.4rem;
+
+		& em {
+			font-style: normal;
+			color: var(--color-progressive);
+		}
+	}
+
+	& .results-meta {
+		font-size: var(--font-size-sm);
+		color: var(--color-subtle);
+	}
+}
+
+/* Wiki result cards */
+.wiki-results {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+	gap: 1rem;
+}
+
+.wiki-result-card {
+	border: 1px solid var(--border-color-base);
+	border-radius: var(--border-radius);
+	padding: 1rem;
+	background: var(--background-color-base);
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.wiki-card-header {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	flex-wrap: wrap;
+
+	& .wiki-code {
+		font-weight: 700;
+		font-size: var(--font-size-base);
+		font-family: var(--font-family-monospace);
+	}
+
+	& .article-count {
+		font-size: var(--font-size-sm);
+		color: var(--color-subtle);
+	}
+
+	& .missing-badge {
+		margin-left: auto;
+		background: var(--background-color-error--hover, #fee7e6);
+		color: var(--color-error, #d33);
+		border-radius: 1rem;
+		padding: 0.1rem 0.55rem;
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+	}
+
+	& .complete-badge {
+		margin-left: auto;
+		background: var(--background-color-success--hover, #d5fdf4);
+		color: var(--color-success, #14866d);
+		border-radius: 1rem;
+		padding: 0.1rem 0.55rem;
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+	}
+}
+
+/* Coverage bar */
+.coverage-bar-wrap {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	height: 0.5rem;
+	background: var(--background-color-interactive);
+	border-radius: 1rem;
+	overflow: visible;
+	position: relative;
+
+	& .coverage-bar {
+		height: 100%;
+		background: var(--color-progressive);
+		border-radius: 1rem;
+		min-width: 2px;
+		transition: width 0.3s ease;
+	}
+
+	& .coverage-label {
+		position: absolute;
+		right: 0;
+		top: 0.65rem;
+		font-size: 0.7rem;
+		color: var(--color-subtle);
+		white-space: nowrap;
+	}
+}
+
+.wiki-card-actions {
+	margin-top: 0.25rem;
+	display: flex;
+	gap: 0.5rem;
+}
+
+/* Compare-with row — spans the full grid as the last item */
+.compare-with-row {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.75rem 1rem;
+	border: 1px dashed var(--border-color-base);
+	border-radius: var(--border-radius);
+	background: var(--background-color-interactive-subtle, transparent);
+}
+
+.compare-with-label {
+	font-size: var(--font-size-sm);
+	color: var(--color-subtle);
+	white-space: nowrap;
+}
+
+.compare-with-select {
+	min-width: 16rem;
+}
+
+/* Missing articles accordion */
+.missing-articles {
+	border-top: 1px solid var(--border-color-base);
+	padding-top: 0.6rem;
+	font-size: var(--font-size-sm);
+
+	& summary {
+		cursor: pointer;
+		color: var(--color-subtle);
+		user-select: none;
+
+		&:hover {
+			color: var(--color-base);
+		}
+	}
+}
+
+.missing-article-list {
+	list-style: none;
+	margin-top: 0.5rem;
+	max-height: 12rem;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+
+	& li {
+		line-height: 1.4;
+	}
+
+	& a {
+		color: var(--color-progressive);
+		text-decoration: none;
+
+		&:hover {
+			text-decoration: underline;
+		}
+	}
+
+	& .more-indicator {
+		color: var(--color-subtle);
+		font-style: italic;
+	}
+}

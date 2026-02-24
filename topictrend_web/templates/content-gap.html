@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Topic Trends - Content Gap{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/content-gap.css">
+{% endblock %}
+
+{% block content %}
+<div class="app-container">
+  <div class="form-container">
+    <form id="content-gap-form">
+      <div class="form-item">
+        <label for="category">Category</label>
+        <wiki-category-selector id="category" name="category"
+          placeholder="Search category"></wiki-category-selector>
+        <input name="category_qid" id="category_qid" type="hidden">
+      </div>
+      <div class="form-item">
+        <label for="depth">Depth</label>
+        <input type="number" id="depth" name="depth" value="2" min="1" max="5"
+          class="cdx-text-input__input depth-input">
+      </div>
+      <div class="form-item">
+        <button type="submit"
+          class="cdx-button cdx-button--action-progressive cdx-button--weight-primary">Analyse</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="main">
+    <section id="content-gap-results" hidden>
+      <div id="results-header" class="results-header"></div>
+      <div id="wiki-results" class="wiki-results"></div>
+    </section>
+    <footer>
+      <p id="status" class="status"></p>
+    </footer>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/wikicategoryselector.js" type="module"></script>
+<script src="/static/content-gap.js" type="module"></script>
+{% endblock %}

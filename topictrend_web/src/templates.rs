@@ -33,6 +33,7 @@ pub struct PageContext {
     pub is_pageviews_active: bool,
     pub is_pageedits_active: bool,
     pub is_search_active: bool,
+    pub is_content_gap_active: bool,
     pub is_trends_pageviews: bool,
     pub is_delta_pageviews: bool,
     pub is_trends_pageedits: bool,
@@ -47,6 +48,7 @@ impl PageContext {
             is_pageviews_active: false,
             is_pageedits_active: false,
             is_search_active: false,
+            is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
             is_trends_pageedits: false,
@@ -61,6 +63,7 @@ impl PageContext {
             is_pageviews_active: true,
             is_pageedits_active: false,
             is_search_active: false,
+            is_content_gap_active: false,
             is_trends_pageviews: true,
             is_delta_pageviews: false,
             is_trends_pageedits: false,
@@ -75,6 +78,7 @@ impl PageContext {
             is_pageviews_active: true,
             is_pageedits_active: false,
             is_search_active: false,
+            is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: true,
             is_trends_pageedits: false,
@@ -89,6 +93,7 @@ impl PageContext {
             is_pageviews_active: false,
             is_pageedits_active: true,
             is_search_active: false,
+            is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
             is_trends_pageedits: true,
@@ -103,6 +108,7 @@ impl PageContext {
             is_pageviews_active: false,
             is_pageedits_active: true,
             is_search_active: false,
+            is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
             is_trends_pageedits: false,
@@ -117,11 +123,27 @@ impl PageContext {
             is_pageviews_active: false,
             is_pageedits_active: false,
             is_search_active: true,
+            is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
             form_id: Some("search-form".to_string()),
+        }
+    }
+
+    pub fn content_gap() -> Self {
+        Self {
+            page_title: "Topic Trends - Content Gap".to_string(),
+            is_pageviews_active: false,
+            is_pageedits_active: false,
+            is_search_active: false,
+            is_content_gap_active: true,
+            is_trends_pageviews: false,
+            is_delta_pageviews: false,
+            is_trends_pageedits: false,
+            is_delta_pageedits: false,
+            form_id: Some("content-gap-form".to_string()),
         }
     }
 }
@@ -135,6 +157,7 @@ pub fn render_template(
     context.insert("is_pageviews_active", &page_context.is_pageviews_active);
     context.insert("is_pageedits_active", &page_context.is_pageedits_active);
     context.insert("is_search_active", &page_context.is_search_active);
+    context.insert("is_content_gap_active", &page_context.is_content_gap_active);
     context.insert("is_trends_pageviews", &page_context.is_trends_pageviews);
     context.insert("is_delta_pageviews", &page_context.is_delta_pageviews);
     context.insert("is_trends_pageedits", &page_context.is_trends_pageedits);

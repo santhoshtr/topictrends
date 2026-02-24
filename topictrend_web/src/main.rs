@@ -77,6 +77,10 @@ async fn run_http_server(
             get(|| async { render_template("search.html", PageContext::search()) }),
         )
         .route(
+            "/content-gap",
+            get(|| async { render_template("content-gap.html", PageContext::content_gap()) }),
+        )
+        .route(
             "/openapi.yaml",
             get(|| async {
                 (
