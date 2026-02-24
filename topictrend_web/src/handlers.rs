@@ -7,17 +7,18 @@ use axum::{
 use axum_macros::debug_handler;
 use std::sync::Arc;
 
-use crate::services::{PageEditsService, PageViewsService};
+use crate::services::{ContentGapService, PageEditsService, PageViewsService};
 use crate::{
     models::{
         AppState, ArticleEditTrendResponse, ArticleItem, ArticleTrendParams, ArticleTrendResponse,
         ArticlesInCategoryResponse, CategoryEditTrendResponse, CategoryRankResponse,
         CategorySearchItemResponse, CategorySearchParams, CategorySearchResponse,
-        CategoryTrendParams, CategoryTrendResponse, DailyEdits, DailyViews,
-        ListArticlesInCategoryParams, PageEditArticleDeltaParams, PageEditArticleDeltaResponse,
-        PageEditCategoryDeltaParams, PageEditCategoryDeltaResponse, PageViewArticleDeltaParams,
-        PageViewArticleDeltaResponse, PageViewCategoryDeltaParams, PageViewCategoryDeltaResponse,
-        SubCategoryParams, TopArticle, TopArticleEdits, TopCategoriesParams, TopCategory,
+        CategoryTrendParams, CategoryTrendResponse, ContentGapParams, ContentGapResult,
+        DailyEdits, DailyViews, ListArticlesInCategoryParams, PageEditArticleDeltaParams,
+        PageEditArticleDeltaResponse, PageEditCategoryDeltaParams, PageEditCategoryDeltaResponse,
+        PageViewArticleDeltaParams, PageViewArticleDeltaResponse, PageViewCategoryDeltaParams,
+        PageViewCategoryDeltaResponse, SubCategoryParams, TopArticle, TopArticleEdits,
+        TopCategoriesParams, TopCategory,
     },
     services::core::CategoryService,
 };
@@ -643,4 +644,52 @@ pub async fn get_articles_in_category(
     Ok(Json(ArticlesInCategoryResponse {
         articles: articles_in_category,
     }))
+}
+
+pub async fn get_content_gap_handler(
+    Query(params): Query<ContentGapParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<ContentGapResult>, ApiError> {
+    let include_articles = params.include_articles.unwrap_or(false);
+    let depth = params.depth.unwrap_or(0);
+
+    let mut wikis: Vec<String> = params
+        .wikis
+        .split(',')
+        .map(|wiki| wiki.trim())
+        .filter(|wiki| !wiki.is_empty())
+        .map(|wiki| wiki.to_string())
+        .collect();
+
+    if !wikis.iter().any(|wiki| wiki == "enwiki") {
+        wikis.push("enwiki".to_string());
+    }
+
+    let category_qid = if let Some(qid) = params.category_qid {
+        qid
+    } else {
+        let category = params.category.as_ref().ok_or_else(|| {
+            CoreServiceError::InternalError(
+                "Either category or category_qid must be provided".to_string(),
+            )
+        })?;
+        QidService::get_qid_by_title(Arc::clone(&state), "enwiki", category, 14).await?
+    };
+
+    let category_label = params
+        .category
+        .clone()
+        .unwrap_or_else(|| format!("Q{}", category_qid));
+
+    let result = ContentGapService::get_content_gap(
+        state,
+        category_qid,
+        &category_label,
+        wikis,
+        depth,
+        include_articles,
+    )
+    .await?;
+
+    Ok(Json(result))
 }

@@ -136,6 +136,10 @@ async fn run_http_server(
             "/api/pageviews/categories",
             get(handlers::get_categories_trend_by_search_handler),
         )
+        .route(
+            "/api/content_gap/categories",
+            get(handlers::get_content_gap_handler),
+        )
         .with_state(state)
         .layer(cors)
         .layer(SetResponseHeaderLayer::if_not_present(

@@ -664,6 +664,65 @@ curl "http://localhost:8765/api/pageviews/categories?wiki=enwiki&category_query=
 
 ---
 
+### 12. GET /api/content_gap/categories
+
+Compares topic coverage across multiple wikis by counting category articles and reporting overlaps and missing sets.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `category` | String | No | Category title in enwiki (exact match) |
+| `category_qid` | Integer | No | Category QID (numeric) |
+| `wikis` | String | Yes | Comma-separated wiki list (e.g., `enwiki,mlwiki,tawiki`) |
+| `depth` | Integer | No | Category traversal depth, default: 0 |
+| `include_articles` | Boolean | No | Include article titles per wiki, default: false |
+
+**Note:** Either `category` or `category_qid` must be provided. `enwiki` is always used as the reference for gap calculations.
+
+**Example Request:**
+
+```bash
+curl "http://localhost:8765/api/content_gap/categories?category=Quantum_physics&wikis=enwiki,mlwiki,tawiki&depth=2"
+```
+
+**Response:**
+
+```json
+{
+  "category": "Quantum_physics",
+  "category_qid": 49833,
+  "depth": 2,
+  "wikis": [
+    {
+      "wiki": "enwiki",
+      "article_count": 100,
+      "article_qids": [1, 2, 3]
+    },
+    {
+      "wiki": "mlwiki",
+      "article_count": 2,
+      "article_qids": [1, 3]
+    }
+  ],
+  "overlap_count": 2,
+  "overlap_article_qids": [1, 3],
+  "missing_from": {
+    "mlwiki": {
+      "count": 98,
+      "article_qids": [2, 4, 5]
+    }
+  }
+}
+```
+
+**Error Responses:**
+
+- `404 Not Found`: Category does not exist in enwiki
+- `400 Bad Request`: Invalid parameters
+
+---
+
 ## Utility Endpoints
 
 **Note:** The following endpoints are documented for reference but are not currently implemented in the codebase. Consider implementing them in future versions if needed.
