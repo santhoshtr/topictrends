@@ -1,6 +1,6 @@
 import { hideProgress, showProgress } from "./utils/progress-bar.js";
 import { showMessage } from "./utils/ui-utils.js";
-import { buildWikipediaUrl } from "./utils/wiki-utils.js";
+import { buildWikipediaUrl, populateWikiDropdown } from "./utils/wiki-utils.js";
 
 // wikis already fetched (reused for compare-with picker)
 let allWikis = [];
@@ -11,6 +11,7 @@ let currentCategory = null;
 let currentDepth = "2";
 
 document.addEventListener("DOMContentLoaded", async () => {
+	await populateWikiDropdown();
 	allWikis = await loadWikiList();
 	document
 		.getElementById("content-gap-form")
@@ -182,7 +183,7 @@ function buildCompareRow() {
 		.forEach((wiki) => {
 			const opt = document.createElement("option");
 			opt.value = wiki.code;
-			opt.textContent = `${wiki.langcode} — ${wiki.localname || wiki.name}`;
+			opt.textContent = `${wiki.langcode} - ${wiki.name}`;
 			select.appendChild(opt);
 		});
 
