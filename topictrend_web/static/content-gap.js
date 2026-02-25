@@ -111,8 +111,8 @@ function renderResults(data) {
 		tr.innerHTML = `
 			<td class="wiki-code">${wikiResult.wiki}</td>
 			<td><a href="${searchUrl}">${wikiResult.article_count} articles</a></td>
-			<td><a class="cdx-button" href="${buildTrendsUrl("pageviews", wikiResult.wiki, data.category, currentDepth)}">Pageviews</a></td>
-			<td><a class="cdx-button" href="${buildTrendsUrl("pageedits", wikiResult.wiki, data.category, currentDepth)}">Page edits</a></td>
+			<td><a href="${buildTrendsUrl("pageviews", wikiResult.wiki, data.category, currentDepth)}">Pageviews</a></td>
+			<td><a href="${buildTrendsUrl("pageedits", wikiResult.wiki, data.category, currentDepth)}">Page edits</a></td>
 		`;
 		tbody.appendChild(tr);
 	});
