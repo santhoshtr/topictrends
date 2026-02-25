@@ -661,10 +661,6 @@ pub async fn get_content_gap_handler(
         .map(|wiki| wiki.to_string())
         .collect();
 
-    if !wikis.iter().any(|wiki| wiki == "enwiki") {
-        wikis.push("enwiki".to_string());
-    }
-
     let category_qid = if let Some(qid) = params.category_qid {
         qid
     } else {
