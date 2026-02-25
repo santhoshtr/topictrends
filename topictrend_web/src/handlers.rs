@@ -650,10 +650,9 @@ pub async fn get_content_gap_handler(
     Query(params): Query<ContentGapParams>,
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ContentGapResult>, ApiError> {
-    let include_articles = params.include_articles.unwrap_or(false);
     let depth = params.depth.unwrap_or(0);
 
-    let mut wikis: Vec<String> = params
+    let wikis: Vec<String> = params
         .wikis
         .split(',')
         .map(|wiki| wiki.trim())
@@ -689,7 +688,6 @@ pub async fn get_content_gap_handler(
         &category_label,
         wikis,
         depth,
-        include_articles,
     )
     .await?;
 

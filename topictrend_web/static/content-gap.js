@@ -1,6 +1,6 @@
 import { hideProgress, showProgress } from "./utils/progress-bar.js";
 import { showMessage } from "./utils/ui-utils.js";
-import { buildWikipediaUrl, populateWikiDropdown } from "./utils/wiki-utils.js";
+import { populateWikiDropdown } from "./utils/wiki-utils.js";
 
 // wikis already fetched (reused for compare-with picker)
 let allWikis = [];
@@ -81,101 +81,61 @@ function renderResults(data) {
 
 	header.innerHTML = `
 		<h2>Content gap: <em>${data.category.replaceAll("_", " ")}</em></h2>
-		<p class="results-meta">
-			Depth: ${data.depth} &nbsp;·&nbsp;
-			Overlap (articles present in all wikis): <strong>${data.overlap_count}</strong>
-		</p>
+		<p class="results-meta">Depth: ${data.depth}</p>
 	`;
 
 	wikiResults.innerHTML = "";
 
-	const refCount = data.wikis[0]?.article_count ?? 0;
+	const table = document.createElement("table");
+	table.className = "wiki-results-table";
+	table.innerHTML = `
+		<thead>
+			<tr>
+				<th>Wiki</th>
+				<th>Articles</th>
+				<th>Pageviews</th>
+				<th>Page edits</th>
+			</tr>
+		</thead>
+	`;
+
+	const tbody = document.createElement("tbody");
 
 	data.wikis.forEach((wikiResult) => {
-		const missing = data.missing_from[wikiResult.wiki];
-		const card = document.createElement("div");
-		card.className = "wiki-result-card";
-
-		const missingCount = missing ? missing.count : 0;
-		const coveragePercent =
-			refCount > 0
-				? Math.round((wikiResult.article_count / refCount) * 100)
-				: 100;
-
-		card.innerHTML = `
-			<div class="wiki-card-header">
-				<span class="wiki-code">${wikiResult.wiki}</span>
-				<span class="article-count">${wikiResult.article_count} articles</span>
-				${
-					missingCount > 0
-						? `<span class="missing-badge">${missingCount} missing</span>`
-						: `<span class="complete-badge">complete</span>`
-				}
-			</div>
-			<div class="coverage-bar-wrap">
-				<div class="coverage-bar" style="width: ${coveragePercent}%"></div>
-				<span class="coverage-label">${coveragePercent}% of ${data.wikis[0]?.wiki ?? "enwiki"}</span>
-			</div>
-			<div class="wiki-card-actions">
-				<a class="cdx-button" href="${buildTrendsUrl("pageviews", wikiResult.wiki, data.category, currentDepth)}">Pageviews</a>
-				<a class="cdx-button" href="${buildTrendsUrl("pageedits", wikiResult.wiki, data.category, currentDepth)}">Page edits</a>
-			</div>
+		const tr = document.createElement("tr");
+		const searchUrl = buildSearchUrl(
+			wikiResult.wiki,
+			data.category,
+			currentDepth,
+		);
+		tr.innerHTML = `
+			<td class="wiki-code">${wikiResult.wiki}</td>
+			<td><a href="${searchUrl}">${wikiResult.article_count} articles</a></td>
+			<td><a class="cdx-button" href="${buildTrendsUrl("pageviews", wikiResult.wiki, data.category, currentDepth)}">Pageviews</a></td>
+			<td><a class="cdx-button" href="${buildTrendsUrl("pageedits", wikiResult.wiki, data.category, currentDepth)}">Page edits</a></td>
 		`;
-
-		if (missing && missing.article_qids.length > 0) {
-			const details = document.createElement("details");
-			details.className = "missing-articles";
-			details.innerHTML = `<summary>${missingCount} articles missing from ${wikiResult.wiki}</summary>`;
-
-			const ul = document.createElement("ul");
-			ul.className = "missing-article-list";
-
-			const refWiki = data.wikis.find((w) => w.wiki === "enwiki");
-			missing.article_qids.slice(0, 50).forEach((qid) => {
-				const refArticle = refWiki?.articles?.find((a) => a.qid === qid);
-				const title = refArticle?.title ?? `QID ${qid}`;
-				const li = document.createElement("li");
-				if (refArticle) {
-					li.innerHTML = `<a href="${buildWikipediaUrl("enwiki", title)}" target="_blank" rel="noopener">${title}</a>`;
-				} else {
-					li.textContent = title;
-				}
-				ul.appendChild(li);
-			});
-
-			if (missing.article_qids.length > 50) {
-				const more = document.createElement("li");
-				more.className = "more-indicator";
-				more.textContent = `… and ${missing.article_qids.length - 50} more`;
-				ul.appendChild(more);
-			}
-
-			details.appendChild(ul);
-			card.appendChild(details);
-		}
-
-		wikiResults.appendChild(card);
+		tbody.appendChild(tr);
 	});
 
-	wikiResults.appendChild(buildCompareRow());
+	tbody.appendChild(buildCompareRow());
+	table.appendChild(tbody);
+	wikiResults.appendChild(table);
 
 	resultsSection.hidden = false;
 }
 
 function buildCompareRow() {
-	const row = document.createElement("div");
-	row.className = "compare-with-row";
+	const tr = document.createElement("tr");
+	tr.className = "compare-with-row";
 
-	const label = document.createElement("span");
-	label.className = "compare-with-label";
-	label.textContent = "Compare with";
+	const tdSelect = document.createElement("td");
 
 	const select = document.createElement("select");
 	select.className = "cdx-select compare-with-select";
 
 	const placeholder = document.createElement("option");
 	placeholder.value = "";
-	placeholder.textContent = "Choose a wiki…";
+	placeholder.textContent = "Add a wiki…";
 	select.appendChild(placeholder);
 
 	allWikis
@@ -194,9 +154,25 @@ function buildCompareRow() {
 		await fetchAndRender();
 	});
 
-	row.appendChild(label);
-	row.appendChild(select);
-	return row;
+	tdSelect.appendChild(select);
+	tr.appendChild(tdSelect);
+
+	// fill remaining columns
+	for (let i = 0; i < 3; i++) {
+		tr.appendChild(document.createElement("td"));
+	}
+
+	return tr;
+}
+
+function buildSearchUrl(wiki, category, depth) {
+	const params = new URLSearchParams({
+		wiki,
+		category,
+		match_threshold: "0.6",
+		depth,
+	});
+	return `/search?${params}`;
 }
 
 function buildTrendsUrl(page, wiki, category, depth) {
