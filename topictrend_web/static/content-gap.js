@@ -47,11 +47,10 @@ async function onSubmit(event) {
 
 	currentCategory = category;
 	currentDepth = depth;
+	// On a fresh submit keep only the base wiki; any previous compare wikis are discarded.
 	activeWikis = [baseWiki];
 
-	const params = new URLSearchParams({ category, wiki: baseWiki, depth });
-	window.history.pushState({}, "", `${window.location.pathname}?${params}`);
-
+	syncUrlParams();
 	await fetchAndRender();
 }
 
@@ -151,6 +150,7 @@ function buildCompareRow() {
 		const chosen = select.value;
 		if (!chosen) return;
 		activeWikis.push(chosen);
+		syncUrlParams();
 		await fetchAndRender();
 	});
 
@@ -163,6 +163,20 @@ function buildCompareRow() {
 	}
 
 	return tr;
+}
+
+function syncUrlParams() {
+	const baseWiki = activeWikis[0];
+	const compareWikis = activeWikis.slice(1);
+	const params = new URLSearchParams({
+		category: currentCategory,
+		wiki: baseWiki,
+		depth: currentDepth,
+	});
+	if (compareWikis.length > 0) {
+		params.set("compare", compareWikis.join(","));
+	}
+	window.history.pushState({}, "", `${window.location.pathname}?${params}`);
 }
 
 function buildSearchUrl(wiki, category, depth) {
@@ -190,6 +204,7 @@ function populateFormFromQueryParams() {
 	const category = p.get("category");
 	const wiki = p.get("wiki");
 	const depth = p.get("depth");
+	const compare = p.get("compare");
 
 	if (category) {
 		document.getElementById("category").value = category.replaceAll("_", " ");
@@ -203,7 +218,14 @@ function populateFormFromQueryParams() {
 	if (category) {
 		currentCategory = category;
 		currentDepth = depth || "2";
-		activeWikis = [wiki || document.getElementById("wiki").value];
+		const baseWiki = wiki || document.getElementById("wiki").value;
+		const compareWikis = compare
+			? compare
+					.split(",")
+					.map((w) => w.trim())
+					.filter(Boolean)
+			: [];
+		activeWikis = [baseWiki, ...compareWikis];
 		fetchAndRender();
 	}
 }
