@@ -103,6 +103,8 @@
 	padding: 0;
 	width: min(90vw, 720px);
 	box-shadow: 0 4px 32px rgba(0, 0, 0, 0.2);
+	margin: auto;
+	resize: both;
 
 	&::backdrop {
 		background: rgba(0, 0, 0, 0.5);
@@ -113,7 +115,6 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 1rem 1.25rem 0.75rem;
-		border-bottom: 1px solid var(--border-color-base);
 
 		& h2 {
 			font-size: var(--font-size-large, 1.125rem);
