@@ -1,3 +1,4 @@
+import { DEFAULT_CHART_COLORS } from "./utils/chart-utils.js";
 import { hideProgress, showProgress } from "./utils/progress-bar.js";
 import { showMessage } from "./utils/ui-utils.js";
 import { populateWikiDropdown } from "./utils/wiki-utils.js";
@@ -9,6 +10,10 @@ let activeWikis = [];
 // current query state
 let currentCategory = null;
 let currentDepth = "2";
+// last fetched data (for chart rendering)
+let lastData = null;
+// echarts instance for the article count chart
+let chartInstance = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
 	await populateWikiDropdown();
@@ -16,6 +21,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 	document
 		.getElementById("content-gap-form")
 		.addEventListener("submit", onSubmit);
+	document
+		.getElementById("close-chart-dialog")
+		.addEventListener("click", () =>
+			document.getElementById("article-count-chart-dialog").close(),
+		);
+	document
+		.getElementById("article-count-chart-dialog")
+		.addEventListener("click", (e) => {
+			if (e.target === e.currentTarget) e.currentTarget.close();
+		});
 	populateFormFromQueryParams();
 });
 
@@ -66,6 +81,7 @@ async function fetchAndRender() {
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);
 		const data = await response.json();
 		hideProgress();
+		lastData = data;
 		renderResults(data);
 	} catch (error) {
 		hideProgress();
@@ -82,6 +98,14 @@ function renderResults(data) {
 		<h2>Content gap: <em>${data.category.replaceAll("_", " ")}</em></h2>
 		<p class="results-meta">Depth: ${data.depth}</p>
 	`;
+
+	const plotBtn = document.createElement("button");
+	plotBtn.id = "plot-btn";
+	plotBtn.className = "cdx-button";
+	plotBtn.textContent = "Plot";
+	plotBtn.disabled = activeWikis.length < 2;
+	plotBtn.addEventListener("click", openChartDialog);
+	header.appendChild(plotBtn);
 
 	wikiResults.innerHTML = "";
 
@@ -163,6 +187,85 @@ function buildCompareRow() {
 	}
 
 	return tr;
+}
+
+function openChartDialog() {
+	const dialog = document.getElementById("article-count-chart-dialog");
+	document.getElementById("chart-dialog-title").textContent =
+		`Articles per wiki — ${lastData.category.replaceAll("_", " ")}`;
+	dialog.showModal();
+	renderChart(lastData);
+}
+
+function renderChart(data) {
+	const el = document.getElementById("article-count-chart");
+	const theme = window.matchMedia("(prefers-color-scheme: dark)").matches
+		? "dark"
+		: "light";
+
+	if (!chartInstance) {
+		chartInstance = echarts.init(el, theme, { renderer: "svg" });
+		window.addEventListener("resize", () => chartInstance.resize());
+	}
+
+	// Base wiki (index 0) gets the first palette color; compare wikis get the rest.
+	const wikis = data.wikis.map((w) => w.wiki);
+	const counts = data.wikis.map((w) => w.article_count);
+	const colors = data.wikis.map(
+		(_, i) => DEFAULT_CHART_COLORS[i % DEFAULT_CHART_COLORS.length],
+	);
+
+	chartInstance.setOption(
+		{
+			color: DEFAULT_CHART_COLORS,
+			title: {
+				text: data.category.replaceAll("_", " "),
+				subtext: "Topic",
+				left: "center",
+				top: 0,
+				textStyle: { fontSize: 13 },
+				subtextStyle: { fontSize: 11 },
+			},
+			tooltip: {
+				trigger: "axis",
+				axisPointer: { type: "shadow" },
+				formatter: (params) =>
+					`${params[0].name}: <strong>${params[0].value}</strong> articles`,
+			},
+			grid: {
+				left: "3%",
+				right: "12%",
+				top: "18%",
+				bottom: "5%",
+				containLabel: true,
+			},
+			xAxis: {
+				type: "value",
+				name: "Articles",
+				nameLocation: "end",
+			},
+			yAxis: {
+				type: "category",
+				data: wikis,
+				axisLabel: { fontFamily: "monospace", fontWeight: "bold" },
+				inverse: true,
+			},
+			series: [
+				{
+					type: "bar",
+					data: counts.map((val, i) => ({
+						value: val,
+						itemStyle: { color: colors[i] },
+					})),
+					label: { show: true, position: "right" },
+				},
+			],
+		},
+		true, // notMerge — full replace on each call
+	);
+
+	// ECharts needs a resize after showModal since the element was display:none.
+	requestAnimationFrame(() => chartInstance.resize());
 }
 
 function syncUrlParams() {

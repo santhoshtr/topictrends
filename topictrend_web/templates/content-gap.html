@@ -39,9 +39,18 @@
   </div>
 </div>
 
+<dialog id="article-count-chart-dialog" aria-label="Article count chart">
+  <div class="dialog-header">
+    <h2 id="chart-dialog-title">Articles per wiki</h2>
+    <button id="close-chart-dialog" class="cdx-button" aria-label="Close">✕</button>
+  </div>
+  <div id="article-count-chart"></div>
+</dialog>
+
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
 <script src="/static/wikicategoryselector.js" type="module"></script>
 <script src="/static/content-gap.js" type="module"></script>
 {% endblock %}
