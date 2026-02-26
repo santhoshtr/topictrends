@@ -38,8 +38,22 @@ class EmbeddingServicer(embedding_pb2_grpc.EmbeddingServiceServicer):
         self.model_name = model_name
         logging.info("Model loaded successfully")
 
-        data_dir = data_dir or os.getenv("DATA_DIR", "./data")
-        zvec_dir = zvec_dir or os.getenv("ZVEC_DIR", "./data/zvec")
+        data_dir = data_dir or os.getenv("DATA_DIR", None)
+        zvec_dir = zvec_dir or os.getenv("ZVEC_DIR", None)
+
+        # Resolve paths relative to project root (parent of services/embedding)
+        if data_dir:
+            data_dir = os.path.abspath(data_dir)
+        else:
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            data_dir = os.path.join(project_root, "data")
+
+        if zvec_dir:
+            zvec_dir = os.path.abspath(zvec_dir)
+        else:
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            zvec_dir = os.path.join(project_root, "data", "zvec")
+
         self.zvec_store = ZvecStore(
             data_dir=data_dir, zvec_dir=zvec_dir, model_name=model_name
         )
