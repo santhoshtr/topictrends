@@ -56,7 +56,7 @@ make init
 
 ```bash
 # Start the embedding service (required for semantic search)
-cd services/embedding && uv run python embedding_server.py &
+make embedding-server &
 # Or with docker: cd services/embedding && docker-compose up -d
 
 # Start the web server
@@ -118,7 +118,7 @@ DB_PASSWORD=<wikimedia replica password>
 EMBEDDING_SERVER=http://localhost:50051
 
 # zvec vector database (in-process, no setup needed)
-ZVEC_DIR=data/zvec
+ZVEC_DIR=data/embedding_store/zvec
 
 # Web server port (optional, defaults to 8765)
 PORT=8765
@@ -135,7 +135,7 @@ DATA_DIR=data
 - Server will fail to start without these credentials
 
 **Optional Variables:**
-- `EMBEDDING_SERVER` and `QDRANT_SERVER` are only needed if using semantic search endpoints
+- `EMBEDDING_SERVER` is only needed if using semantic search endpoints
 - `PORT` and `GRPC_PORT` override defaults if needed
 
 ### Database Replica Access
@@ -281,9 +281,9 @@ The server:
 
 The web server requires:
 - **MariaDB replica access** (hard requirement): Used for all title↔QID translation
-- **Qdrant service** (optional): Only if using semantic search endpoints
+- **Embedding service** (optional): Only if using semantic search endpoints
 
-If MariaDB is unavailable, the server will fail to start. If Qdrant is unavailable, semantic search endpoints will return errors, but other APIs function normally.
+If MariaDB is unavailable, the server will fail to start. If the embedding service is unavailable, semantic search endpoints will return errors, but other APIs function normally.
 
 ### Health Checks
 
@@ -338,10 +338,10 @@ python embedding_server.py
 
 **Set environment variable for web server:**
 ```bash
-export EMBEDDING_SERVER=http://localhost:50051
+export EMBEDDING_SERVER=localhost:50051
 
 # zvec vector database (in-process, no setup needed)
-export ZVEC_DIR=data/zvec
+export ZVEC_DIR=data/embedding_store/zvec
 ```
 
 ### Step 2: Index English Wikipedia Categories
@@ -369,7 +369,7 @@ cd services/embedding && uv run python index_categories.py --wiki enwiki
 **Runtime**: ~30 minutes (depends on network latency to embedding service)
 
 **Output:**
-- zvec collection: `data/zvec/enwiki-categories/` with 2.5M points
+- zvec collection: `data/embedding_store/zvec/enwiki-categories/` with 2.5M points
 - Each point: {id: QID, vector: 384-dim, fields: {qid, page_title}}
 
 ### Step 4: Verify Semantic Search
@@ -452,14 +452,14 @@ If pool is exhausted, increase pool size in configuration.
 # Test MariaDB connectivity
 mariadb --host enwiki.analytics.db.svc.wikimedia.cloud --user ... -e "SELECT 1"
 
-# Check if Qdrant is required
-grep -r "QUADRANT_SERVER" src/
+# Check if embedding service is required
+grep -r "EMBEDDING_SERVER" src/
 ```
 
 **Solution**:
 - Verify MariaDB replica is accessible from your network
 - Check `.env` has correct database credentials
-- If Qdrant is optional, ensure semantic search endpoints aren't required
+- If embedding service is optional, ensure semantic search endpoints aren't required
 
 ### Issue: Semantic Search Returns Errors
 
@@ -471,7 +471,7 @@ grep -r "QUADRANT_SERVER" src/
 curl http://localhost:50051/health  # (gRPC, may not respond to HTTP)
 
 # Verify zvec collection exists
-ls -la data/zvec/enwiki-categories/
+ls -la data/embedding_store/zvec/enwiki-categories/
 ```
 
 **Solution**:
