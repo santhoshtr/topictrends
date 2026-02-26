@@ -156,7 +156,9 @@ class EmbeddingServicer(embedding_pb2_grpc.EmbeddingServiceServicer):
                 return embedding_pb2.InjestResponse()
 
             logging.info(f"Ingesting categories for wiki: {wiki}")
-            records_processed = self.zvec_store.injest(wiki)
+            records_processed = self.zvec_store.injest(
+                wiki, request.parquet_path or None
+            )
             logging.info(f"Ingested {records_processed} records for {wiki}")
 
             return embedding_pb2.InjestResponse(records_processed=records_processed)

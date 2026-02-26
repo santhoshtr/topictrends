@@ -91,21 +91,27 @@ class ZvecStore:
 
         return zvec.create_and_open(path=str(col_path), schema=schema)
 
-    def injest(self, wiki: str) -> int:
+    def injest(self, wiki: str, parquet_path: str | None = None) -> int:
         """Ingest categories from parquet for a wiki.
 
         Args:
             wiki: Wiki name (e.g., 'enwiki').
+            parquet_path: Explicit path to the parquet file. If not given,
+                          defaults to <data_dir>/<wiki>/categories.parquet.
 
         Returns:
             Number of records processed.
         """
-        parquet_path = self.data_dir / wiki / "categories.parquet"
+        path = (
+            Path(parquet_path)
+            if parquet_path
+            else self.data_dir / wiki / "categories.parquet"
+        )
 
-        if not parquet_path.exists():
-            raise FileNotFoundError(f"Parquet file not found: {parquet_path}")
+        if not path.exists():
+            raise FileNotFoundError(f"Parquet file not found: {path}")
 
-        df = pl.scan_parquet(parquet_path).select(["qid", "page_title"]).collect()
+        df = pl.scan_parquet(path).select(["qid", "page_title"]).collect()
 
         total_records = len(df)
         print(f"Found {total_records} records to process for {wiki}")

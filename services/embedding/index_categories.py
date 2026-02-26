@@ -21,13 +21,23 @@ def main():
     )
     args = parser.parse_args()
 
+    data_dir = os.getenv("DATA_DIR")
+    if not data_dir:
+        # Fall back to ../../data relative to this script
+        data_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"
+        )
+    parquet_path = os.path.join(data_dir, args.wiki, "categories.parquet")
+
     channel = grpc.insecure_channel(args.server)
     stub = embedding_pb2_grpc.EmbeddingServiceStub(channel)
 
     print(f"Indexing {args.wiki} categories via {args.server}...")
 
     try:
-        resp = stub.Injest(embedding_pb2.InjestRequest(wiki=args.wiki))
+        resp = stub.Injest(
+            embedding_pb2.InjestRequest(wiki=args.wiki, parquet_path=parquet_path)
+        )
         print(f"Indexed {resp.records_processed} records")
     except grpc.RpcError as e:
         print(f"Error: {e.code()}: {e.details()}", file=sys.stderr)
