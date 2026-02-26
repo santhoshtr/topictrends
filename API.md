@@ -356,12 +356,12 @@ curl "http://localhost:8765/api/search/categories?wiki=dewiki&query=quantum+comp
 - Categories without translations in target wiki are filtered out
 - Execution time includes embedding generation and vector search
 
-**Complexity:** Dominated by zvec HNSW search, $O(\log N)$ where $N$ = 2.5M categories. Execution time: 50-150 milliseconds.
+**Complexity:** Dominated by Qdrant HNSW search, $O(\log N)$ where $N$ = 2.5M categories. Execution time: 50-150 milliseconds.
 
 **Error Responses:**
 
 - `400 Bad Request`: Invalid parameters or empty query
-- `503 Service Unavailable`: Embedding service or vector store unavailable
+- `503 Service Unavailable`: Embedding service or Qdrant unavailable
 - `422 Unprocessable Entity`: Query too long (max ~1000 characters)
 
 ---
@@ -753,7 +753,7 @@ All errors follow a consistent format:
 
 - `RESOURCE_NOT_FOUND` (404): Title or QID not found
 - `INVALID_PARAMETER` (400): Invalid wiki, date, or metric
-- `SERVICE_UNAVAILABLE` (503): Database or embedding service unavailable
+- `SERVICE_UNAVAILABLE` (503): Database or Qdrant unavailable
 - `UNPROCESSABLE_ENTITY` (422): Query parameters out of valid range
 - `INTERNAL_ERROR` (500): Unexpected server error (rare)
 
@@ -861,7 +861,7 @@ For API issues:
 1. Check `/api/health` for component status
 2. Review logs: `RUST_LOG=debug ./topictrend_web`
 3. Verify MariaDB connectivity: `./target/release/topictrend_web --check-db`
-4. Test embedding service: `cd services/embedding && EMBEDDING_SERVER=localhost:50051 uv run python healthcheck.py`
+4. Test Qdrant: `curl http://localhost:6333/health`
 
 For deployment and operational questions, see [OPERATIONS.md](OPERATIONS.md).
 For architectural context, see [README.md](README.md).

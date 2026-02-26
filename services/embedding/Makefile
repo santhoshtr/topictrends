@@ -1,4 +1,4 @@
-.PHONY: proto client clean docker sync
+.PHONY: proto server client clean docker sync
 
 # Sync dependencies with uv
 sync:
@@ -8,9 +8,9 @@ sync:
 proto: sync
 	uv run python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. embedding.proto
 
-# Run the server — use the root Makefile target to ensure correct DATA_DIR/ZVEC_DIR
-server:
-	$(MAKE) -C ../.. embedding-server
+# Run the server
+server: proto
+	uv run python embedding_server.py
 
 # Build and run with Docker
 docker-build:

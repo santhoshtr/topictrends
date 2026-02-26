@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use topictrend_taxonomy::{injest, search};
+use topictrend_taxonomy::{get_connection, injest, search};
 
 /// CLI for TopicTrend Taxonomy
 #[derive(Parser)]
@@ -32,9 +32,12 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Set up better error reporting
+
     if let Err(e) = run().await {
         eprintln!("Error: {}", e);
 
+        // Print the error chain
         let mut source = e.source();
         while let Some(err) = source {
             eprintln!("  Caused by: {}", err);
@@ -52,10 +55,16 @@ async fn run() -> Result<()> {
 
     match cli.command {
         Commands::Index { wiki } => {
+            println!("Connecting to Qdrant...");
+            let client = get_connection()
+                .await
+                .expect("Failed to connect to Qdrant server");
+
             println!("Starting indexing for wiki: {}", wiki);
-            injest(wiki.clone()).await.unwrap_or_else(|e| {
+            injest(&client, wiki.clone()).await.unwrap_or_else(|e| {
                 eprintln!("Failed to index wiki '{}': {}", wiki, e);
 
+                // Print the error chain
                 let mut source = e.source();
                 while let Some(err) = source {
                     eprintln!("  Caused by: {}", err);
@@ -75,6 +84,7 @@ async fn run() -> Result<()> {
                 .unwrap_or_else(|e| {
                     eprintln!("Failed to search in wiki '{}': {}", wiki, e);
 
+                    // Print the error chain
                     let mut source = e.source();
                     while let Some(err) = source {
                         eprintln!("  Caused by: {}", err);

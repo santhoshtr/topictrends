@@ -55,23 +55,21 @@
          </ul>
 </section>
     <div id="results-container" class="results-container">
-      <input type="radio" name="delta-tab" id="tab-top"  hidden checked>
-      <input type="radio" name="delta-tab" id="tab-up"   hidden>
-      <input type="radio" name="delta-tab" id="tab-down" hidden>
-
-      <nav class="delta-tabs" role="tablist">
-        <label for="tab-top"  role="tab">Top</label>
-        <label for="tab-up"   role="tab">Trending up</label>
-        <label for="tab-down" role="tab">Trending down</label>
-      </nav>
-
-      <section id="panel-top"  class="delta-tab-panel">
-        <div id="top-list"   class="category-list"></div>
-      </section>
-      <section id="panel-up"   class="delta-tab-panel">
+      <section id="gains-section" class="delta-section">
+        <h2 class="section-header">
+          <span class="section-icon">📈</span>
+          <span>Gains</span>
+          <span class="section-count"></span>
+        </h2>
         <div id="gains-list" class="category-list"></div>
       </section>
-      <section id="panel-down" class="delta-tab-panel">
+
+      <section id="losses-section" class="delta-section">
+        <h2 class="section-header">
+          <span class="section-icon">📉</span>
+          <span>Losses</span>
+          <span class="section-count"></span>
+        </h2>
         <div id="losses-list" class="category-list"></div>
       </section>
 

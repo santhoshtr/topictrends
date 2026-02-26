@@ -49,16 +49,6 @@ class EmbeddingServiceStub(object):
                 request_serializer=embedding__pb2.HealthCheckRequest.SerializeToString,
                 response_deserializer=embedding__pb2.HealthCheckResponse.FromString,
                 _registered_method=True)
-        self.Injest = channel.unary_unary(
-                '/embedding.EmbeddingService/Injest',
-                request_serializer=embedding__pb2.InjestRequest.SerializeToString,
-                response_deserializer=embedding__pb2.InjestResponse.FromString,
-                _registered_method=True)
-        self.Search = channel.unary_unary(
-                '/embedding.EmbeddingService/Search',
-                request_serializer=embedding__pb2.SearchRequest.SerializeToString,
-                response_deserializer=embedding__pb2.SearchResponse.FromString,
-                _registered_method=True)
 
 
 class EmbeddingServiceServicer(object):
@@ -85,20 +75,6 @@ class EmbeddingServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def Injest(self, request, context):
-        """Ingest categories from parquet for a wiki into the vector store
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def Search(self, request, context):
-        """Search the vector store for categories matching a query
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
 
 def add_EmbeddingServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -116,16 +92,6 @@ def add_EmbeddingServiceServicer_to_server(servicer, server):
                     servicer.HealthCheck,
                     request_deserializer=embedding__pb2.HealthCheckRequest.FromString,
                     response_serializer=embedding__pb2.HealthCheckResponse.SerializeToString,
-            ),
-            'Injest': grpc.unary_unary_rpc_method_handler(
-                    servicer.Injest,
-                    request_deserializer=embedding__pb2.InjestRequest.FromString,
-                    response_serializer=embedding__pb2.InjestResponse.SerializeToString,
-            ),
-            'Search': grpc.unary_unary_rpc_method_handler(
-                    servicer.Search,
-                    request_deserializer=embedding__pb2.SearchRequest.FromString,
-                    response_serializer=embedding__pb2.SearchResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -209,60 +175,6 @@ class EmbeddingService(object):
             '/embedding.EmbeddingService/HealthCheck',
             embedding__pb2.HealthCheckRequest.SerializeToString,
             embedding__pb2.HealthCheckResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def Injest(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/embedding.EmbeddingService/Injest',
-            embedding__pb2.InjestRequest.SerializeToString,
-            embedding__pb2.InjestResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def Search(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/embedding.EmbeddingService/Search',
-            embedding__pb2.SearchRequest.SerializeToString,
-            embedding__pb2.SearchResponse.FromString,
             options,
             channel_credentials,
             insecure,

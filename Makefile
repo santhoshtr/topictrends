@@ -22,7 +22,7 @@ MIN_EDIT_YEAR ?= 2020
 
 .DEFAULT_GOAL := run
 
-.PHONY: run init clean help $(WIKIS) monthly notebook index-wiki index-clean embedding-server web
+.PHONY: run init clean help $(WIKIS) qdrant monthly notebook
 
 # Help target
 help:
@@ -215,42 +215,11 @@ clean:
 
 
 web: init
-	@echo "Checking embedding server at $(EMBEDDING_SERVER)..."
-	@(cd services/embedding && EMBEDDING_SERVER=$(EMBEDDING_SERVER) uv run python healthcheck.py)
-	@echo "Embedding server OK"
-	$(CARGO_RELEASE)/topictrend_web
+	 $(CARGO_RELEASE)/topictrend_web
 
-# Start the embedding gRPC server from the project root so DATA_DIR and
-# ZVEC_DIR resolve as absolute paths regardless of shell CWD.
-embedding-server:
-	@echo "Starting embedding server..."
-	@cd services/embedding && \
-		DATA_DIR=$(abspath $(DATA_DIR)) \
-		ZVEC_DIR=$(abspath $(ZVEC_DIR)) \
-		uv run python embedding_server.py
-
-# Embedding DB indexing configuration
-EMBEDDING_SERVER ?= localhost:50051
-ZVEC_DIR ?= $(DATA_DIR)/embedding_store/zvec
-WIKI ?= enwiki
-
-# Index enwiki categories into zvec embedding database
-# Usage: make index-wiki
-.PHONY: index-wiki index-clean
-
-index-wiki: $(DATA_DIR)/$(WIKI)/categories.parquet
-	@echo "Indexing $(WIKI) categories into zvec..."
-	@cd services/embedding && DATA_DIR=$(abspath $(DATA_DIR)) ZVEC_DIR=$(abspath $(ZVEC_DIR)) uv run python index_categories.py --wiki $(WIKI) --server $(EMBEDDING_SERVER)
-
-# Clean zvec indexes
-index-clean:
-	@echo "Cleaning zvec indexes..."
-	@rm -rf $(ZVEC_DIR)
-	@echo "Done"
-
-# Ensure categories parquet exists before indexing
-$(DATA_DIR)/%/categories.parquet: 
-	@$(MAKE) $(DATA_DIR)/$*/categories.parquet
+qdrant:
+	# Port 6334 is GRPC and that is what rust will use.
+	docker run -d --rm -p 6333:6333 -p 6334:6334 --name qdrant qdrant/qdrant
 
 # Monthly processing target
 # make monthly END_DATE=2025-08-30  # Processes all dates from 2025-08-01 to 2025-08-31

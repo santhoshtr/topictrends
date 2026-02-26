@@ -289,7 +289,7 @@ Results can be returned in any language.
 
 Searching 2.5 million embeddings requires indexing. A linear scan would
 check every category—prohibitive for real-time use. TopicTrends stores
-embeddings in zvec, which implements Hierarchical Navigable Small World
+embeddings in Qdrant, which implements Hierarchical Navigable Small World
 (HNSW) indexing. This approximate nearest-neighbor algorithm achieves
 $O(\log N)$ query complexity while returning the true top-k results with
 high probability.
@@ -306,7 +306,7 @@ memory efficiency with search speed.
 When a query arrives with a target Wikipedia language, the system
 follows a deterministic flow. First, the English query is encoded to
 a 384-dimensional vector using the fixed English model. Second, the
-vector is searched against the `enwiki-categories` collection in zvec,
+vector is searched against the `enwiki-categories` collection in Qdrant,
 returning the top-k results with similarity scores. Third, if the target
 language is not English, the system performs QID lookup in the target
 Wikipedia to translate category titles. Categories that do not exist in
@@ -379,7 +379,7 @@ edges. The trending discovery reverse scatter is sublinear in category
 count, proportional only to articles with nonzero traffic.
 
 Semantic search latency is dominated by vector encoding (embedding
-service) and zvec nearest-neighbor search. For a typical query,
+service) and Qdrant nearest-neighbor search. For a typical query,
 encoding takes 10-50 milliseconds, search takes 5-20 milliseconds, and
 cross-lingual QID translation adds 5-15 milliseconds, totaling under
 100 milliseconds for most queries.
@@ -428,14 +428,14 @@ leverages the fact that Wikidata provides a "Rosetta Stone"—universal
 identifiers that map across all languages. English as the semantic
 bottleneck is a reasonable tradeoff given its linguistic richness.
 
-### 10.5 Why zvec for Vector Search
+### 10.5 Why Qdrant for Vector Search
 
 Vector search requires approximate nearest-neighbor indexing. Alternatives
-include FAISS (library), Qdrant (external service), and cloud solutions like
-Pinecone. FAISS requires lower-level integration; Qdrant requires an external
-service; cloud solutions introduce vendor lock-in. zvec provides an
-in-process solution with straightforward Python API, persistent storage,
-and the HNSW algorithm—all without running a separate service.
+include FAISS (library), Milvus (system), and cloud solutions like
+Pinecone. FAISS requires lower-level integration; Milvus requires
+operational overhead; cloud solutions introduce vendor lock-in. Qdrant
+provides a standalone service with straightforward REST/gRPC interfaces,
+persistent storage, and the HNSW algorithm proven in production systems.
 
 ### 10.6 What Was Sacrificed
 
@@ -483,7 +483,7 @@ The `topictrend_core` crate contains the pure numeric algorithms—CSR
 traversal, level-wise aggregation, visited-set cycle handling. These are
 tested in isolation with synthetic graphs of varying size and structure.
 The `topictrend_taxonomy` crate handles semantic search integration; it
-is tested against the live embedding service and zvec. The
+is tested against the live embedding service and Qdrant instance. The
 `topictrend_web` crate handles HTTP routing and title-to-QID translation;
 it is tested against the real MariaDB replica.
 

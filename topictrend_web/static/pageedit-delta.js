@@ -156,70 +156,57 @@ async function fetchArticleDeltaData(
 }
 
 /**
- * Renders category data as three tabs: Top / Trending up / Trending down
+ * Renders category data as accordion sections (Gains/Losses)
  * @param {Object} data - API response with categories array
  */
 function renderCategoryAccordions(data) {
-	const topList = document.getElementById("top-list");
+	const gainsSection = document.getElementById("gains-section");
+	const lossesSection = document.getElementById("losses-section");
 	const gainsList = document.getElementById("gains-list");
 	const lossesList = document.getElementById("losses-list");
 	const emptyState = document.getElementById("empty-state");
 
-	topList.innerHTML = "";
+	// Clear existing content
 	gainsList.innerHTML = "";
 	lossesList.innerHTML = "";
 
-	const gains = data.categories.filter((c) => c.delta_percentage > 0);
-	const losses = data.categories.filter((c) => c.delta_percentage < 0);
+	// Separate categories into gains and losses
+	const gains = data.categories.filter((cat) => cat.delta_percentage > 0);
+	const losses = data.categories.filter((cat) => cat.delta_percentage < 0);
 
+	// Sort by absolute delta (largest changes first)
 	gains.sort((a, b) => b.delta_percentage - a.delta_percentage);
 	losses.sort((a, b) => a.delta_percentage - b.delta_percentage);
 
+	// Hide empty state if we have data
 	if (gains.length > 0 || losses.length > 0) {
 		emptyState.hidden = true;
 	}
 
-	// Top tab: all items sorted by |delta| descending
-	const top = [...gains, ...losses].sort(
-		(a, b) => Math.abs(b.delta_percentage) - Math.abs(a.delta_percentage),
-	);
-	for (const cat of top) {
-		const type = cat.delta_percentage > 0 ? "positive" : "negative";
-		topList.appendChild(createCategoryAccordion(cat, type, "top-accordion"));
-	}
-
-	// Trending up tab
-	const tabUp = document.getElementById("tab-up");
-	const labelUp = document.querySelector("label[for='tab-up']");
+	// Render gains
 	if (gains.length > 0) {
-		tabUp.hidden = false;
-		labelUp.hidden = false;
-		for (const cat of gains) {
-			gainsList.appendChild(
-				createCategoryAccordion(cat, "positive", "gains-accordion"),
-			);
+		gainsSection.style.display = "flex";
+		const countSpan = gainsSection.querySelector(".section-count");
+		countSpan.textContent = gains.length;
+
+		for (const category of gains) {
+			gainsList.appendChild(createCategoryAccordion(category, "positive"));
 		}
 	} else {
-		tabUp.hidden = true;
-		labelUp.hidden = true;
-		if (tabUp.checked) document.getElementById("tab-top").checked = true;
+		gainsSection.style.display = "none";
 	}
 
-	// Trending down tab
-	const tabDown = document.getElementById("tab-down");
-	const labelDown = document.querySelector("label[for='tab-down']");
+	// Render losses
 	if (losses.length > 0) {
-		tabDown.hidden = false;
-		labelDown.hidden = false;
-		for (const cat of losses) {
-			lossesList.appendChild(
-				createCategoryAccordion(cat, "negative", "losses-accordion"),
-			);
+		lossesSection.style.display = "flex";
+		const countSpan = lossesSection.querySelector(".section-count");
+		countSpan.textContent = losses.length;
+
+		for (const category of losses) {
+			lossesList.appendChild(createCategoryAccordion(category, "negative"));
 		}
 	} else {
-		tabDown.hidden = true;
-		labelDown.hidden = true;
-		if (tabDown.checked) document.getElementById("tab-top").checked = true;
+		lossesSection.style.display = "none";
 	}
 }
 
@@ -227,13 +214,12 @@ function renderCategoryAccordions(data) {
  * Creates a single category accordion element
  * @param {Object} category - Category data from API
  * @param {string} type - 'positive' or 'negative'
- * @param {string} accordionName - name attribute for the <details> exclusive-open group
  * @returns {HTMLDetailsElement} - <details> element
  */
-function createCategoryAccordion(category, type, accordionName) {
+function createCategoryAccordion(category, type) {
 	const details = document.createElement("details");
 	details.className = "category-accordion";
-	details.name = accordionName;
+	details.name = type === "positive" ? "gains-accordion" : "losses-accordion";
 	details.dataset.categoryQid = category.category_qid;
 	details.dataset.categoryTitle = category.category_title;
 
@@ -374,7 +360,7 @@ async function handleAccordionToggle(event) {
 }
 
 /**
- * Renders articles list inside accordion as three tabs: Top / Trending up / Trending down
+ * Renders articles list inside accordion
  * @param {HTMLElement} container - Articles container element
  * @param {Array} articles - Array of article objects
  * @param {string} wiki - Wiki code for building Wikipedia links
@@ -382,99 +368,37 @@ async function handleAccordionToggle(event) {
 function renderArticles(container, articles, wiki) {
 	container.innerHTML = "";
 
-	const gains = articles.filter((a) => a.delta_percentage > 0);
-	const losses = articles.filter((a) => a.delta_percentage < 0);
+	// Separate into gains and losses
+	const gains = articles.filter((art) => art.delta_percentage > 0);
+	const losses = articles.filter((art) => art.delta_percentage < 0);
 
+	// Sort by delta magnitude
 	gains.sort((a, b) => b.delta_percentage - a.delta_percentage);
 	losses.sort((a, b) => a.delta_percentage - b.delta_percentage);
 
-	const top = [...gains, ...losses].sort(
-		(a, b) => Math.abs(b.delta_percentage) - Math.abs(a.delta_percentage),
-	);
+	// Render gains section
+	if (gains.length > 0) {
+		const gainsHeader = document.createElement("div");
+		gainsHeader.className = "articles-section-header";
+		gainsHeader.innerHTML = "<span>📈</span><span>Article Gains</span>";
+		container.appendChild(gainsHeader);
 
-	const details = container.closest("details");
-	const scopeId = details
-		? details.dataset.categoryQid.replace(/[^a-z0-9]/gi, "")
-		: Date.now();
-	const nameAttr = `art-tab-${scopeId}`;
-
-	const radioTop = makeRadio(`art-top-${scopeId}`, nameAttr, true);
-	const radioUp = makeRadio(`art-up-${scopeId}`, nameAttr, false);
-	const radioDown = makeRadio(`art-down-${scopeId}`, nameAttr, false);
-
-	const nav = document.createElement("nav");
-	nav.className = "articles-tabs";
-
-	const lblTop = makeTabLabel(`art-top-${scopeId}`, "Top");
-	const lblUp = makeTabLabel(`art-up-${scopeId}`, "Trending up");
-	const lblDown = makeTabLabel(`art-down-${scopeId}`, "Trending down");
-
-	nav.appendChild(lblTop);
-	nav.appendChild(lblUp);
-	nav.appendChild(lblDown);
-
-	const panelTop = makePanel(top, wiki);
-	const panelUp = makePanel(gains, wiki);
-	const panelDown = makePanel(losses, wiki);
-
-	if (gains.length === 0) {
-		radioUp.hidden = true;
-		lblUp.hidden = true;
-	}
-	if (losses.length === 0) {
-		radioDown.hidden = true;
-		lblDown.hidden = true;
+		for (const article of gains) {
+			container.appendChild(createArticleElement(article, wiki));
+		}
 	}
 
-	function showActivePanel() {
-		panelTop.classList.toggle("active", radioTop.checked);
-		panelUp.classList.toggle("active", radioUp.checked);
-		panelDown.classList.toggle("active", radioDown.checked);
-		lblTop.classList.toggle("active", radioTop.checked);
-		lblUp.classList.toggle("active", radioUp.checked);
-		lblDown.classList.toggle("active", radioDown.checked);
+	// Render losses section
+	if (losses.length > 0) {
+		const lossesHeader = document.createElement("div");
+		lossesHeader.className = "articles-section-header";
+		lossesHeader.innerHTML = "<span>📉</span><span>Article Losses</span>";
+		container.appendChild(lossesHeader);
+
+		for (const article of losses) {
+			container.appendChild(createArticleElement(article, wiki));
+		}
 	}
-	radioTop.addEventListener("change", showActivePanel);
-	radioUp.addEventListener("change", showActivePanel);
-	radioDown.addEventListener("change", showActivePanel);
-
-	panelTop.classList.add("active");
-	lblTop.classList.add("active");
-
-	container.appendChild(radioTop);
-	container.appendChild(radioUp);
-	container.appendChild(radioDown);
-	container.appendChild(nav);
-	container.appendChild(panelTop);
-	container.appendChild(panelUp);
-	container.appendChild(panelDown);
-}
-
-function makeRadio(id, name, checked) {
-	const input = document.createElement("input");
-	input.type = "radio";
-	input.id = id;
-	input.name = name;
-	input.checked = checked;
-	input.hidden = true;
-	return input;
-}
-
-function makeTabLabel(forId, text) {
-	const label = document.createElement("label");
-	label.setAttribute("for", forId);
-	label.setAttribute("role", "tab");
-	label.textContent = text;
-	return label;
-}
-
-function makePanel(items, wiki) {
-	const section = document.createElement("section");
-	section.className = "articles-tab-panel";
-	for (const article of items) {
-		section.appendChild(createArticleElement(article, wiki));
-	}
-	return section;
 }
 
 /**
