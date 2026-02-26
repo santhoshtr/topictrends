@@ -232,7 +232,7 @@ WIKI ?= enwiki
 
 index-wiki: $(DATA_DIR)/$(WIKI)/categories.parquet
 	@echo "Indexing $(WIKI) categories into zvec..."
-	@cd services/embedding && uv run python index_categories.py --wiki $(WIKI) --server $(EMBEDDING_SERVER)
+	@cd services/embedding && DATA_DIR=$(abspath $(DATA_DIR)) ZVEC_DIR=$(abspath $(ZVEC_DIR)) uv run python index_categories.py --wiki $(WIKI) --server $(EMBEDDING_SERVER)
 
 # Clean zvec indexes
 index-clean:

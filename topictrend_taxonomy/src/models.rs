@@ -1,6 +1,6 @@
 use std::fmt;
 
-use serde::Serialize;
+use serde_derive::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct SearchResult {
