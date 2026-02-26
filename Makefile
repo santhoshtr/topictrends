@@ -22,7 +22,7 @@ MIN_EDIT_YEAR ?= 2020
 
 .DEFAULT_GOAL := run
 
-.PHONY: run init clean help $(WIKIS) monthly notebook index-wiki index-clean embedding-server
+.PHONY: run init clean help $(WIKIS) monthly notebook index-wiki index-clean embedding-server web
 
 # Help target
 help:
@@ -215,7 +215,17 @@ clean:
 
 
 web: init
-	 $(CARGO_RELEASE)/topictrend_web
+	@echo "Checking embedding server at $(EMBEDDING_SERVER)..."
+	@python3 -c "\
+import grpc, sys; \
+sys.path.insert(0, 'services/embedding'); \
+import embedding_pb2, embedding_pb2_grpc; \
+ch = grpc.insecure_channel('$(EMBEDDING_SERVER)'); \
+stub = embedding_pb2_grpc.EmbeddingServiceStub(ch); \
+stub.HealthCheck(embedding_pb2.HealthCheckRequest(), timeout=3)" 2>/dev/null \
+	|| { echo "Error: embedding server not reachable at $(EMBEDDING_SERVER). Run 'make embedding-server' first."; exit 1; }
+	@echo "Embedding server OK"
+	$(CARGO_RELEASE)/topictrend_web
 
 # Start the embedding gRPC server from the project root so DATA_DIR and
 # ZVEC_DIR resolve as absolute paths regardless of shell CWD.
