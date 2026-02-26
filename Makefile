@@ -216,7 +216,7 @@ clean:
 
 web: init
 	@echo "Checking embedding server at $(EMBEDDING_SERVER)..."
-	@cd services/embedding && EMBEDDING_SERVER=$(EMBEDDING_SERVER) uv run python healthcheck.py
+	@(cd services/embedding && EMBEDDING_SERVER=$(EMBEDDING_SERVER) uv run python healthcheck.py)
 	@echo "Embedding server OK"
 	$(CARGO_RELEASE)/topictrend_web
 
