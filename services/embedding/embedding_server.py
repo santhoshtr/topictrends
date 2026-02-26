@@ -52,7 +52,7 @@ class EmbeddingServicer(embedding_pb2_grpc.EmbeddingServiceServicer):
             zvec_dir = os.path.abspath(zvec_dir)
         else:
             project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            zvec_dir = os.path.join(project_root, "data", "zvec")
+            zvec_dir = os.path.join(project_root, "data", "embedding_store", "zvec")
 
         self.zvec_store = ZvecStore(
             data_dir=data_dir, zvec_dir=zvec_dir, model_name=model_name

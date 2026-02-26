@@ -223,7 +223,7 @@ qdrant:
 
 # Embedding DB indexing configuration
 EMBEDDING_SERVER ?= localhost:50051
-ZVEC_DIR ?= $(DATA_DIR)/zvec
+ZVEC_DIR ?= $(DATA_DIR)/embedding_store/zvec
 WIKI ?= enwiki
 
 # Index enwiki categories into zvec embedding database

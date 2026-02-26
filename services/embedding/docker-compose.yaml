@@ -6,7 +6,7 @@ services:
     environment:
       - LOG_LEVEL=INFO
       - DATA_DIR=/data
-      - ZVEC_DIR=/data/zvec
+      - ZVEC_DIR=/data/embedding_store/zvec
     volumes:
       - ./data:/data
     healthcheck:

@@ -25,7 +25,7 @@ class ZvecStore:
     def __init__(
         self,
         data_dir: str = "./data",
-        zvec_dir: str = "./data/zvec",
+        zvec_dir: str = "./data/embedding_store/zvec",
         model_name: str = "sentence-transformers/all-MiniLM-L12-v2",
     ):
         """Initialize the zvec store.
