@@ -22,7 +22,7 @@ MIN_EDIT_YEAR ?= 2020
 
 .DEFAULT_GOAL := run
 
-.PHONY: run init clean help $(WIKIS) qdrant monthly notebook
+.PHONY: run init clean help $(WIKIS) qdrant monthly notebook index-wiki index-clean
 
 # Help target
 help:
@@ -220,6 +220,29 @@ web: init
 qdrant:
 	# Port 6334 is GRPC and that is what rust will use.
 	docker run -d --rm -p 6333:6333 -p 6334:6334 --name qdrant qdrant/qdrant
+
+# Embedding DB indexing configuration
+EMBEDDING_SERVER ?= localhost:50051
+ZVEC_DIR ?= $(DATA_DIR)/zvec
+WIKI ?= enwiki
+
+# Index enwiki categories into zvec embedding database
+# Usage: make index-wiki
+.PHONY: index-wiki index-clean
+
+index-wiki: $(DATA_DIR)/$(WIKI)/categories.parquet
+	@echo "Indexing $(WIKI) categories into zvec..."
+	@cd services/embedding && uv run python index_categories.py --wiki $(WIKI) --server $(EMBEDDING_SERVER)
+
+# Clean zvec indexes
+index-clean:
+	@echo "Cleaning zvec indexes..."
+	@rm -rf $(ZVEC_DIR)
+	@echo "Done"
+
+# Ensure categories parquet exists before indexing
+$(DATA_DIR)/%/categories.parquet: 
+	@$(MAKE) $(DATA_DIR)/$*/categories.parquet
 
 # Monthly processing target
 # make monthly END_DATE=2025-08-30  # Processes all dates from 2025-08-01 to 2025-08-31
