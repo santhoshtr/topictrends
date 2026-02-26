@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-gRPC server for vector embeddings using Qwen3-Embedding model.
+gRPC server for vector embeddings using sentence transformers.
 
 Installation:
     pip install grpcio grpcio-tools sentence-transformers transformers
@@ -12,25 +12,40 @@ Generate Python code from proto:
 import grpc
 from concurrent import futures
 import logging
+import os
 import signal
 import sys
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-# Import generated protobuf code
 import embedding_pb2
 import embedding_pb2_grpc
+from zvec_store import ZvecStore
 
 
 class EmbeddingServicer(embedding_pb2_grpc.EmbeddingServiceServicer):
     """gRPC servicer for embedding operations."""
 
-    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L12-v2"):
-        """Initialize the embedding model."""
+    def __init__(
+        self,
+        model_name: str = "sentence-transformers/all-MiniLM-L12-v2",
+        data_dir: str = None,
+        zvec_dir: str = None,
+    ):
+        """Initialize the embedding model and zvec store."""
         logging.info(f"Loading model: {model_name}")
         self.model = SentenceTransformer(model_name)
         self.model_name = model_name
         logging.info("Model loaded successfully")
+
+        data_dir = data_dir or os.getenv("DATA_DIR", "./data")
+        zvec_dir = zvec_dir or os.getenv("ZVEC_DIR", "./data/zvec")
+        self.zvec_store = ZvecStore(
+            data_dir=data_dir, zvec_dir=zvec_dir, model_name=model_name
+        )
+        logging.info(
+            f"Zvec store initialized: data_dir={data_dir}, zvec_dir={zvec_dir}"
+        )
 
     def Encode(self, request, context):
         """Encode texts into embeddings."""
@@ -116,6 +131,67 @@ class EmbeddingServicer(embedding_pb2_grpc.EmbeddingServiceServicer):
         return embedding_pb2.HealthCheckResponse(
             healthy=True, model_name=self.model_name
         )
+
+    def Injest(self, request, context):
+        """Ingest categories from parquet for a wiki into zvec."""
+        try:
+            wiki = request.wiki
+            if not wiki:
+                context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+                context.set_details("wiki field cannot be empty")
+                return embedding_pb2.InjestResponse()
+
+            logging.info(f"Ingesting categories for wiki: {wiki}")
+            records_processed = self.zvec_store.injest(wiki)
+            logging.info(f"Ingested {records_processed} records for {wiki}")
+
+            return embedding_pb2.InjestResponse(records_processed=records_processed)
+
+        except FileNotFoundError as e:
+            context.set_code(grpc.StatusCode.NOT_FOUND)
+            context.set_details(str(e))
+            return embedding_pb2.InjestResponse()
+        except Exception as e:
+            logging.error(f"Error in Injest: {str(e)}", exc_info=True)
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f"Ingest failed: {str(e)}")
+            return embedding_pb2.InjestResponse()
+
+    def Search(self, request, context):
+        """Search the vector store for categories matching a query."""
+        try:
+            query = request.query
+            wiki = request.wiki
+            limit = request.limit
+
+            if not query:
+                context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+                context.set_details("query field cannot be empty")
+                return embedding_pb2.SearchResponse()
+
+            if not wiki:
+                context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+                context.set_details("wiki field cannot be empty")
+                return embedding_pb2.SearchResponse()
+
+            if limit <= 0:
+                limit = 10
+
+            logging.debug(f"Searching for '{query}' in {wiki} (limit={limit})")
+            results = self.zvec_store.search(query, wiki, limit)
+
+            response = embedding_pb2.SearchResponse()
+            for result in results:
+                response.results.append(result)
+
+            logging.debug(f"Search returned {len(response.results)} results")
+            return response
+
+        except Exception as e:
+            logging.error(f"Error in Search: {str(e)}", exc_info=True)
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f"Search failed: {str(e)}")
+            return embedding_pb2.SearchResponse()
 
 
 def serve(port: int = 50051, max_workers: int = 10):
