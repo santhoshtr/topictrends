@@ -22,7 +22,7 @@ MIN_EDIT_YEAR ?= 2020
 
 .DEFAULT_GOAL := run
 
-.PHONY: run init clean help $(WIKIS) qdrant monthly notebook index-wiki index-clean
+.PHONY: run init clean help $(WIKIS) monthly notebook index-wiki index-clean embedding-server
 
 # Help target
 help:
@@ -217,9 +217,14 @@ clean:
 web: init
 	 $(CARGO_RELEASE)/topictrend_web
 
-qdrant:
-	# Port 6334 is GRPC and that is what rust will use.
-	docker run -d --rm -p 6333:6333 -p 6334:6334 --name qdrant qdrant/qdrant
+# Start the embedding gRPC server from the project root so DATA_DIR and
+# ZVEC_DIR resolve as absolute paths regardless of shell CWD.
+embedding-server:
+	@echo "Starting embedding server..."
+	@cd services/embedding && \
+		DATA_DIR=$(abspath $(DATA_DIR)) \
+		ZVEC_DIR=$(abspath $(ZVEC_DIR)) \
+		uv run python embedding_server.py
 
 # Embedding DB indexing configuration
 EMBEDDING_SERVER ?= localhost:50051
