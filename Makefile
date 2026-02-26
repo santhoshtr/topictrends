@@ -216,14 +216,7 @@ clean:
 
 web: init
 	@echo "Checking embedding server at $(EMBEDDING_SERVER)..."
-	@python3 -c "\
-import grpc, sys; \
-sys.path.insert(0, 'services/embedding'); \
-import embedding_pb2, embedding_pb2_grpc; \
-ch = grpc.insecure_channel('$(EMBEDDING_SERVER)'); \
-stub = embedding_pb2_grpc.EmbeddingServiceStub(ch); \
-stub.HealthCheck(embedding_pb2.HealthCheckRequest(), timeout=3)" 2>/dev/null \
-	|| { echo "Error: embedding server not reachable at $(EMBEDDING_SERVER). Run 'make embedding-server' first."; exit 1; }
+	@cd services/embedding && EMBEDDING_SERVER=$(EMBEDDING_SERVER) uv run python healthcheck.py
 	@echo "Embedding server OK"
 	$(CARGO_RELEASE)/topictrend_web
 
