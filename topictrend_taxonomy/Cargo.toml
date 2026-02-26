@@ -13,15 +13,8 @@ path = "src/sentence_embedder.rs"
 
 
 [dependencies]
-parquet = { workspace = true }
-parquet_derive = { workspace = true }
-polars = { workspace = true }
 anyhow.workspace = true
-ahash = { workspace = true }
 clap = { workspace = true }
-chrono = { workspace = true }
-byteorder = { workspace = true }
-qdrant-client = "1.16.0"
 tonic = "0.14.2"
 prost = "0.14.1"
 tonic-prost = "0.14.2"
