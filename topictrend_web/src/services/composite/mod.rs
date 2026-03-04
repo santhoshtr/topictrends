@@ -25,7 +25,7 @@ pub async fn taxonomy_search_category_qids(category: &str) -> Result<Vec<u32>, C
 
     let qids: Vec<u32> = results
         .into_iter()
-        .filter(|r| r.score >= MATCH_THRESHOLD)
+        .filter(|r| 1.0 - r.score >= MATCH_THRESHOLD)
         .map(|r| r.qid)
         .collect();
 
