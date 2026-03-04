@@ -25,61 +25,110 @@
 	   ============================================ */
 	.results-container {
 		container: results / inline-size;
-		display: flex;
-		flex-direction: column;
-		gap: var(--spacing-200);
+		display: block;
 		inline-size: 100%;
 		margin-inline: auto;
 	}
 
 	/* ============================================
-	   SECTION (Gains/Losses)
+	   DELTA TABS
 	   ============================================ */
-	.delta-section {
-		display: flex;
-		flex-direction: column;
-		gap: var(--spacing-100);
-
-		&:has(.category-list:empty) {
-			display: none;
-		}
-
-		@media (prefers-reduced-motion: no-preference) {
-			animation: section-fade-in 0.4s ease both;
-			animation-timeline: view();
-			animation-range: entry 0% cover 20%;
-		}
+	input[name="delta-tab"] {
+		display: none;
 	}
 
-	@keyframes section-fade-in {
-		from {
-			opacity: 0;
-			translate: 0 var(--spacing-100);
-		}
-	}
-
-	.section-header {
+	.delta-tabs {
 		display: flex;
-		align-items: center;
-		gap: var(--spacing-75);
-		padding-block-end: var(--spacing-75);
-		border-block-end: var(--border-width-thick) solid var(--border-color-base);
-		font-size: var(--font-size-x-large);
-		font-weight: var(--font-weight-bold);
-		color: var(--color-emphasized);
+		gap: 0;
+		border-block-end: var(--border-width-base) solid var(--border-color-base);
+		margin-block-end: var(--spacing-150);
 
-		& .section-icon {
-			font-size: var(--font-size-xx-large);
-		}
-
-		& .section-count {
-			margin-inline-start: auto;
-			padding: var(--spacing-25) var(--spacing-75);
-			border-radius: var(--border-radius-pill);
-			background-color: var(--background-color-neutral);
-			font-size: var(--font-size-small);
-			font-weight: var(--font-weight-normal);
+		& label {
+			padding: var(--spacing-75) var(--spacing-150);
+			font-size: var(--font-size-medium);
+			font-weight: var(--font-weight-semi-bold);
 			color: var(--color-subtle);
+			cursor: pointer;
+			border-block-end: var(--border-width-thick) solid transparent;
+			margin-block-end: calc(-1 * var(--border-width-base));
+			transition:
+				color 0.15s ease,
+				border-color 0.15s ease;
+			user-select: none;
+
+			&:hover {
+				color: var(--color-base);
+			}
+
+			&[hidden] {
+				display: none;
+			}
+		}
+	}
+
+	#tab-top:checked ~ .delta-tabs label[for="tab-top"],
+	#tab-up:checked ~ .delta-tabs label[for="tab-up"],
+	#tab-down:checked ~ .delta-tabs label[for="tab-down"] {
+		color: var(--color-progressive);
+		border-block-end-color: var(--color-progressive);
+	}
+
+	.delta-tab-panel {
+		display: none;
+	}
+
+	#tab-top:checked ~ #panel-top,
+	#tab-up:checked ~ #panel-up,
+	#tab-down:checked ~ #panel-down {
+		display: block;
+	}
+
+	/* ============================================
+	   ARTICLE TABS (inside each accordion)
+	   ============================================ */
+	input[name^="art-tab"] {
+		display: none;
+	}
+
+	.articles-tabs {
+		display: flex;
+		gap: 0;
+		border-block-end: var(--border-width-base) solid var(--border-color-subtle);
+		margin-block-end: var(--spacing-100);
+
+		& label {
+			padding: var(--spacing-50) var(--spacing-100);
+			font-size: var(--font-size-small);
+			font-weight: var(--font-weight-semi-bold);
+			color: var(--color-subtle);
+			cursor: pointer;
+			border-block-end: var(--border-width-thick) solid transparent;
+			margin-block-end: calc(-1 * var(--border-width-base));
+			transition:
+				color 0.15s ease,
+				border-color 0.15s ease;
+			user-select: none;
+
+			&:hover {
+				color: var(--color-base);
+			}
+
+			&[hidden] {
+				display: none;
+			}
+
+			&.active {
+				color: var(--color-progressive);
+				border-block-end-color: var(--color-progressive);
+			}
+		}
+	}
+
+	.articles-tab-panel {
+		display: none;
+
+		&.active {
+			display: contents;
 		}
 	}
 
@@ -263,21 +312,6 @@
 		max-height: 60vh;
 		overflow-y: auto;
 		overflow-x: hidden;
-
-		& .articles-section-header {
-			display: flex;
-			align-items: center;
-			gap: var(--spacing-50);
-			padding-block-end: var(--spacing-50);
-			margin-block-end: var(--spacing-50);
-			border-block-end: var(--border-width-base) solid
-				var(--border-color-subtle);
-			font-size: var(--font-size-small);
-			font-weight: var(--font-weight-semi-bold);
-			color: var(--color-subtle);
-			text-transform: uppercase;
-			letter-spacing: 0.05em;
-		}
 	}
 
 	/* ============================================
@@ -421,12 +455,9 @@
 	   RESPONSIVE ADJUSTMENTS
 	   ============================================ */
 	@container results (inline-size < 50rem) {
-		.results-container {
-			padding: var(--spacing-100);
-		}
-
-		.section-header {
-			font-size: var(--font-size-large);
+		.delta-tabs label {
+			padding: var(--spacing-50) var(--spacing-100);
+			font-size: var(--font-size-small);
 		}
 	}
 

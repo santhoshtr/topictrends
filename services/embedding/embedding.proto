@@ -11,6 +11,12 @@ service EmbeddingService {
 
   // Health check
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+
+  // Ingest categories from parquet for a wiki into the vector store
+  rpc Injest(InjestRequest) returns (InjestResponse);
+
+  // Search the vector store for categories matching a query
+  rpc Search(SearchRequest) returns (SearchResponse);
 }
 
 message EncodeRequest {
@@ -46,4 +52,29 @@ message HealthCheckRequest {}
 message HealthCheckResponse {
   bool healthy = 1;
   string model_name = 2;
+}
+
+message InjestRequest {
+  string wiki = 1;
+  string parquet_path = 2;
+}
+
+message InjestResponse {
+  int64 records_processed = 1;
+}
+
+message SearchRequest {
+  string query = 1;
+  string wiki = 2;
+  int64 limit = 3;
+}
+
+message SearchResultItem {
+  float score = 1;
+  uint32 qid = 2;
+  string page_title = 3;
+}
+
+message SearchResponse {
+  repeated SearchResultItem results = 1;
 }

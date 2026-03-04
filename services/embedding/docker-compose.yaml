@@ -5,6 +5,10 @@ services:
       - "50051:50051"
     environment:
       - LOG_LEVEL=INFO
+      - DATA_DIR=/data
+      - ZVEC_DIR=/data/embedding_store/zvec
+    volumes:
+      - ./data:/data
     healthcheck:
       test: ["CMD", "python", "-c", "import grpc; from embedding_pb2_grpc import EmbeddingServiceStub; from embedding_pb2 import HealthCheckRequest; channel = grpc.insecure_channel('localhost:50051'); stub = EmbeddingServiceStub(channel); stub.HealthCheck(HealthCheckRequest())"]
       interval: 30s

@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0f\x65mbedding.proto\x12\tembedding\"H\n\rEncodeRequest\x12\r\n\x05texts\x18\x01 \x03(\t\x12\x18\n\x0bprompt_name\x18\x02 \x01(\tH\x00\x88\x01\x01\x42\x0e\n\x0c_prompt_name\":\n\x0e\x45ncodeResponse\x12(\n\nembeddings\x18\x01 \x03(\x0b\x32\x14.embedding.Embedding\"\x1b\n\tEmbedding\x12\x0e\n\x06values\x18\x01 \x03(\x02\"v\n\x11SimilarityRequest\x12.\n\x10query_embeddings\x18\x01 \x03(\x0b\x32\x14.embedding.Embedding\x12\x31\n\x13\x64ocument_embeddings\x18\x02 \x03(\x0b\x32\x14.embedding.Embedding\"V\n\x12SimilarityResponse\x12\x14\n\x0csimilarities\x18\x01 \x03(\x02\x12\x13\n\x0bnum_queries\x18\x02 \x01(\x05\x12\x15\n\rnum_documents\x18\x03 \x01(\x05\"\x14\n\x12HealthCheckRequest\":\n\x13HealthCheckResponse\x12\x0f\n\x07healthy\x18\x01 \x01(\x08\x12\x12\n\nmodel_name\x18\x02 \x01(\t2\xf1\x01\n\x10\x45mbeddingService\x12=\n\x06\x45ncode\x12\x18.embedding.EncodeRequest\x1a\x19.embedding.EncodeResponse\x12P\n\x11\x43omputeSimilarity\x12\x1c.embedding.SimilarityRequest\x1a\x1d.embedding.SimilarityResponse\x12L\n\x0bHealthCheck\x12\x1d.embedding.HealthCheckRequest\x1a\x1e.embedding.HealthCheckResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0f\x65mbedding.proto\x12\tembedding\"H\n\rEncodeRequest\x12\r\n\x05texts\x18\x01 \x03(\t\x12\x18\n\x0bprompt_name\x18\x02 \x01(\tH\x00\x88\x01\x01\x42\x0e\n\x0c_prompt_name\":\n\x0e\x45ncodeResponse\x12(\n\nembeddings\x18\x01 \x03(\x0b\x32\x14.embedding.Embedding\"\x1b\n\tEmbedding\x12\x0e\n\x06values\x18\x01 \x03(\x02\"v\n\x11SimilarityRequest\x12.\n\x10query_embeddings\x18\x01 \x03(\x0b\x32\x14.embedding.Embedding\x12\x31\n\x13\x64ocument_embeddings\x18\x02 \x03(\x0b\x32\x14.embedding.Embedding\"V\n\x12SimilarityResponse\x12\x14\n\x0csimilarities\x18\x01 \x03(\x02\x12\x13\n\x0bnum_queries\x18\x02 \x01(\x05\x12\x15\n\rnum_documents\x18\x03 \x01(\x05\"\x14\n\x12HealthCheckRequest\":\n\x13HealthCheckResponse\x12\x0f\n\x07healthy\x18\x01 \x01(\x08\x12\x12\n\nmodel_name\x18\x02 \x01(\t\"3\n\rInjestRequest\x12\x0c\n\x04wiki\x18\x01 \x01(\t\x12\x14\n\x0cparquet_path\x18\x02 \x01(\t\"+\n\x0eInjestResponse\x12\x19\n\x11records_processed\x18\x01 \x01(\x03\";\n\rSearchRequest\x12\r\n\x05query\x18\x01 \x01(\t\x12\x0c\n\x04wiki\x18\x02 \x01(\t\x12\r\n\x05limit\x18\x03 \x01(\x03\"B\n\x10SearchResultItem\x12\r\n\x05score\x18\x01 \x01(\x02\x12\x0b\n\x03qid\x18\x02 \x01(\r\x12\x12\n\npage_title\x18\x03 \x01(\t\">\n\x0eSearchResponse\x12,\n\x07results\x18\x01 \x03(\x0b\x32\x1b.embedding.SearchResultItem2\xef\x02\n\x10\x45mbeddingService\x12=\n\x06\x45ncode\x12\x18.embedding.EncodeRequest\x1a\x19.embedding.EncodeResponse\x12P\n\x11\x43omputeSimilarity\x12\x1c.embedding.SimilarityRequest\x1a\x1d.embedding.SimilarityResponse\x12L\n\x0bHealthCheck\x12\x1d.embedding.HealthCheckRequest\x1a\x1e.embedding.HealthCheckResponse\x12=\n\x06Injest\x12\x18.embedding.InjestRequest\x1a\x19.embedding.InjestResponse\x12=\n\x06Search\x12\x18.embedding.SearchRequest\x1a\x19.embedding.SearchResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -45,6 +45,16 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_HEALTHCHECKREQUEST']._serialized_end=421
   _globals['_HEALTHCHECKRESPONSE']._serialized_start=423
   _globals['_HEALTHCHECKRESPONSE']._serialized_end=481
-  _globals['_EMBEDDINGSERVICE']._serialized_start=484
-  _globals['_EMBEDDINGSERVICE']._serialized_end=725
+  _globals['_INJESTREQUEST']._serialized_start=483
+  _globals['_INJESTREQUEST']._serialized_end=534
+  _globals['_INJESTRESPONSE']._serialized_start=536
+  _globals['_INJESTRESPONSE']._serialized_end=579
+  _globals['_SEARCHREQUEST']._serialized_start=581
+  _globals['_SEARCHREQUEST']._serialized_end=640
+  _globals['_SEARCHRESULTITEM']._serialized_start=642
+  _globals['_SEARCHRESULTITEM']._serialized_end=708
+  _globals['_SEARCHRESPONSE']._serialized_start=710
+  _globals['_SEARCHRESPONSE']._serialized_end=772
+  _globals['_EMBEDDINGSERVICE']._serialized_start=775
+  _globals['_EMBEDDINGSERVICE']._serialized_end=1142
 # @@protoc_insertion_point(module_scope)

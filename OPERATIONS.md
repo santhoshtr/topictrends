@@ -18,7 +18,7 @@ This document covers deployment, configuration, data ingestion, and operational 
 
 - **Rust toolchain** (1.70+): Install from https://rustup.rs/
 - **MariaDB client tools**: For database access to Wikimedia SQL replicas
-- **Docker** (optional): For running Qdrant vector database
+- **Python 3.12+** (required): For running embedding service
 - **Access to Wikimedia infrastructure**: Required for data ingestion from SQL replicas and pageview dumps
 - **Network connectivity**: To https://dumps.wikimedia.org for pageview data
 
@@ -55,8 +55,9 @@ make init
 ### Running the Web Server
 
 ```bash
-# Ensure Qdrant is running (for semantic search)
-make qdrant
+# Start the embedding service (required for semantic search)
+make embedding-server &
+# Or with docker: cd services/embedding && docker-compose up -d
 
 # Start the web server
 make web
@@ -82,7 +83,7 @@ Thin translation layer. Handles HTTP requests, translates titles to QIDs via Mar
 #### 4. Semantic Search (Microservices)
 Optional component for semantic search:
 - **Embedding Service**: Python gRPC server running a sentence transformer model
-- **Vector Database (Qdrant)**: Persistent storage for 384-dimensional embeddings with HNSW indexing
+- **Vector Database (zvec)**: In-process storage for 384-dimensional embeddings with HNSW indexing
 
 ### Data Flow
 
@@ -116,8 +117,8 @@ DB_PASSWORD=<wikimedia replica password>
 # Embedding service endpoint (optional, only for semantic search)
 EMBEDDING_SERVER=http://localhost:50051
 
-# Qdrant vector database endpoint (optional, only for semantic search)
-QDRANT_SERVER=http://localhost:6333
+# zvec vector database (in-process, no setup needed)
+ZVEC_DIR=data/embedding_store/zvec
 
 # Web server port (optional, defaults to 8765)
 PORT=8765
@@ -134,7 +135,7 @@ DATA_DIR=data
 - Server will fail to start without these credentials
 
 **Optional Variables:**
-- `EMBEDDING_SERVER` and `QDRANT_SERVER` are only needed if using semantic search endpoints
+- `EMBEDDING_SERVER` is only needed if using semantic search endpoints
 - `PORT` and `GRPC_PORT` override defaults if needed
 
 ### Database Replica Access
@@ -280,9 +281,9 @@ The server:
 
 The web server requires:
 - **MariaDB replica access** (hard requirement): Used for all title↔QID translation
-- **Qdrant service** (optional): Only if using semantic search endpoints
+- **Embedding service** (optional): Only if using semantic search endpoints
 
-If MariaDB is unavailable, the server will fail to start. If Qdrant is unavailable, semantic search endpoints will return errors, but other APIs function normally.
+If MariaDB is unavailable, the server will fail to start. If the embedding service is unavailable, semantic search endpoints will return errors, but other APIs function normally.
 
 ### Health Checks
 
@@ -312,29 +313,10 @@ The server closes database connections cleanly on shutdown.
 
 ### Prerequisites
 
-- **Docker** (to run Qdrant)
-- **Python 3.9+** (to run embedding service)
+- **Python 3.12+** (to run embedding service)
 - **Embedding service**: Included in `services/embedding/`
 
-### Step 1: Start Qdrant Vector Database
-
-```bash
-make qdrant
-
-# Or manually:
-docker run -d --rm \
-  -p 6333:6333 \
-  --name qdrant \
-  qdrant/qdrant
-
-# Verify: http://localhost:6333/health
-```
-
-**Configuration:**
-- **Port 6333**: HTTP API
-- **Storage**: In-container (ephemeral, or use volume for persistence)
-
-### Step 2: Start Embedding Service
+### Step 1: Start Embedding Service
 
 The embedding service runs as a gRPC server on port 50051 (default).
 
@@ -356,33 +338,39 @@ python embedding_server.py
 
 **Set environment variable for web server:**
 ```bash
-export EMBEDDING_SERVER=http://localhost:50051
+export EMBEDDING_SERVER=localhost:50051
+
+# zvec vector database (in-process, no setup needed)
+export ZVEC_DIR=data/embedding_store/zvec
 ```
 
-### Step 3: Index English Wikipedia Categories
+### Step 2: Index English Wikipedia Categories
 
-This is a one-time operation that builds the Qdrant collection. Use the topictrend_taxonomy binary:
+This is a one-time operation that builds the zvec collection. Use the Makefile target:
 
 ```bash
-cargo build --release
-./target/release/topictrend_taxonomy
+# Ensure categories parquet exists
+make data/enwiki/categories.parquet
 
-# Or check the Makefile for available targets
-make help | grep -i embedding
+# Index into zvec
+make index-wiki
+
+# Or manually:
+cd services/embedding && uv run python index_categories.py --wiki enwiki
 ```
 
 **Process:**
 1. Loads English Wikipedia categories from `data/enwiki/categories.parquet`
 2. Batches categories in groups of 100
-3. Encodes each batch via gRPC to embedding service
-4. Inserts vectors into Qdrant collection `enwiki-categories`
-5. Creates HNSW index on Qdrant
+3. Encodes each batch via the embedding service
+4. Inserts vectors into zvec collection `enwiki-categories`
+5. Creates HNSW index on zvec
 
 **Runtime**: ~30 minutes (depends on network latency to embedding service)
 
 **Output:**
-- Qdrant collection: `enwiki-categories` with 2.5M points
-- Each point: {id: QID, vector: 384-dim, payload: {qid, page_title}}
+- zvec collection: `data/embedding_store/zvec/enwiki-categories/` with 2.5M points
+- Each point: {id: QID, vector: 384-dim, fields: {qid, page_title}}
 
 ### Step 4: Verify Semantic Search
 
@@ -464,14 +452,14 @@ If pool is exhausted, increase pool size in configuration.
 # Test MariaDB connectivity
 mariadb --host enwiki.analytics.db.svc.wikimedia.cloud --user ... -e "SELECT 1"
 
-# Check if Qdrant is required
-grep -r "QUADRANT_SERVER" src/
+# Check if embedding service is required
+grep -r "EMBEDDING_SERVER" src/
 ```
 
 **Solution**:
 - Verify MariaDB replica is accessible from your network
 - Check `.env` has correct database credentials
-- If Qdrant is optional, ensure semantic search endpoints aren't required
+- If embedding service is optional, ensure semantic search endpoints aren't required
 
 ### Issue: Semantic Search Returns Errors
 
@@ -482,17 +470,13 @@ grep -r "QUADRANT_SERVER" src/
 # Check embedding service
 curl http://localhost:50051/health  # (gRPC, may not respond to HTTP)
 
-# Check Qdrant
-curl http://localhost:6333/health
-
-# Verify collection exists
-curl http://localhost:6333/collections/enwiki-categories
+# Verify zvec collection exists
+ls -la data/embedding_store/zvec/enwiki-categories/
 ```
 
 **Solution**:
 - Restart embedding service: `docker-compose restart` in `services/embedding/`
-- Restart Qdrant: `docker restart qdrant`
-- Re-index: `./target/release/topictrend_web --init-embeddings`
+- Re-index: `make index-wiki`
 
 ### Issue: High Latency on Pageview Queries
 
@@ -513,7 +497,6 @@ perf stat -e cache-misses,cache-references ./target/release/topictrend_web
 **Solution**:
 - Ensure sufficient RAM is available (at least 4GB for topology)
 - Move `data/` directory to faster storage if on HDD
-- Increase shared memory if using container: `docker run --shm-size=2g qdrant/qdrant`
 
 ### Issue: Pageview Data Won't Ingest
 
@@ -576,7 +559,7 @@ curl http://localhost:8765/api/stats
 tail -f /var/log/topictrend_web.log
 
 # 5. If semantic search is enabled, re-index
-./target/release/topictrend_web --init-embeddings
+make index-wiki
 
 # 6. Test endpoints
 curl http://localhost:8765/api/pageviews/category?qid=42&wiki=enwiki
@@ -608,7 +591,7 @@ The architecture scales to:
 Bottlenecks emerge at:
 - **Available RAM**: For large wikis, CSR topology can exceed available memory
 - **Network latency**: Title translation is database-bound
-- **Qdrant storage**: 2.5M embeddings at 384-dim uses ~10GB disk
+- **zvec storage**: 2.5M embeddings at 384-dim uses ~10GB disk
 
 To scale further, consider:
 - Sharding by language or category prefix
