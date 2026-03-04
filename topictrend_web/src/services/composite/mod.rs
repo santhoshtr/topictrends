@@ -19,13 +19,12 @@ pub async fn taxonomy_search_category_qids(category: &str) -> Result<Vec<u32>, C
     const LIMIT: u64 = 1000;
     const MATCH_THRESHOLD: f32 = 0.6;
 
-    let results = topictrend_taxonomy::search(category.to_string(), "enwiki".to_string(), LIMIT)
+    let results = topictrend_taxonomy::search(category.to_string(), "enwiki".to_string(), LIMIT, MATCH_THRESHOLD)
         .await
         .map_err(|e| CoreServiceError::InternalError(format!("Taxonomy search failed: {}", e)))?;
 
     let qids: Vec<u32> = results
         .into_iter()
-        .filter(|r| 1.0 - r.score >= MATCH_THRESHOLD)
         .map(|r| r.qid)
         .collect();
 

@@ -31,6 +31,7 @@ pub async fn search(
     query: String,
     wiki: String,
     limit: u64,
+    match_threshold: f32,
 ) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     let embedding_server = std::env::var("EMBEDDING_SERVER")
         .unwrap_or_else(|_| "http://localhost:50051".to_string());
@@ -49,7 +50,10 @@ pub async fn search(
         .into_inner()
         .results
         .into_iter()
-        .map(|r| SearchResult::new(r.score, r.qid, r.page_title))
+        .filter_map(|r| {
+            let similarity = 1.0 - r.score;
+            (similarity >= match_threshold).then(|| SearchResult::new(similarity, r.qid, r.page_title))
+        })
         .collect();
 
     Ok(results)

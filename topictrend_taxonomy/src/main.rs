@@ -70,7 +70,7 @@ async fn run() -> Result<()> {
 
         Commands::Search { wiki, query, n } => {
             println!("Searching in '{}' for: '{}'", wiki, query);
-            let results = search(query.clone(), wiki.clone(), n)
+            let results = search(query.clone(), wiki.clone(), n, 0.0)
                 .await
                 .unwrap_or_else(|e| {
                     eprintln!("Failed to search in wiki '{}': {}", wiki, e);

@@ -490,7 +490,7 @@ pub async fn search_categories(
     let match_threshold = params.match_threshold.unwrap_or(0.6);
 
     let search_results: Vec<topictrend_taxonomy::SearchResult> =
-        topictrend_taxonomy::search(params.query.clone(), "enwiki".to_string(), limit)
+        topictrend_taxonomy::search(params.query.clone(), "enwiki".to_string(), limit, match_threshold)
             .await
             .map_err(|e| {
                 ApiError::ServiceError(crate::services::ServiceError::CoreError(
@@ -500,7 +500,6 @@ pub async fn search_categories(
 
     let mut categories: Vec<CategorySearchItemResponse> = search_results
         .into_iter()
-        .filter(|result| 1.0 - result.score >= match_threshold)
         .map(|result| CategorySearchItemResponse {
             category_qid: result.qid,
             category_title_en: result.page_title,
@@ -541,7 +540,7 @@ pub async fn get_categories_trend_by_search_handler(
     let limit: u64 = params.limit.unwrap_or(1000u64);
     let match_threshold = params.match_threshold.unwrap_or(0.6);
     let search_results: Vec<topictrend_taxonomy::SearchResult> =
-        topictrend_taxonomy::search(params.category_query.clone(), "enwiki".to_string(), limit)
+        topictrend_taxonomy::search(params.category_query.clone(), "enwiki".to_string(), limit, match_threshold)
             .await
             .map_err(|e| {
                 ApiError::ServiceError(crate::services::ServiceError::CoreError(
@@ -551,7 +550,6 @@ pub async fn get_categories_trend_by_search_handler(
 
     let category_qids: Vec<u32> = search_results
         .into_iter()
-        .filter(|result| 1.0 - result.score >= match_threshold)
         .map(|result| result.qid)
         .collect();
 

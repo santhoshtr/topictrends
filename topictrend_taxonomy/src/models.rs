@@ -4,6 +4,7 @@ use serde_derive::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct SearchResult {
+    /// Cosine similarity in [0.0, 1.0]; 1.0 = identical, 0.0 = unrelated.
     pub score: f32,
     pub qid: u32,
     pub page_title: String,
