@@ -116,7 +116,7 @@ requires-dist = [
     { name = "torch", specifier = ">=2.0.0", index = "https://download.pytorch.org/whl/cpu" },
     { name = "tqdm", specifier = ">=4.66.0" },
     { name = "transformers", specifier = ">=4.51.0" },
-    { name = "zvec", specifier = ">=0.1.0" },
+    { name = "zvec", specifier = ">=0.2.1b0" },
 ]
 provides-extras = ["dev"]
 
@@ -1064,13 +1064,11 @@ wheels = [
 
 [[package]]
 name = "zvec"
-version = "0.2.0"
+version = "0.2.1b0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0d/d3/4914de3a352ce8e3d176cb7fcb7d1bfa5d6a9bec56b31480bb7a77f8acb2/zvec-0.2.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:5a602477b48c31aadb470098f80f4bb5f5f17d8aa96be131fa7d7458367fd8c5", size = 12740381, upload-time = "2026-02-13T02:20:00.111Z" },
-    { url = "https://files.pythonhosted.org/packages/7e/75/6d1878b22eea22eff0835bb3c3ba1a29d55d285265105cf53eaeb258fb56/zvec-0.2.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:1d84cd275b4fd5f70829a74f3b7a6907f8b633cf2bc7292a3eb7dbae2c0e1ca3", size = 18411239, upload-time = "2026-02-13T02:16:33.168Z" },
-    { url = "https://files.pythonhosted.org/packages/36/b1/775d04fa886616f47f859bd5f98a9c892e65ace52dd48d8b71e5d11eae00/zvec-0.2.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:4cbb6173a59e6fa09a7106eda819ce1088b6e13278739fb48919ea8294100267", size = 20389189, upload-time = "2026-02-13T03:35:47.942Z" },
+    { url = "https://files.pythonhosted.org/packages/5e/f4/02d1d45d0f87fbb82d2c620341afddf2e9a6b65551fe3160ea77a3bcc433/zvec-0.2.1b0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:9e262a45a57a5654a998d995ee22699f72cba8e7f19d4298f48381db550cbe2e", size = 20491015, upload-time = "2026-02-28T06:15:07.281Z" },
 ]
