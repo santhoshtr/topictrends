@@ -500,7 +500,7 @@ pub async fn search_categories(
 
     let mut categories: Vec<CategorySearchItemResponse> = search_results
         .into_iter()
-        .filter(|result| result.score >= match_threshold)
+        .filter(|result| 1.0 - result.score >= match_threshold)
         .map(|result| CategorySearchItemResponse {
             category_qid: result.qid,
             category_title_en: result.page_title,
@@ -551,7 +551,7 @@ pub async fn get_categories_trend_by_search_handler(
 
     let category_qids: Vec<u32> = search_results
         .into_iter()
-        .filter(|result| result.score >= match_threshold)
+        .filter(|result| 1.0 - result.score >= match_threshold)
         .map(|result| result.qid)
         .collect();
 
@@ -682,14 +682,9 @@ pub async fn get_content_gap_handler(
         .clone()
         .unwrap_or_else(|| format!("Q{}", category_qid));
 
-    let result = ContentGapService::get_content_gap(
-        state,
-        category_qid,
-        &category_label,
-        wikis,
-        depth,
-    )
-    .await?;
+    let result =
+        ContentGapService::get_content_gap(state, category_qid, &category_label, wikis, depth)
+            .await?;
 
     Ok(Json(result))
 }
