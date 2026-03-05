@@ -107,9 +107,15 @@ class WikiArticlePageviews extends HTMLElement {
 		const viewsDiv = document.createElement("div");
 		viewsDiv.className = "views-count";
 
-		const viewsNumber = document.createElement("div");
+		const viewsNumber = document.createElement("a");
 		viewsNumber.className = "views-number";
 		viewsNumber.textContent = this.formatViews(this.views);
+		const trendParams = new URLSearchParams({
+			type: "article",
+			wiki: this.wiki,
+			article: this.title,
+		});
+		viewsNumber.href = `/pageviews/trends?${trendParams}`;
 
 		const viewsLabel = document.createElement("div");
 		viewsLabel.className = "views-label";
