@@ -1,7 +1,5 @@
 @import url("common.css");
 
-/* Page-specific styles for search page */
-
 @layer components {
 	.main {
 		display: grid;
@@ -10,29 +8,26 @@
 		align-items: start;
 		width: 100%;
 
-		& .chart {
-			width: 90vw;
-			max-width: calc(100vw - 2em);
-			height: 66dvh;
-			display: none;
-			grid-column-start: 1;
-			grid-column-end: 3;
-		}
-
 		& > section {
 			overflow-y: auto;
 			max-height: 100dvh;
 			padding: 2em;
 			line-height: 2;
 		}
-
-		& #top-articles {
-			grid-column-start: 1;
-			grid-column-end: 3;
-		}
 	}
 
 	.form-container footer {
 		align-self: start;
+	}
+
+	.trend-links {
+		display: flex;
+		gap: 0.5em;
+	}
+
+	.help-text {
+		font-size: 0.875em;
+		color: var(--color-subtle, #54595d);
+		margin: 0.25em 0 0.75em;
 	}
 }

@@ -1,49 +1,63 @@
-import { initializeChart, updateChart } from "./utils/chart-utils.js";
 import { hideProgress, showProgress } from "./utils/progress-bar.js";
 import { showMessage } from "./utils/ui-utils.js";
 import { populateWikiDropdown } from "./utils/wiki-utils.js";
 
+const BASE_URL = "https://topictrends.wmcloud.org";
+
 document.addEventListener("DOMContentLoaded", async () => {
 	document.getElementById("search-form").addEventListener("submit", onSubmit);
 
-	// Set up wiki selector change handler
 	const wikiSelector = document.getElementById("wiki");
 	const categoryElement = document.getElementById("category");
 
-	// Initialize with current wiki value
-	const wikiValue = wikiSelector.value.replaceAll("wiki", "");
-
-	categoryElement.setAttribute("wiki", wikiValue);
+	categoryElement.setAttribute(
+		"wiki",
+		wikiSelector.value.replaceAll("wiki", ""),
+	);
 
 	await populateWikiDropdown();
 	populateFormFromQueryParams();
-	document
-		.getElementById("categories-trends-btn")
-		.addEventListener("click", onTrendBtnClick);
+
+	wikiSelector.addEventListener("change", updateTrendLinks);
+	categoryElement.addEventListener("input", updateTrendLinks);
 });
+
+function updateTrendLinks() {
+	const wiki = document.getElementById("wiki").value;
+	const category = document
+		.getElementById("category")
+		.value.replaceAll(" ", "_");
+	const params = new URLSearchParams({
+		type: "category",
+		wiki,
+		depth: 4,
+		category,
+	});
+	document.getElementById("pageviews-trends-link").href =
+		`${BASE_URL}/pageviews/trends?${params}`;
+	document.getElementById("pageedits-trends-link").href =
+		`${BASE_URL}/pageedits/trends?${params}`;
+}
 
 async function onSubmit(event) {
 	event.preventDefault();
 
-	document.getElementById("top-articles").display = "none";
 	document.getElementById("category-list").style.display = "block";
 	document.getElementById("article-list").style.display = "block";
 
-	const params = new URLSearchParams();
 	const wiki = document.getElementById("wiki").value;
 	const match_threshold = document.getElementById("match_threshold").value;
+	const params = new URLSearchParams({ wiki });
 
-	params.append("wiki", wiki);
 	try {
 		const category = document
 			.getElementById("category")
 			.value.replaceAll(" ", "_");
 		params.append("category", category);
 		params.append("match_threshold", match_threshold);
-		// Update the browser URL with the new parameters
-		const newUrl = `${window.location.pathname}?${params.toString()}`;
-		window.history.pushState({}, "", newUrl);
+		window.history.pushState({}, "", `${window.location.pathname}?${params}`);
 
+		updateTrendLinks();
 		const categories = await searchCategory(wiki, category, match_threshold);
 		renderCategories(categories, wiki);
 	} catch (error) {
@@ -52,154 +66,38 @@ async function onSubmit(event) {
 	}
 }
 
-async function onTrendBtnClick(event) {
-	event.preventDefault();
-	document.getElementById("category-list").style.display = "none";
-	document.getElementById("article-list").style.display = "none";
-	document.getElementById("top-articles").display = "block";
-	const params = new URLSearchParams();
-	const wiki = document.getElementById("wiki").value;
-	const match_threshold = document.getElementById("match_threshold").value;
-	const startDate = document.getElementById("start_date").value;
-	const endDate = document.getElementById("end_date").value;
-	const depth = 1;
-	params.append("wiki", wiki);
-	try {
-		const category = document
-			.getElementById("category")
-			.value.replaceAll(" ", "_");
-		params.append("category", category);
-		params.append("match_threshold", match_threshold);
-		// Update the browser URL with the new parameters
-		const newUrl = `${window.location.pathname}?${params.toString()}`;
-		window.history.pushState({}, "", newUrl);
-
-		await fetchCategoryPageviews(
-			wiki,
-			category,
-			match_threshold,
-			startDate,
-			endDate,
-			depth,
-		);
-	} catch (error) {
-		console.error("Error:", error);
-		showMessage("Failed to fetch data. Please try again.", "error");
-	}
-}
-
-async function fetchCategoryPageviews(
-	wiki,
-	category,
-	match_threshold,
-	startDate,
-	endDate,
-	depth,
-) {
-	const apiUrl = `/api/pageviews/categories?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&category_query=${encodeURIComponent(
-		category,
-	)}&match_threshold=${match_threshold}`;
-	const label = `Category: ${wiki} - ${category.replaceAll("_", " ")}`;
-
-	try {
-		showProgress();
-		const startTime = performance.now();
-		const response = await fetch(apiUrl);
-		if (!response.ok) {
-			throw new Error("Failed to fetch data");
-		}
-
-		const data = await response.json();
-		updateChartWithData(data.cumulative_views, label);
-		const chartElement = document.getElementById("chart");
-		chartElement.style.display = "block";
-		const endTime = performance.now();
-		const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
-		showMessage(`Fetched ${label} in ${timeTaken} seconds.`, "success");
-
-		if (data.top_articles && data.top_articles.length > 0) {
-			renderTopArticles(wiki, data.top_articles);
-		}
-	} catch (error) {
-		console.error("Error:", error);
-		showMessage("Failed to fetch category data. Please try again.", "error");
-	} finally {
-		hideProgress();
-	}
-}
-
-let chartInstance = null;
-
-function ensureChartInitialized() {
-	if (!chartInstance) {
-		const chartElement = document.getElementById("chart");
-		chartInstance = initializeChart(chartElement, "Pageviews Trend");
-	}
-}
-
-function updateChartWithData(data, label) {
-	ensureChartInitialized();
-	updateChart(chartInstance, data, label);
-}
-
 function renderCategories(categories, wiki) {
 	const container = document.getElementById("category-list");
 	container.innerHTML = "<h1>Categories</h1>";
 	document.getElementById("article-list").innerHTML = "";
 
-	const categoryListElement = document.createElement("ul");
 	const lang = wiki.replaceAll("wiki", "");
-	for (let i = 0; i < categories.length; i++) {
-		const categoryElement = document.createElement("li");
+	const list = document.createElement("ul");
 
-		const categoryLink = document.createElement("a");
-		categoryLink.href = "#";
-		categoryLink.innerText = categories[i].category_title;
-		categoryLink.id = categories[i].category_qid;
-		categoryLink.title = `${categories[i].category_title_en}: ${categories[i].match_score}`;
-
-		categoryLink.addEventListener("click", async function (e) {
+	for (const cat of categories) {
+		const li = document.createElement("li");
+		const a = document.createElement("a");
+		a.href = "#";
+		a.innerText = cat.category_title;
+		a.id = cat.category_qid;
+		a.title = `${cat.category_title_en}: ${cat.match_score}`;
+		a.addEventListener("click", async (e) => {
 			e.preventDefault();
-			const categoryQid = this.id;
-			showMessage(`Fetching articles for ${this.innerText}...`, "success");
+			showMessage(`Fetching articles for ${a.innerText}...`, "success");
 			try {
-				const articles = await listArticles(wiki, categoryQid);
+				const articles = await listArticles(wiki, a.id);
 				renderArticles(articles, lang);
 			} catch (error) {
 				console.error("Error fetching articles:", error);
 				showMessage("Failed to fetch articles. Please try again.", "error");
 			}
 		});
-
-		categoryElement.append(categoryLink);
-		categoryListElement.append(categoryElement);
+		li.append(a);
+		list.append(li);
 	}
-	container.append(categoryListElement);
+	container.append(list);
 }
 
-function renderTopArticles(wiki, topArticles) {
-	const container = document.getElementById("top-articles");
-
-	container.innerHTML = "";
-
-	if (!topArticles || topArticles.length === 0) {
-		return;
-	}
-
-	const subheading = document.createElement("h3");
-	subheading.textContent = "Top Articles in Category";
-	container.appendChild(subheading);
-
-	topArticles.forEach((article) => {
-		const articleEl = document.createElement("wiki-article-pageviews");
-		articleEl.setAttribute("wiki", wiki);
-		articleEl.setAttribute("title", article.title);
-		articleEl.setAttribute("views", article.views.toString());
-		articleEl.setAttribute("qid", article.qid.toString());
-		articleEl.setAttribute("categories", "[]");
-		container.appendChild(articleEl);
-	});
-}
 function renderArticles(articles, lang) {
 	const container = document.getElementById("article-list");
 	container.innerHTML = "<h1>Articles</h1>";
@@ -209,40 +107,30 @@ function renderArticles(articles, lang) {
 		return;
 	}
 
-	const articleListElement = document.createElement("ul");
-
-	for (let i = 0; i < articles.length; i++) {
-		const articleElement = document.createElement("li");
-
-		const articleLink = document.createElement("a");
-		articleLink.href = `https://${lang}.wikipedia.org/wiki/${articles[i].title}`;
-		articleLink.innerText = articles[i].title;
-		articleLink.id = articles[i].qid;
-		articleLink.title = `QID: ${articles[i].qid}`;
-
-		articleElement.append(articleLink);
-		articleListElement.append(articleElement);
+	const list = document.createElement("ul");
+	for (const article of articles) {
+		const li = document.createElement("li");
+		const a = document.createElement("a");
+		a.href = `https://${lang}.wikipedia.org/wiki/${article.title}`;
+		a.innerText = article.title;
+		a.id = article.qid;
+		a.title = `QID: ${article.qid}`;
+		li.append(a);
+		list.append(li);
 	}
-
-	container.append(articleListElement);
+	container.append(list);
 }
 
 async function searchCategory(wiki, query, match_threshold) {
-	const apiUrl = `/api/search/categories?wiki=${wiki}&query=${encodeURIComponent(
-		query,
-	)}&match_threshold=${match_threshold}`;
+	const apiUrl = `/api/search/categories?wiki=${wiki}&query=${encodeURIComponent(query)}&match_threshold=${match_threshold}`;
 
 	try {
 		showProgress();
 		const startTime = performance.now();
 		const response = await fetch(apiUrl);
-		if (!response.ok) {
-			throw new Error("Failed to fetch data");
-		}
-
+		if (!response.ok) throw new Error("Failed to fetch data");
 		const data = await response.json();
-		const endTime = performance.now();
-		const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
+		const timeTaken = ((performance.now() - startTime) / 1000).toFixed(2);
 		showMessage(`Searched ${query} in ${timeTaken} seconds.`, "success");
 		return data.categories;
 	} catch (error) {
@@ -260,13 +148,9 @@ async function listArticles(wiki, category_qid) {
 		showProgress();
 		const startTime = performance.now();
 		const response = await fetch(apiUrl);
-		if (!response.ok) {
-			throw new Error("Failed to fetch articles in category");
-		}
-
+		if (!response.ok) throw new Error("Failed to fetch articles in category");
 		const data = await response.json();
-		const endTime = performance.now();
-		const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
+		const timeTaken = ((performance.now() - startTime) / 1000).toFixed(2);
 		showMessage(
 			`Fetched ${data.articles.length} articles in ${timeTaken} seconds.`,
 			"success",
@@ -283,45 +167,18 @@ async function listArticles(wiki, category_qid) {
 
 function populateFormFromQueryParams() {
 	const urlParams = new URLSearchParams(window.location.search);
-
 	const wiki = urlParams.get("wiki");
 	const category = urlParams.get("category");
 	const match_threshold = urlParams.get("match_threshold");
 
-	if (wiki) {
-		document.getElementById("wiki").value = wiki;
-	}
-	if (category) {
+	if (wiki) document.getElementById("wiki").value = wiki;
+	if (category)
 		document.getElementById("category").value = category.replaceAll("_", " ");
-	}
-	if (match_threshold) {
+	if (match_threshold)
 		document.getElementById("match_threshold").value = match_threshold;
-	}
 
 	if (wiki && category) {
+		updateTrendLinks();
 		onSubmit(new Event("submit"));
 	}
 }
-
-document.addEventListener("DOMContentLoaded", () => {
-	const startDatePicker = document.getElementById("start_date");
-	const endDatePicker = document.getElementById("end_date");
-	const today = new Date();
-
-	// Format the date to "YYYY-MM-DD" as required by the input type="date"
-	let year = today.getFullYear();
-	let month = String(today.getMonth() + 1).padStart(2, "0");
-	let day = String(today.getDate()).padStart(2, "0");
-	endDatePicker.value = `${year}-${month}-${day}`;
-
-	const oneMonthAgo = new Date(
-		today.getFullYear(),
-		today.getMonth() - 1,
-		today.getDate(),
-	);
-	year = oneMonthAgo.getFullYear();
-	month = String(oneMonthAgo.getMonth() + 1).padStart(2, "0");
-	day = String(oneMonthAgo.getDate()).padStart(2, "0");
-
-	startDatePicker.value = `${year}-${month}-${day}`;
-});
