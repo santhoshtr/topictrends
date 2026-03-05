@@ -223,4 +223,7 @@
 			align-self: end;
 		}
 	}
+	.top-articles {
+		padding: 1em;
+	}
 }
