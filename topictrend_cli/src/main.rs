@@ -353,7 +353,7 @@ fn handle_category_trend(wiki_id: &str, matches: &ArgMatches) {
         .and_then(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
         .unwrap_or_else(|| chrono::Local::now().date_naive());
 
-    let mut engine = PageViewEngine::new(wiki_id);
+    let engine = PageViewEngine::new(wiki_id);
     let raw_data = engine.get_category_trend(*category, *depth, start_date, end_date);
 
     println!(

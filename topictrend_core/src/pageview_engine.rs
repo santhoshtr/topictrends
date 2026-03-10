@@ -3,6 +3,7 @@ use chrono::{Datelike, NaiveDate};
 use roaring::RoaringBitmap;
 use std::fmt;
 use std::io::Read;
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use std::{collections::HashMap, error::Error, fs::File};
 
@@ -129,14 +130,16 @@ impl TopCategoriesCache {
 #[derive(Debug)]
 pub struct PageViewEngine {
     // Map Date -> Vector of pageviews (Index is Dense Article ID)
-    // We use Arc to make it cheap to clone/share across web threads
-    daily_views: HashMap<NaiveDate, Vec<u32>>,
+    // RwLock for interior mutability: concurrent reads hold read lock,
+    // cache misses take write lock only for the missing dates.
+    // Arc<Vec<u32>> allows callers to clone the pointer cheaply without copying data.
+    daily_views: RwLock<HashMap<NaiveDate, Arc<Vec<u32>>>>,
     wiki: String,
     wikigraph: WikiGraph,
     top_categories_cache: TopCategoriesCache,
 }
 
-pub fn load_bin_file(path: &str, expected_size: usize) -> Result<Vec<u32>, Box<dyn Error>> {
+fn load_bin_file(path: &str, expected_size: usize) -> Result<Vec<u32>, Box<dyn Error>> {
     let mut file = File::open(path)?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)?;
@@ -167,7 +170,7 @@ impl PageViewEngine {
         let graph: WikiGraph = graph_builder.build().expect("Error while building graph");
         Self {
             wiki: wiki.to_string(),
-            daily_views: HashMap::new(),
+            daily_views: RwLock::new(HashMap::new()),
             wikigraph: graph,
             top_categories_cache: TopCategoriesCache::new(),
         }
@@ -178,7 +181,7 @@ impl PageViewEngine {
     }
 
     pub fn get_category_trend(
-        &mut self,
+        &self,
         category_qid: u32,
         depth: u32,
         start_date: NaiveDate,
@@ -215,9 +218,10 @@ impl PageViewEngine {
         self.load_history_for_date_range(start_date, end_date)
             .expect("Error in loading pageview history");
 
+        let cache = self.daily_views.read().expect("daily_views lock poisoned");
         let mut curr = start_date;
         while curr <= end_date {
-            if let Some(day_data) = self.daily_views.get(&curr) {
+            if let Some(day_data) = cache.get(&curr) {
                 // High Performance Loop
                 // Summing values only for articles in the category
                 let mut daily_total: u64 = 0;
@@ -242,7 +246,7 @@ impl PageViewEngine {
 
     /// Calculate the total pageviews for a set of articles over time.
     pub fn get_article_trend(
-        &mut self,
+        &self,
         article_qid: u32,
         start_date: NaiveDate,
         end_date: NaiveDate,
@@ -272,19 +276,15 @@ impl PageViewEngine {
             );
             return vec![];
         }
-        // println!(
-        //     "Found {} articles in category {}/{}",
-        //     article_mask.len(),
-        //     self.wiki,
-        //     &article
-        // );
-        let mut curr: NaiveDate = start_date;
 
         self.load_history_for_date_range(start_date, end_date)
             .expect("Error in loading pageview history");
 
+        let cache = self.daily_views.read().expect("daily_views lock poisoned");
+        let mut curr: NaiveDate = start_date;
+
         while curr <= end_date {
-            match self.daily_views.get(&curr) {
+            match cache.get(&curr) {
                 Some(day_data) => {
                     let mut daily_total: u64 = 0;
                     for article_dense_id in article_mask.iter() {
@@ -307,20 +307,44 @@ impl PageViewEngine {
     }
 
     pub fn load_history_for_date_range(
-        &mut self,
+        &self,
         start_date: NaiveDate,
         end_date: NaiveDate,
     ) -> Result<(), Box<dyn Error>> {
-        let mut curr_date = start_date;
-
-        while curr_date <= end_date {
-            if !self.daily_views.contains_key(&curr_date) {
-                // Attempt to load the data for the date if not in cache
-                if let Some(day_vec) = self.load_daily_view(curr_date)? {
-                    self.daily_views.insert(curr_date, day_vec);
+        // Phase 1: find which dates are missing under a read lock (dropped immediately).
+        let missing: Vec<NaiveDate> = {
+            let cache = self.daily_views.read().expect("daily_views lock poisoned");
+            let mut dates = Vec::new();
+            let mut curr = start_date;
+            while curr <= end_date {
+                if !cache.contains_key(&curr) {
+                    dates.push(curr);
                 }
+                curr = curr.succ_opt().unwrap();
             }
-            curr_date = curr_date.succ_opt().unwrap();
+            dates
+        };
+
+        if missing.is_empty() {
+            return Ok(());
+        }
+
+        // Phase 2: load from disk with no lock held.
+        let mut loaded: Vec<(NaiveDate, Arc<Vec<u32>>)> = Vec::with_capacity(missing.len());
+        for date in missing {
+            if let Some(day_vec) = self.load_daily_view(date)? {
+                loaded.push((date, Arc::new(day_vec)));
+            }
+        }
+
+        // Phase 3: insert under write lock.
+        // Use entry().or_insert() so a concurrent thread that loaded the same date first wins;
+        // the duplicate is simply dropped.
+        if !loaded.is_empty() {
+            let mut cache = self.daily_views.write().expect("daily_views lock poisoned");
+            for (date, data) in loaded {
+                cache.entry(date).or_insert(data);
+            }
         }
 
         Ok(())
@@ -397,9 +421,10 @@ impl PageViewEngine {
         self.load_history_for_date_range(start_date, end_date)
             .expect("Error in loading pageview history");
 
+        let cache = self.daily_views.read().expect("daily_views lock poisoned");
         let mut curr = start_date;
         while curr <= end_date {
-            if let Some(day_vec) = self.daily_views.get(&curr) {
+            if let Some(day_vec) = cache.get(&curr) {
                 // Vectorized addition (compiler auto-vectorizes this loop)
                 for (article_dense_id, &views) in day_vec.iter().enumerate() {
                     article_views[article_dense_id] += views;
@@ -407,6 +432,7 @@ impl PageViewEngine {
             }
             curr = curr.succ_opt().unwrap();
         }
+        drop(cache);
 
         // Phase 2: Scatter (Article -> Category)
         // We need an atomic accumulator or thread-local storage for parallel write.
@@ -474,7 +500,7 @@ impl PageViewEngine {
     }
 
     pub fn get_top_articles_in_category(
-        &mut self,
+        &self,
         category_qid: u32,
         start_date: NaiveDate,
         end_date: NaiveDate,
@@ -500,12 +526,13 @@ impl PageViewEngine {
         // Aggregate views for each article
         let mut article_views: Vec<(u32, u64)> = Vec::new();
 
+        let cache = self.daily_views.read().expect("daily_views lock poisoned");
         for article_dense_id in article_mask.iter() {
             let mut total_views = 0u64;
 
             let mut curr = start_date;
             while curr <= end_date {
-                if let Some(day_data) = self.daily_views.get(&curr)
+                if let Some(day_data) = cache.get(&curr)
                     && let Some(&views) = day_data.get(article_dense_id as usize)
                 {
                     total_views += views as u64;
@@ -518,6 +545,7 @@ impl PageViewEngine {
                 article_views.push((article_qid, total_views));
             }
         }
+        drop(cache);
 
         // Sort by views descending
         article_views.sort_unstable_by(|a, b| b.1.cmp(&a.1));
