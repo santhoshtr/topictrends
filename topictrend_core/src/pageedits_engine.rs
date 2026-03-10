@@ -3,6 +3,7 @@ use chrono::NaiveDate;
 use polars::prelude::*;
 use std::fmt;
 use std::path::Path;
+use std::sync::RwLock;
 use std::time::{Duration, Instant};
 use std::{collections::HashMap, error::Error};
 
@@ -183,7 +184,7 @@ pub struct PageEditsEngine {
     daily_edits: HashMap<NaiveDate, DailyEditData>,
     wiki: String,
     wikigraph: WikiGraph,
-    top_categories_cache: TopCategoriesCache,
+    top_categories_cache: RwLock<TopCategoriesCache>,
 }
 
 impl PageEditsEngine {
@@ -205,7 +206,7 @@ impl PageEditsEngine {
             wiki: wiki.to_string(),
             daily_edits,
             wikigraph: graph,
-            top_categories_cache: TopCategoriesCache::new(),
+            top_categories_cache: RwLock::new(TopCategoriesCache::new()),
         }
     }
 
@@ -313,7 +314,7 @@ impl PageEditsEngine {
 
     /// Get edit trend for a category (all articles in category) over a date range
     pub fn get_category_trend(
-        &mut self,
+        &self,
         category_qid: u32,
         depth: u32,
         start_date: NaiveDate,
@@ -370,25 +371,33 @@ impl PageEditsEngine {
     }
 
     /// Clear the top categories cache
-    pub fn clear_top_categories_cache(&mut self) {
-        self.top_categories_cache.clear();
+    pub fn clear_top_categories_cache(&self) {
+        self.top_categories_cache
+            .write()
+            .expect("top_categories_cache lock poisoned")
+            .clear();
     }
 
     /// Returns top N categories by edit count for a date range
     pub fn get_top_categories(
-        &mut self,
+        &self,
         start_date: NaiveDate,
         end_date: NaiveDate,
         top_n: usize,
     ) -> Result<Vec<CategoryRank>, Box<dyn Error>> {
-        // Check cache first
         let cache_key = TopCategoriesCacheKey {
             start: start_date,
             end: end_date,
             top_n,
         };
 
-        if let Some(cached_result) = self.top_categories_cache.get(&cache_key) {
+        // Read lock: cache hit check — dropped immediately after.
+        if let Some(cached_result) = self
+            .top_categories_cache
+            .read()
+            .expect("top_categories_cache lock poisoned")
+            .get(&cache_key)
+        {
             println!("Cache hit for top_categories query: {:?}", cache_key);
             return Ok(cached_result);
         }
@@ -462,15 +471,18 @@ impl PageEditsEngine {
             })
             .collect();
 
-        // Cache the result
-        self.top_categories_cache.insert(cache_key, results.clone());
+        // Write lock only to insert the computed result.
+        self.top_categories_cache
+            .write()
+            .expect("top_categories_cache lock poisoned")
+            .insert(cache_key, results.clone());
 
         Ok(results)
     }
 
     /// Get top articles in a category by edit count
     pub fn get_top_articles_in_category(
-        &mut self,
+        &self,
         category_qid: u32,
         start_date: NaiveDate,
         end_date: NaiveDate,

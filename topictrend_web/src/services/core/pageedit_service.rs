@@ -30,8 +30,8 @@ impl PageEditService {
         let engine = EngineService::get_or_build_pageedit_engine(state, wiki).await?;
 
         let raw_data = {
-            let mut engine_lock = engine.write().map_err(|e| {
-                CoreServiceError::InternalError(format!("Failed to acquire write lock: {}", e))
+            let engine_lock = engine.read().map_err(|e| {
+                CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
             })?;
 
             engine_lock.get_category_trend(category_qid, depth, start_date, end_date)
@@ -72,8 +72,8 @@ impl PageEditService {
         let engine = EngineService::get_or_build_pageedit_engine(state, wiki).await?;
 
         let top_articles = {
-            let mut engine_lock = engine.write().map_err(|e| {
-                CoreServiceError::InternalError(format!("Failed to acquire write lock: {}", e))
+            let engine_lock = engine.read().map_err(|e| {
+                CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
             })?;
 
             engine_lock
@@ -105,8 +105,8 @@ impl PageEditService {
         let engine = EngineService::get_or_build_pageedit_engine(state, wiki).await?;
 
         let categories = {
-            let mut engine_lock = engine.write().map_err(|e| {
-                CoreServiceError::InternalError(format!("Failed to acquire write lock: {}", e))
+            let engine_lock = engine.read().map_err(|e| {
+                CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
             })?;
 
             engine_lock

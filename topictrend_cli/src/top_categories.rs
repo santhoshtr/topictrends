@@ -3,7 +3,7 @@ use std::time::Instant;
 use topictrend::pageview_engine::PageViewEngine;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut engine = PageViewEngine::new("enwiki");
+    let engine = PageViewEngine::new("enwiki");
 
     let start = Instant::now();
     let top_n = 10;

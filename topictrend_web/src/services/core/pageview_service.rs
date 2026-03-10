@@ -105,8 +105,8 @@ impl PageViewService {
         let engine = EngineService::get_or_build_pageview_engine(state, wiki).await?;
 
         let categories = {
-            let mut engine_lock = engine.write().map_err(|e| {
-                CoreServiceError::InternalError(format!("Failed to acquire write lock: {}", e))
+            let engine_lock = engine.read().map_err(|e| {
+                CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
             })?;
 
             engine_lock

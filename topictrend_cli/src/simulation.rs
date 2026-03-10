@@ -81,7 +81,7 @@ fn generate_pageview_binary() {
 }
 
 fn verify() {
-    let mut engine = PageViewEngine::new("testwiki");
+    let engine = PageViewEngine::new("testwiki");
     let articles_in_cat = engine
         .get_wikigraph()
         .get_articles_in_category(1, 0)
