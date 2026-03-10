@@ -123,7 +123,7 @@ function updateChartWithData(data, label) {
 
 async function renderSubCategories(wiki, category, depth = 4) {
 	const categoryListContainer = document.getElementById("category-list");
-	const apiUrl = `/api/list/sub_categories?wiki=${wiki}&category=${category}`;
+	const apiUrl = `https://topictrends.wmcloud.org/api/list/sub_categories?wiki=${wiki}&category=${category}`;
 
 	try {
 		showProgress();
@@ -234,7 +234,7 @@ async function fetchCategoryPageEdits(
 ) {
 	showSection("chart-with-articles");
 
-	const apiUrl = `/api/pageedits/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&category=${encodeURIComponent(
+	const apiUrl = `https://topictrends.wmcloud.org/api/pageedits/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&category=${encodeURIComponent(
 		category,
 	)}`;
 	const label = `Category: ${wiki} - ${category.replaceAll("_", " ")}`;
@@ -267,7 +267,7 @@ async function fetchCategoryPageEdits(
 async function fetchArticlePageEdits(wiki, article, startDate, endDate) {
 	showSection("chart");
 
-	const apiUrl = `/api/pageedits/article?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&article=${encodeURIComponent(
+	const apiUrl = `https://topictrends.wmcloud.org/api/pageedits/article?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&article=${encodeURIComponent(
 		article,
 	)}`;
 	const label = `Article: ${wiki} - ${article.replaceAll("_", " ")}`;

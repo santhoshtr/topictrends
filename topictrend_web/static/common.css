@@ -208,16 +208,15 @@
 
 	.main {
 		display: grid;
-		justify-content: center;
+		justify-content: start;
 		align-items: start;
 		align-content: start;
 		width: 100%;
-		overflow-y: auto;
-		min-height: 0;
+		container: main / inline-size;
 
 		& .chart {
-			width: 90vw;
-			max-width: calc(100vw - 2em);
+			width: 100cqi;
+			padding: 1em;
 			height: 66dvh;
 			display: none;
 		}

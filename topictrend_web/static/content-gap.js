@@ -76,7 +76,7 @@ async function fetchAndRender() {
 	showProgress();
 	try {
 		const wikisParam = [...new Set(activeWikis)].join(",");
-		const url = `/api/content_gap/categories?category=${encodeURIComponent(currentCategory)}&wikis=${encodeURIComponent(wikisParam)}&depth=${currentDepth}`;
+		const url = `https://topictrends.wmcloud.org/api/content_gap/categories?category=${encodeURIComponent(currentCategory)}&wikis=${encodeURIComponent(wikisParam)}&depth=${currentDepth}`;
 		const response = await fetch(url);
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);
 		const data = await response.json();

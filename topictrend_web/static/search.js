@@ -122,7 +122,7 @@ function renderArticles(articles, lang) {
 }
 
 async function searchCategory(wiki, query, match_threshold) {
-	const apiUrl = `/api/search/categories?wiki=${wiki}&query=${encodeURIComponent(query)}&match_threshold=${match_threshold}`;
+	const apiUrl = `https://topictrends.wmcloud.org/api/search/categories?wiki=${wiki}&query=${encodeURIComponent(query)}&match_threshold=${match_threshold}`;
 
 	try {
 		showProgress();
@@ -142,7 +142,7 @@ async function searchCategory(wiki, query, match_threshold) {
 }
 
 async function listArticles(wiki, category_qid) {
-	const apiUrl = `/api/list/articles?wiki=${wiki}&category_qid=${category_qid}`;
+	const apiUrl = `https://topictrends.wmcloud.org/api/list/articles?wiki=${wiki}&category_qid=${category_qid}`;
 
 	try {
 		showProgress();
