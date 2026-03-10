@@ -8,7 +8,6 @@
 		flex-direction: column;
 		justify-content: flex-start;
 		width: 100%;
-		overflow-y: auto;
 		padding: 1em;
 
 		& .chart {
