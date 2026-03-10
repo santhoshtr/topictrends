@@ -4,10 +4,10 @@
 
 .article-item {
 	background: var(--background-color-base);
-	padding: 0 1em;
+	padding: 1em;
 	display: grid;
 	grid-template-columns: 100px 1fr auto;
-	gap: 15px;
+	gap: 0, 5em;
 	align-items: center;
 	transition: background-color 0.2s;
 
@@ -18,8 +18,9 @@
 
 .article-image {
 	width: 100px;
-	height: 100px;
+	height: 80px;
 	object-fit: cover;
+	object-position: center 33%;
 	border-radius: 4px;
 }
 
