@@ -12,6 +12,7 @@
     <h2>Semantic Topic Search</h2>
     <p class="help-text">Enter a Wikipedia category name or plain English text for semantic search.</p>
     <form id="search-form">
+      {% include "wiki-selector.html" %}
       <div class="form-item">
         <label for="category" class="cdx-label">Category</label>
         <input class="cdx-text-input__input" type="search" id="category" name="category"
@@ -26,11 +27,11 @@
         <button type="submit"
           class="cdx-button cdx-button--action-progressive cdx-button--weight-primary">Search</button>
       </div>
-    </form>
     <div class="form-item trend-links">
         <a id="pageviews-trends-link" href="#">Pageviews trends</a>
         <a id="pageedits-trends-link" href="#">Pageedits trends</a>
     </div>
+    </form>
     <footer>
       <p id="status" class="status"></p>
     </footer>

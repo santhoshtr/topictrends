@@ -10,7 +10,15 @@
 <div class="app-container">
   <div class="form-container">
     <form id="trend-form">
+      <div class="header-wiki-selector">
+        {% include "wiki-selector.html" %}
+      </div>
+
       <div class="form-item">
+        <button id="wikitrends-btn"  class="cdx-button cdx-button--action-progressive cdx-button--weight-primary">Most viewed articles</button>
+      </div>
+      <div class="form-item">
+
         <input type="radio" id="tab-category" name="type" value="category" checked />
         <input type="radio" id="tab-article" name="type" value="article" />
         <div class="tab">
@@ -45,7 +53,6 @@
       <input name="depth" id="depth" value="4" type="hidden">
       <input name="category_qid" id="category_qid" type="hidden">
       <input name="article_qid" id="article_qid" type="hidden">
-      <button id="wikitrends-btn"  class="cdx-button cdx-button--action-progressive cdx-button--weight-primary">Most viewed articles</button>
     </form>
     <section id="category-list"></section>
 

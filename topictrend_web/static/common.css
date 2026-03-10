@@ -44,6 +44,9 @@
 		background-color: var(--background-color-base);
 		color: var(--color-base);
 		line-height: 1.5;
+		display: grid;
+		grid-template-rows: auto 1fr;
+		height: 100dvh;
 	}
 
 	/* Smooth scrolling for modern browsers */
@@ -60,20 +63,23 @@
 @layer components {
 	.app-container {
 		display: grid;
-		grid-template-rows: auto 1fr;
-		height: 100%;
+		grid-template-rows: 1fr;
+		grid-template-columns: 1fr 4fr;
 		max-width: 1600px;
-		margin: auto;
-		place-content: center;
+		width: 100%;
+		min-height: 0;
+		align-self: stretch;
 	}
 
 	.form-container {
-		display: flex;
-		flex-direction: column;
+		display: grid;
+		grid-auto-flow: row;
 		gap: 1em;
 		padding: 1em;
 		background-color: var(--background-color-base);
-
+		border-right: var(--border-subtle);
+		align-items: start;
+		align-content: start;
 		& form {
 			display: flex;
 			flex-direction: row;
@@ -204,8 +210,10 @@
 		display: grid;
 		justify-content: center;
 		align-items: start;
+		align-content: start;
 		width: 100%;
 		overflow-y: auto;
+		min-height: 0;
 
 		& .chart {
 			width: 90vw;

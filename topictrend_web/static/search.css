@@ -10,7 +10,6 @@
 
 		& > section {
 			overflow-y: auto;
-			max-height: 100dvh;
 			padding: 2em;
 			line-height: 2;
 		}
@@ -21,7 +20,7 @@
 	}
 
 	.trend-links {
-		display: flex;
+		display: grid;
 		gap: 0.5em;
 	}
 
