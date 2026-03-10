@@ -59,7 +59,7 @@ class WikiArticlePageviews extends HTMLElement {
 
 	render() {
 		const wikiCode = this.wiki.replace("wiki", "");
-		const imageUrl = `https://wiki-display-image.toolforge.org/webp/${wikiCode}/${encodeURIComponent(this.title)}?width=180`;
+		const imageUrl = `https://wiki-display-image.toolforge.org/webp/${wikiCode}/${encodeURIComponent(this.title)}?width=250`;
 
 		this.shadowRoot.innerHTML = "";
 
