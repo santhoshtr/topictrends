@@ -13,6 +13,25 @@
 		margin: 0;
 		padding: 0;
 	}
+	h1,
+	h2,
+	h3,
+	h4,
+	h5,
+	h6,
+	a {
+		text-wrap: balance;
+	}
+	p {
+		text-wrap: pretty;
+	}
+	ul {
+		margin-left: 1em;
+		text-align: start;
+	}
+	a:not([class]) {
+		text-decoration: none;
+	}
 }
 
 /* ============================================
