@@ -215,10 +215,12 @@ $(DATA_DIR)/wikipedia.list: | $(DATA_DIR)
 # GSC per-wiki-per-date target
 # Expands to data/enwiki/gsc/2026/03/03.parquet (example)
 # Depends on the GSC source parquet and the wiki's articles.parquet (for QID mapping)
-$(DATA_DIR)/%/gsc/$(YEAR)/$(MONTH)/$(DAY).parquet: \
-	$(GSC_DIR)/date=$(DATE)/data.parquet \
-	$(DATA_DIR)/%/articles.parquet
+$(DATA_DIR)/%/gsc/$(YEAR)/$(MONTH)/$(DAY).parquet: $(DATA_DIR)/%/articles.parquet
 	@mkdir -p $(dir $@)
+	@GSC_SRC="$(GSC_DIR)/date=$(DATE)/data.parquet"; \
+	if [ ! -f "$$GSC_SRC" ]; then \
+		echo "GSC source not found: $$GSC_SRC" >&2; exit 1; \
+	fi
 	$(CARGO_RELEASE)/get-gsc-qid-date \
 		--wiki $* \
 		--date $(DATE) \
