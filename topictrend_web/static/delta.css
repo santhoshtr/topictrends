@@ -314,6 +314,50 @@
 		overflow-x: hidden;
 	}
 
+	.articles-summary {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-50);
+		padding: var(--spacing-75) var(--spacing-100);
+		background-color: var(--background-color-base);
+		border: var(--border-width-base) solid var(--border-color-base);
+		border-radius: var(--border-radius-base);
+		font-size: var(--font-size-small);
+		color: var(--color-subtle);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.articles-summary-row {
+		line-height: 1.4;
+	}
+
+	.gs-delta-articles-table {
+		width: 100%;
+		border-collapse: collapse;
+		background-color: var(--background-color-base);
+		border: var(--border-width-base) solid var(--border-color-base);
+		border-radius: var(--border-radius-base);
+		overflow: hidden;
+	}
+
+	.gs-delta-articles-table th,
+	.gs-delta-articles-table td {
+		padding: var(--spacing-75);
+		border-bottom: var(--border-width-base) solid var(--border-color-subtle);
+		text-align: left;
+		font-size: var(--font-size-small);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.gs-delta-articles-table th {
+		font-weight: var(--font-weight-semi-bold);
+		color: var(--color-subtle);
+	}
+
+	.gs-delta-articles-table tr:last-child td {
+		border-bottom: none;
+	}
+
 	/* ============================================
 	   ARTICLE ITEM
 	   ============================================ */

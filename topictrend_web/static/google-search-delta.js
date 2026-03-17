@@ -142,6 +142,10 @@ function createCategoryAccordion(category, accordionName) {
 	details.name = accordionName;
 	details.dataset.categoryQid = category.category_qid;
 	details.dataset.categoryTitle = category.category_title;
+	details.dataset.baselineClicks = category.baseline_clicks;
+	details.dataset.impactClicks = category.impact_clicks;
+	details.dataset.baselineImpressions = category.baseline_impressions;
+	details.dataset.impactImpressions = category.impact_impressions;
 
 	const summary = document.createElement("summary");
 	summary.className = "category-summary";
@@ -155,24 +159,6 @@ function createCategoryAccordion(category, accordionName) {
 	deltaDiv.className = `category-delta ${type}`;
 	const sign = category.delta_percentage >= 0 ? "+" : "";
 	deltaDiv.textContent = `${sign}${category.delta_percentage.toFixed(2)}%`;
-
-	const clicksDiv = document.createElement("div");
-	clicksDiv.className = "category-views";
-	const clicksLabel = document.createElement("span");
-	clicksLabel.className = "views-label";
-	clicksLabel.textContent = "Clicks";
-	const clicksRange = document.createElement("span");
-	clicksRange.className = "views-range";
-	clicksRange.textContent = `${category.baseline_clicks.toLocaleString()} → ${category.impact_clicks.toLocaleString()}`;
-	clicksDiv.appendChild(clicksLabel);
-	clicksDiv.appendChild(clicksRange);
-
-	const impressionsDiv = document.createElement("div");
-	impressionsDiv.className = "category-views";
-	const impressionsRange = document.createElement("span");
-	impressionsRange.className = "views-range";
-	impressionsRange.textContent = `Impressions: ${category.baseline_impressions.toLocaleString()} → ${category.impact_impressions.toLocaleString()}`;
-	impressionsDiv.appendChild(impressionsRange);
 
 	const plotLink = document.createElement("a");
 	plotLink.className = "plot-button";
@@ -196,10 +182,8 @@ function createCategoryAccordion(category, accordionName) {
 
 	summary.appendChild(nameSpan);
 	summary.appendChild(deltaDiv);
-	summary.appendChild(clicksDiv);
 	summary.appendChild(plotLink);
 	details.appendChild(summary);
-	details.appendChild(impressionsDiv);
 	details.addEventListener("toggle", handleAccordionToggle);
 
 	return details;
@@ -242,7 +226,21 @@ async function handleAccordionToggle(event) {
 		);
 
 		if (articlesData && articlesData.articles.length > 0) {
-			renderArticles(articlesContainer, articlesData.articles, wiki);
+			renderArticles(articlesContainer, articlesData.articles, wiki, {
+				baselineClicks: Number.parseInt(
+					details.dataset.baselineClicks || "0",
+					10,
+				),
+				impactClicks: Number.parseInt(details.dataset.impactClicks || "0", 10),
+				baselineImpressions: Number.parseInt(
+					details.dataset.baselineImpressions || "0",
+					10,
+				),
+				impactImpressions: Number.parseInt(
+					details.dataset.impactImpressions || "0",
+					10,
+				),
+			});
 			details.dataset.loaded = "true";
 			showMessage(
 				`Loaded ${articlesData.articles.length} articles for: ${categoryTitle}`,
@@ -260,47 +258,94 @@ async function handleAccordionToggle(event) {
 	}
 }
 
-function renderArticles(container, articles, wiki) {
+function renderArticles(container, articles, wiki, summaryMetrics) {
 	container.innerHTML = "";
+
+	const impressionsDeltaPercent =
+		summaryMetrics.baselineImpressions === 0
+			? summaryMetrics.impactImpressions > 0
+				? 100
+				: 0
+			: ((summaryMetrics.impactImpressions -
+					summaryMetrics.baselineImpressions) /
+					summaryMetrics.baselineImpressions) *
+				100;
+
+	const summary = document.createElement("div");
+	summary.className = "articles-summary";
+
+	const clicksRow = document.createElement("div");
+	clicksRow.className = "articles-summary-row";
+	clicksRow.textContent = `Clicks: ${summaryMetrics.baselineClicks.toLocaleString()} -> ${summaryMetrics.impactClicks.toLocaleString()}`;
+
+	const impressionsRow = document.createElement("div");
+	impressionsRow.className = "articles-summary-row";
+	const sign = impressionsDeltaPercent >= 0 ? "+" : "";
+	impressionsRow.textContent = `Impressions: ${summaryMetrics.baselineImpressions.toLocaleString()} -> ${summaryMetrics.impactImpressions.toLocaleString()} (${sign}${impressionsDeltaPercent.toFixed(2)}%)`;
+
+	summary.appendChild(clicksRow);
+	summary.appendChild(impressionsRow);
+	container.appendChild(summary);
+
+	const table = document.createElement("table");
+	table.className = "gs-delta-articles-table";
+
+	const thead = document.createElement("thead");
+	const headerRow = document.createElement("tr");
+	for (const label of ["Article", "Clicks", "Impressions", "Delta", "Plot"]) {
+		const th = document.createElement("th");
+		th.textContent = label;
+		headerRow.appendChild(th);
+	}
+	thead.appendChild(headerRow);
+	table.appendChild(thead);
+
+	const tbody = document.createElement("tbody");
 	for (const article of articles) {
-		const row = document.createElement("div");
-		row.className = `article-item ${article.delta_percentage >= 0 ? "positive" : "negative"}`;
+		const row = document.createElement("tr");
 
-		const title = document.createElement("a");
-		title.className = "article-title";
-		title.textContent = article.article_title.replace(/_/g, " ");
-		title.href = `https://${wiki.replace("wiki", "")}.wikipedia.org/wiki/${encodeURIComponent(article.article_title)}`;
-		title.target = "_blank";
-		title.rel = "noopener noreferrer";
+		const titleCell = document.createElement("td");
+		const titleLink = document.createElement("a");
+		titleLink.className = "article-title";
+		titleLink.textContent = article.article_title.replace(/_/g, " ");
+		titleLink.href = `https://${wiki.replace("wiki", "")}.wikipedia.org/wiki/${encodeURIComponent(article.article_title)}`;
+		titleLink.target = "_blank";
+		titleLink.rel = "noopener noreferrer";
+		titleCell.appendChild(titleLink);
 
-		const delta = document.createElement("span");
-		delta.className = `article-delta ${article.delta_percentage >= 0 ? "positive" : "negative"}`;
-		delta.textContent = `${article.delta_percentage >= 0 ? "+" : ""}${article.delta_percentage.toFixed(2)}%`;
+		const clicksCell = document.createElement("td");
+		clicksCell.textContent = `${article.baseline_clicks.toLocaleString()} -> ${article.impact_clicks.toLocaleString()}`;
 
-		const metrics = document.createElement("div");
-		metrics.className = "article-views";
-		metrics.textContent = `Clicks: ${article.baseline_clicks.toLocaleString()} → ${article.impact_clicks.toLocaleString()} | Impr: ${article.baseline_impressions.toLocaleString()} → ${article.impact_impressions.toLocaleString()}`;
+		const impressionsCell = document.createElement("td");
+		impressionsCell.textContent = `${article.baseline_impressions.toLocaleString()} -> ${article.impact_impressions.toLocaleString()}`;
 
+		const deltaCell = document.createElement("td");
+		deltaCell.className =
+			article.delta_percentage >= 0
+				? "article-delta positive"
+				: "article-delta negative";
+		deltaCell.textContent = `${article.delta_percentage >= 0 ? "+" : ""}${article.delta_percentage.toFixed(2)}%`;
+
+		const plotCell = document.createElement("td");
 		const plotLink = document.createElement("a");
 		plotLink.className = "plot-button";
-		plotLink.textContent = "📊";
+		plotLink.textContent = "Plot";
 		plotLink.title = "View trend chart";
 		plotLink.target = "_blank";
 		plotLink.rel = "noopener noreferrer";
+		plotLink.href = `/googlesearch/trends?type=article&wiki=${wiki}&article=${encodeURIComponent(article.article_title)}`;
+		plotCell.appendChild(plotLink);
 
-		const endDate = new Date();
-		endDate.setDate(endDate.getDate() - 1);
-		const startDate = new Date();
-		startDate.setMonth(startDate.getMonth() - 1);
-		const formatDate = (date) => date.toISOString().split("T")[0];
-		plotLink.href = `/googlesearch/trends?type=article&wiki=${wiki}&start_date=${formatDate(startDate)}&end_date=${formatDate(endDate)}&article=${article.article_title}`;
-
-		row.appendChild(title);
-		row.appendChild(delta);
-		row.appendChild(metrics);
-		row.appendChild(plotLink);
-		container.appendChild(row);
+		row.appendChild(titleCell);
+		row.appendChild(clicksCell);
+		row.appendChild(impressionsCell);
+		row.appendChild(deltaCell);
+		row.appendChild(plotCell);
+		tbody.appendChild(row);
 	}
+
+	table.appendChild(tbody);
+	container.appendChild(table);
 }
 
 function populateFormFromQueryParams() {
