@@ -214,11 +214,8 @@ fn process(
     println!("  Output rows:           {}", output_rows);
 
     if output_rows == 0 {
-        return Err(format!(
-            "No rows mapped for wiki={} date={} — check articles.parquet exists",
-            wiki, date
-        )
-        .into());
+        println!("No rows for wiki={} date={} — skipping output.", wiki, date);
+        return Ok(());
     }
 
     // Build output DataFrame
