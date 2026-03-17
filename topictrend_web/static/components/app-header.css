@@ -71,6 +71,10 @@
 	anchor-name: --pageedits-anchor;
 }
 
+.nav-button#googlesearch-anchor {
+	anchor-name: --googlesearch-anchor;
+}
+
 .nav-button .chevron {
 	font-size: 0.75em;
 	opacity: 0.7;
