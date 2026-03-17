@@ -141,7 +141,13 @@ function renderTopArticles(wiki, topArticles) {
 		const row = document.createElement("tr");
 
 		const articleCell = document.createElement("td");
-		articleCell.textContent = article.title.replaceAll("_", " ");
+		const articleLink = document.createElement("a");
+		articleLink.className = "article-title";
+		articleLink.textContent = article.title.replaceAll("_", " ");
+		articleLink.href = `https://${wiki.replace("wiki", "")}.wikipedia.org/wiki/${encodeURIComponent(article.title)}`;
+		articleLink.target = "_blank";
+		articleLink.rel = "noopener noreferrer";
+		articleCell.appendChild(articleLink);
 
 		const clicksCell = document.createElement("td");
 		clicksCell.textContent = article.clicks.toLocaleString();
