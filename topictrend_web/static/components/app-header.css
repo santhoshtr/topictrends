@@ -116,6 +116,12 @@
 	margin-block-start: var(--spacing-xs, 0.25rem);
 	left: calc(anchor(left) + 0.5em);
 }
+.nav-menu[anchor="googlesearch-anchor"] {
+	position-anchor: --googlesearch-anchor;
+	position-area: block-end;
+	margin-block-start: var(--spacing-xs, 0.25rem);
+	left: calc(anchor(left) + 0.5em);
+}
 
 /* Fallback for browsers without anchor positioning */
 @supports not (anchor-name: --test) {
