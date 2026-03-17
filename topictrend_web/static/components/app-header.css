@@ -18,6 +18,10 @@
 	color: var(--color-base);
 	margin: 0;
 	white-space: nowrap;
+	a {
+		text-decoration: none;
+		color: inherit;
+	}
 }
 
 .header-wiki-selector {
