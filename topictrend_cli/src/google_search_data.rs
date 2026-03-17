@@ -159,7 +159,6 @@ fn process(
     let mut agg: HashMap<u32, (i64, i64, f64)> = HashMap::new();
     let mut url_parse_failures = 0usize;
     let mut unmapped_titles = 0usize;
-    let mut wrong_wiki = 0usize;
 
     for i in 0..total_rows {
         let page = match pages.get(i) {
@@ -179,7 +178,6 @@ fn process(
         };
 
         if lang != lang_prefix {
-            wrong_wiki += 1;
             continue;
         }
 
@@ -208,7 +206,6 @@ fn process(
 
     println!("Stats:");
     println!("  Total input rows:      {}", total_rows);
-    println!("  Wrong wiki (filtered): {}", wrong_wiki);
     println!("  URL parse failures:    {}", url_parse_failures);
     println!("  Unmapped titles:       {}", unmapped_titles);
     println!("  Output rows:           {}", output_rows);
