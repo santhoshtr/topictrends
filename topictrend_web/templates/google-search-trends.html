@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Topic Trends - Google Search Trends{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/styles.css">
+{% endblock %}
+
+{% block content %}
+<div class="app-container">
+  <div class="form-container">
+    <form id="trend-form">
+      <div class="header-wiki-selector">
+        {% include "wiki-selector.html" %}
+      </div>
+      <div class="form-item">
+        <input type="radio" id="tab-category" name="type" value="category" checked />
+        <input type="radio" id="tab-article" name="type" value="article" />
+        <div class="tab">
+          <label for="tab-category" class="cdx-label">Category</label>
+          <label for="tab-article" class="cdx-label">Article</label>
+        </div>
+        <div class="tab-content">
+          <div class="tab-content-category">
+            <wiki-category-selector id="category" name="category" placeholder="Search category"></wiki-category-selector>
+          </div>
+          <div class="tab-content-article">
+            <wiki-article-selector id="article" name="article" placeholder="Search article"></wiki-article-selector>
+          </div>
+        </div>
+      </div>
+      <div class="form-item row">
+        <div class="form-item">
+          <label for="start_date">Start Date</label>
+          <input type="date" id="start_date" name="start-date" required class="cdx-text-input__input">
+        </div>
+        <div class="form-item">
+          <label for="end_date">End Date</label>
+          <input type="date" id="end_date" name="end-date" required class="cdx-text-input__input">
+        </div>
+      </div>
+      <div class="form-item">
+        <button type="submit" class="cdx-button cdx-button--action-progressive cdx-button--weight-primary">Submit</button>
+      </div>
+      <input name="depth" id="depth" value="4" type="hidden">
+      <input name="category_qid" id="category_qid" type="hidden">
+      <input name="article_qid" id="article_qid" type="hidden">
+    </form>
+    <a href="/googlesearch/delta">Google search trends by topic for this wiki</a>
+    <section id="category-list"></section>
+  </div>
+  <div class="main">
+    <section class="examples" hidden>
+      <h2>Examples</h2>
+      <ul>
+        <li><a href="/googlesearch/trends?type=category&wiki=enwiki&start_date=2026-03-01&end_date=2026-03-05&depth=4&category=2026_Winter_Olympics">Plot Google search trends for "2026 Winter Olympics".</a></li>
+      </ul>
+    </section>
+    <div id="chart" class="chart"></div>
+    <section id="ctr-summary" class="top-articles"></section>
+    <section id="top-articles" class="top-articles"></section>
+    <footer>
+      <p id="status" class="status"></p>
+    </footer>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+<script src="/static/google-search-trends.js" type="module"></script>
+<script src="/static/wikiarticleselector.js" type="module"></script>
+<script src="/static/wikicategoryselector.js" type="module"></script>
+{% endblock %}

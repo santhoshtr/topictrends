@@ -69,6 +69,24 @@ async fn run_http_server(
             get(|| async { render_template("pageedit-delta.html", PageContext::pageedit_delta()) }),
         )
         .route(
+            "/googlesearch/trends",
+            get(|| async {
+                render_template(
+                    "google-search-trends.html",
+                    PageContext::google_search_trends(),
+                )
+            }),
+        )
+        .route(
+            "/googlesearch/delta",
+            get(|| async {
+                render_template(
+                    "google-search-delta.html",
+                    PageContext::google_search_delta(),
+                )
+            }),
+        )
+        .route(
             "/delta",
             get(|| async { Redirect::permanent("/pageviews/delta") }),
         )

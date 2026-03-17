@@ -22,6 +22,8 @@ tags:
     description: Pageview trend endpoints
   - name: Pageedits
     description: Page edit trend endpoints
+  - name: GoogleSearch
+    description: Google search trend endpoints
   - name: Delta
     description: Delta analysis endpoints
   - name: Search
@@ -123,6 +125,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ArticleEditTrendResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/googlesearch/category:
+    get:
+      operationId: getCategoryGoogleSearchTrend
+      tags: [GoogleSearch]
+      summary: Category Google search trend
+      description: Daily Google search metrics for a category (optionally including subcategories).
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/Category"
+        - $ref: "#/components/parameters/CategoryQidOptional"
+        - $ref: "#/components/parameters/DepthOptional"
+        - $ref: "#/components/parameters/StartDateOptional"
+        - $ref: "#/components/parameters/EndDateOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoogleSearchCategoryTrendResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/googlesearch/article:
+    get:
+      operationId: getArticleGoogleSearchTrend
+      tags: [GoogleSearch]
+      summary: Article Google search trend
+      description: Daily Google search metrics for an article.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/Article"
+        - $ref: "#/components/parameters/ArticleQidOptional"
+        - $ref: "#/components/parameters/StartDateOptional"
+        - $ref: "#/components/parameters/EndDateOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoogleSearchArticleTrendResponse"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
@@ -277,6 +328,59 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PageEditArticleDeltaResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/googlesearch/delta/categories:
+    get:
+      operationId: getCategoryGoogleSearchDelta
+      tags: [Delta, GoogleSearch]
+      summary: Category Google search delta
+      description: Delta of category search clicks between a baseline and an impact period.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/BaselineStartDate"
+        - $ref: "#/components/parameters/BaselineEndDate"
+        - $ref: "#/components/parameters/ImpactStartDate"
+        - $ref: "#/components/parameters/ImpactEndDate"
+        - $ref: "#/components/parameters/LimitOptional"
+        - $ref: "#/components/parameters/DepthOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoogleSearchCategoryDeltaResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/googlesearch/delta/articles:
+    get:
+      operationId: getArticleGoogleSearchDelta
+      tags: [Delta, GoogleSearch]
+      summary: Article Google search delta
+      description: Delta of article search clicks within a category between two periods.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/CategoryQidRequired"
+        - $ref: "#/components/parameters/BaselineStartDate"
+        - $ref: "#/components/parameters/BaselineEndDate"
+        - $ref: "#/components/parameters/ImpactStartDate"
+        - $ref: "#/components/parameters/ImpactEndDate"
+        - $ref: "#/components/parameters/LimitOptional"
+        - $ref: "#/components/parameters/DepthOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoogleSearchArticleDeltaResponse"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
@@ -606,6 +710,29 @@ components:
           format: int64
           minimum: 0
 
+    DailyGoogleSearch:
+      type: object
+      required: [date, clicks, impressions, ctr, position]
+      properties:
+        date:
+          $ref: "#/components/schemas/Date"
+        clicks:
+          type: integer
+          format: int64
+          minimum: 0
+        impressions:
+          type: integer
+          format: int64
+          minimum: 0
+        ctr:
+          type: number
+          format: double
+          minimum: 0
+        position:
+          type: number
+          format: double
+          minimum: 0
+
     TopArticle:
       type: object
       required: [qid, title, views]
@@ -634,6 +761,29 @@ components:
         edits:
           type: integer
           format: int64
+          minimum: 0
+
+    TopArticleGoogleSearch:
+      type: object
+      required: [qid, title, clicks, impressions, ctr]
+      properties:
+        qid:
+          type: integer
+          format: int32
+          minimum: 0
+        title:
+          type: string
+        clicks:
+          type: integer
+          format: int64
+          minimum: 0
+        impressions:
+          type: integer
+          format: int64
+          minimum: 0
+        ctr:
+          type: number
+          format: double
           minimum: 0
 
     ArticleTrendResponse:
@@ -703,6 +853,40 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TopArticleEdits"
+
+    GoogleSearchArticleTrendResponse:
+      type: object
+      required: [qid, title, search]
+      properties:
+        qid:
+          type: integer
+          format: int32
+          minimum: 0
+        title:
+          type: string
+        search:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailyGoogleSearch"
+
+    GoogleSearchCategoryTrendResponse:
+      type: object
+      required: [qid, title, search, top_articles]
+      properties:
+        qid:
+          type: integer
+          format: int32
+          minimum: 0
+        title:
+          type: string
+        search:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailyGoogleSearch"
+        top_articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopArticleGoogleSearch"
 
     CategoryInfo:
       type: object
@@ -909,6 +1093,98 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PageEditArticleDeltaItemResponse"
+        category_qid:
+          type: integer
+          format: int32
+          minimum: 0
+        category_title:
+          type: string
+        baseline_period:
+          type: string
+        impact_period:
+          type: string
+
+    GoogleSearchCategoryDeltaItemResponse:
+      type: object
+      required:
+        [category_qid, category_title, baseline_clicks, impact_clicks, baseline_impressions, impact_impressions, delta_percentage, absolute_delta]
+      properties:
+        category_qid:
+          type: integer
+          format: int32
+          minimum: 0
+        category_title:
+          type: string
+        baseline_clicks:
+          type: integer
+          format: int64
+        impact_clicks:
+          type: integer
+          format: int64
+        baseline_impressions:
+          type: integer
+          format: int64
+        impact_impressions:
+          type: integer
+          format: int64
+        delta_percentage:
+          type: number
+          format: double
+        absolute_delta:
+          type: integer
+          format: int64
+
+    GoogleSearchCategoryDeltaResponse:
+      type: object
+      required: [categories, baseline_period, impact_period]
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoogleSearchCategoryDeltaItemResponse"
+        baseline_period:
+          type: string
+        impact_period:
+          type: string
+
+    GoogleSearchArticleDeltaItemResponse:
+      type: object
+      required:
+        [article_qid, article_title, baseline_clicks, impact_clicks, baseline_impressions, impact_impressions, delta_percentage, absolute_delta]
+      properties:
+        article_qid:
+          type: integer
+          format: int32
+          minimum: 0
+        article_title:
+          type: string
+        baseline_clicks:
+          type: integer
+          format: int64
+        impact_clicks:
+          type: integer
+          format: int64
+        baseline_impressions:
+          type: integer
+          format: int64
+        impact_impressions:
+          type: integer
+          format: int64
+        delta_percentage:
+          type: number
+          format: double
+        absolute_delta:
+          type: integer
+          format: int64
+
+    GoogleSearchArticleDeltaResponse:
+      type: object
+      required: [articles, category_qid, category_title, baseline_period, impact_period]
+      properties:
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoogleSearchArticleDeltaItemResponse"
         category_qid:
           type: integer
           format: int32
