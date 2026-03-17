@@ -108,6 +108,14 @@ async fn run_http_server(
             get(handlers::get_article_edit_trend_handler),
         )
         .route(
+            "/api/googlesearch/category",
+            get(handlers::get_category_google_search_trend_handler),
+        )
+        .route(
+            "/api/googlesearch/article",
+            get(handlers::get_article_google_search_trend_handler),
+        )
+        .route(
             "/api/list/sub_categories",
             get(handlers::get_sub_categories),
         )
@@ -130,6 +138,14 @@ async fn run_http_server(
         .route(
             "/api/pageedits/delta/articles",
             get(handlers::get_article_pageedit_delta_handler),
+        )
+        .route(
+            "/api/googlesearch/delta/categories",
+            get(handlers::get_category_google_search_delta_handler),
+        )
+        .route(
+            "/api/googlesearch/delta/articles",
+            get(handlers::get_article_google_search_delta_handler),
         )
         .route("/api/search/categories", get(handlers::search_categories))
         .route(

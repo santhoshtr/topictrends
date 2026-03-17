@@ -2,6 +2,7 @@ use super::CoreServiceError;
 use crate::models::{AppState, MetricEngine, MetricType};
 use std::sync::{Arc, RwLock};
 use topictrend::graphbuilder::GraphBuilder;
+use topictrend::google_search_engine::GoogleSearchEngine;
 use topictrend::pageedits_engine::PageEditsEngine;
 use topictrend::pageview_engine::PageViewEngine;
 use topictrend::wikigraph::WikiGraph;
@@ -88,6 +89,34 @@ impl EngineService {
             } else {
                 let new_engine = Arc::new(RwLock::new(PageEditsEngine::new(&wiki)));
                 let new_metric_engine = MetricEngine::PageEdit(Arc::clone(&new_engine));
+                engines.insert(key, new_metric_engine);
+                Ok(new_engine)
+            }
+        })
+        .await
+        .map_err(|_| CoreServiceError::InternalError("Failed to spawn blocking task".to_string()))?
+    }
+
+    pub async fn get_or_build_google_search_engine(
+        state: Arc<AppState>,
+        wiki: &str,
+    ) -> Result<Arc<RwLock<GoogleSearchEngine>>, CoreServiceError> {
+        let wiki = wiki.to_string();
+
+        tokio::task::spawn_blocking(move || {
+            let mut engines = state.engines.write().map_err(|_| {
+                CoreServiceError::InternalError("Failed to acquire engines lock".to_string())
+            })?;
+
+            let key = (wiki.clone(), MetricType::GoogleSearch);
+
+            if let Some(engine) = engines.get(&key) {
+                engine.as_google_search().map(Arc::clone).ok_or_else(|| {
+                    CoreServiceError::InternalError("Engine type mismatch".to_string())
+                })
+            } else {
+                let new_engine = Arc::new(RwLock::new(GoogleSearchEngine::new(&wiki)));
+                let new_metric_engine = MetricEngine::GoogleSearch(Arc::clone(&new_engine));
                 engines.insert(key, new_metric_engine);
                 Ok(new_engine)
             }

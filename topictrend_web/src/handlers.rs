@@ -14,18 +14,24 @@ use crate::{
         ArticlesInCategoryResponse, CategoryEditTrendResponse, CategoryRankResponse,
         CategorySearchItemResponse, CategorySearchParams, CategorySearchResponse,
         CategoryTrendParams, CategoryTrendResponse, ContentGapParams, ContentGapResult, DailyEdits,
-        DailyViews, ListArticlesInCategoryParams, PageEditArticleDeltaParams,
+        DailyGoogleSearch, DailyViews, GoogleSearchArticleDeltaParams,
+        GoogleSearchArticleDeltaResponse, GoogleSearchArticleTrendResponse,
+        GoogleSearchCategoryDeltaParams, GoogleSearchCategoryDeltaResponse,
+        GoogleSearchCategoryTrendResponse, ListArticlesInCategoryParams, PageEditArticleDeltaParams,
         PageEditArticleDeltaResponse, PageEditCategoryDeltaParams, PageEditCategoryDeltaResponse,
         PageViewArticleDeltaParams, PageViewArticleDeltaResponse, PageViewCategoryDeltaParams,
         PageViewCategoryDeltaResponse, SubCategoryParams, TopArticle, TopArticleEdits,
-        TopCategoriesParams, TopCategory,
+        TopArticleGoogleSearch, TopCategoriesParams, TopCategory,
     },
     services::core::CategoryService,
 };
 use crate::{
     models::{CategoriesTrendParams, CategoriesTrendResponse},
     services::{
-        composite::{PageEditDeltaService, PageViewDeltaService, taxonomy_search_category_qids},
+        composite::{
+            GoogleSearchDeltaService, GoogleSearchTrendsService, PageEditDeltaService,
+            PageViewDeltaService, taxonomy_search_category_qids,
+        },
         core::{CoreServiceError, QidService},
     },
 };
@@ -223,6 +229,86 @@ pub async fn get_article_edit_trend_handler(
         qid: result.qid,
         title: result.title,
         edits: daily_edits,
+    }))
+}
+
+pub async fn get_category_google_search_trend_handler(
+    Query(params): Query<CategoryTrendParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<GoogleSearchCategoryTrendResponse>, ApiError> {
+    let result = GoogleSearchTrendsService::get_category_trend(
+        state,
+        &params.wiki,
+        &params.category,
+        params.category_qid,
+        params.depth,
+        params.start_date,
+        params.end_date,
+    )
+    .await?;
+
+    let daily_search: Vec<DailyGoogleSearch> = result
+        .search
+        .into_iter()
+        .map(|item| DailyGoogleSearch {
+            date: item.date,
+            clicks: item.clicks,
+            impressions: item.impressions,
+            ctr: item.ctr,
+            position: item.position,
+        })
+        .collect();
+
+    let top_articles: Vec<TopArticleGoogleSearch> = result
+        .top_articles
+        .into_iter()
+        .map(|article| TopArticleGoogleSearch {
+            qid: article.qid,
+            title: article.title,
+            clicks: article.clicks,
+            impressions: article.impressions,
+            ctr: article.ctr,
+        })
+        .collect();
+
+    Ok(Json(GoogleSearchCategoryTrendResponse {
+        qid: result.qid,
+        title: result.title,
+        search: daily_search,
+        top_articles,
+    }))
+}
+
+pub async fn get_article_google_search_trend_handler(
+    Query(params): Query<ArticleTrendParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<GoogleSearchArticleTrendResponse>, ApiError> {
+    let result = GoogleSearchTrendsService::get_article_trend(
+        state,
+        &params.wiki,
+        &params.article,
+        params.article_qid,
+        params.start_date,
+        params.end_date,
+    )
+    .await?;
+
+    let daily_search: Vec<DailyGoogleSearch> = result
+        .search
+        .into_iter()
+        .map(|item| DailyGoogleSearch {
+            date: item.date,
+            clicks: item.clicks,
+            impressions: item.impressions,
+            ctr: item.ctr,
+            position: item.position,
+        })
+        .collect();
+
+    Ok(Json(GoogleSearchArticleTrendResponse {
+        qid: result.qid,
+        title: result.title,
+        search: daily_search,
     }))
 }
 
@@ -474,6 +560,106 @@ pub async fn get_article_pageedit_delta_handler(
     let impact_period = format!("{} to {}", params.impact_start_date, params.impact_end_date);
 
     Ok(Json(PageEditArticleDeltaResponse {
+        articles,
+        category_qid: params.category_qid,
+        category_title,
+        baseline_period,
+        impact_period,
+    }))
+}
+
+pub async fn get_category_google_search_delta_handler(
+    Query(params): Query<GoogleSearchCategoryDeltaParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<GoogleSearchCategoryDeltaResponse>, ApiError> {
+    let limit = params.limit.unwrap_or(100) as usize;
+    let depth = params.depth.unwrap_or(0);
+
+    let delta_items = GoogleSearchDeltaService::get_category_delta(
+        Arc::clone(&state),
+        &params.wiki,
+        params.baseline_start_date,
+        params.baseline_end_date,
+        params.impact_start_date,
+        params.impact_end_date,
+        limit,
+        depth,
+    )
+    .await?;
+
+    let categories: Vec<crate::models::GoogleSearchCategoryDeltaItemResponse> = delta_items
+        .into_iter()
+        .map(|item| crate::models::GoogleSearchCategoryDeltaItemResponse {
+            category_qid: item.category_qid,
+            category_title: item.category_title,
+            baseline_clicks: item.baseline_clicks,
+            impact_clicks: item.impact_clicks,
+            baseline_impressions: item.baseline_impressions,
+            impact_impressions: item.impact_impressions,
+            delta_percentage: item.delta_percentage,
+            absolute_delta: item.absolute_delta,
+        })
+        .collect();
+
+    let baseline_period = format!(
+        "{} to {}",
+        params.baseline_start_date, params.baseline_end_date
+    );
+    let impact_period = format!("{} to {}", params.impact_start_date, params.impact_end_date);
+
+    Ok(Json(GoogleSearchCategoryDeltaResponse {
+        categories,
+        baseline_period,
+        impact_period,
+    }))
+}
+
+pub async fn get_article_google_search_delta_handler(
+    Query(params): Query<GoogleSearchArticleDeltaParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<GoogleSearchArticleDeltaResponse>, ApiError> {
+    let limit = params.limit.unwrap_or(100) as usize;
+    let depth = params.depth.unwrap_or(0);
+
+    let delta_items = GoogleSearchDeltaService::get_article_delta(
+        Arc::clone(&state),
+        &params.wiki,
+        params.category_qid,
+        params.baseline_start_date,
+        params.baseline_end_date,
+        params.impact_start_date,
+        params.impact_end_date,
+        limit,
+        depth,
+    )
+    .await?;
+
+    let articles: Vec<crate::models::GoogleSearchArticleDeltaItemResponse> = delta_items
+        .into_iter()
+        .map(|item| crate::models::GoogleSearchArticleDeltaItemResponse {
+            article_qid: item.article_qid,
+            article_title: item.article_title,
+            baseline_clicks: item.baseline_clicks,
+            impact_clicks: item.impact_clicks,
+            baseline_impressions: item.baseline_impressions,
+            impact_impressions: item.impact_impressions,
+            delta_percentage: item.delta_percentage,
+            absolute_delta: item.absolute_delta,
+        })
+        .collect();
+
+    let category_title =
+        QidService::get_title_by_qid(Arc::clone(&state), &params.wiki, params.category_qid)
+            .await
+            .unwrap_or_else(|_| format!("Q{}", params.category_qid));
+
+    let baseline_period = format!(
+        "{} to {}",
+        params.baseline_start_date, params.baseline_end_date
+    );
+    let impact_period = format!("{} to {}", params.impact_start_date, params.impact_end_date);
+
+    Ok(Json(GoogleSearchArticleDeltaResponse {
         articles,
         category_qid: params.category_qid,
         category_title,

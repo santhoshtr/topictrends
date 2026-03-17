@@ -6,6 +6,7 @@ use std::{
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use sqlx::{MySql, Pool};
+use topictrend::google_search_engine::GoogleSearchEngine;
 use topictrend::pageedits_engine::PageEditsEngine;
 use topictrend::pageview_engine::PageViewEngine;
 use topictrend::wikigraph::WikiGraph;
@@ -14,12 +15,14 @@ use topictrend::wikigraph::WikiGraph;
 pub enum MetricType {
     PageView,
     PageEdit,
+    GoogleSearch,
     Graph,
 }
 
 pub enum MetricEngine {
     PageView(Arc<RwLock<PageViewEngine>>),
     PageEdit(Arc<RwLock<PageEditsEngine>>),
+    GoogleSearch(Arc<RwLock<GoogleSearchEngine>>),
     Graph(Arc<RwLock<WikiGraph>>),
 }
 
@@ -27,21 +30,34 @@ impl MetricEngine {
     pub fn as_pageview(&self) -> Option<&Arc<RwLock<PageViewEngine>>> {
         match self {
             MetricEngine::PageView(engine) => Some(engine),
-            MetricEngine::PageEdit(_) | MetricEngine::Graph(_) => None,
+            MetricEngine::PageEdit(_) | MetricEngine::GoogleSearch(_) | MetricEngine::Graph(_) => {
+                None
+            }
         }
     }
 
     pub fn as_pageedit(&self) -> Option<&Arc<RwLock<PageEditsEngine>>> {
         match self {
             MetricEngine::PageEdit(engine) => Some(engine),
-            MetricEngine::PageView(_) | MetricEngine::Graph(_) => None,
+            MetricEngine::PageView(_) | MetricEngine::GoogleSearch(_) | MetricEngine::Graph(_) => {
+                None
+            }
+        }
+    }
+
+    pub fn as_google_search(&self) -> Option<&Arc<RwLock<GoogleSearchEngine>>> {
+        match self {
+            MetricEngine::GoogleSearch(engine) => Some(engine),
+            MetricEngine::PageView(_) | MetricEngine::PageEdit(_) | MetricEngine::Graph(_) => None,
         }
     }
 
     pub fn as_graph(&self) -> Option<&Arc<RwLock<WikiGraph>>> {
         match self {
             MetricEngine::Graph(engine) => Some(engine),
-            MetricEngine::PageView(_) | MetricEngine::PageEdit(_) => None,
+            MetricEngine::PageView(_)
+            | MetricEngine::PageEdit(_)
+            | MetricEngine::GoogleSearch(_) => None,
         }
     }
 }
@@ -158,6 +174,29 @@ pub struct PageEditArticleDeltaParams {
     pub depth: Option<u32>,
 }
 
+#[derive(Deserialize)]
+pub struct GoogleSearchCategoryDeltaParams {
+    pub wiki: String,
+    pub baseline_start_date: NaiveDate,
+    pub baseline_end_date: NaiveDate,
+    pub impact_start_date: NaiveDate,
+    pub impact_end_date: NaiveDate,
+    pub limit: Option<u32>,
+    pub depth: Option<u32>,
+}
+
+#[derive(Deserialize)]
+pub struct GoogleSearchArticleDeltaParams {
+    pub wiki: String,
+    pub category_qid: u32,
+    pub baseline_start_date: NaiveDate,
+    pub baseline_end_date: NaiveDate,
+    pub impact_start_date: NaiveDate,
+    pub impact_end_date: NaiveDate,
+    pub limit: Option<u32>,
+    pub depth: Option<u32>,
+}
+
 // --- Response DTO ---
 #[derive(Serialize)]
 pub struct DailyViews {
@@ -169,6 +208,15 @@ pub struct DailyViews {
 pub struct DailyEdits {
     pub date: NaiveDate,
     pub edits: u64,
+}
+
+#[derive(Serialize)]
+pub struct DailyGoogleSearch {
+    pub date: NaiveDate,
+    pub clicks: u64,
+    pub impressions: u64,
+    pub ctr: f64,
+    pub position: f64,
 }
 
 #[derive(Serialize)]
@@ -307,6 +355,70 @@ pub struct PageEditArticleDeltaItemResponse {
 #[derive(Serialize)]
 pub struct PageEditArticleDeltaResponse {
     pub articles: Vec<PageEditArticleDeltaItemResponse>,
+    pub category_qid: u32,
+    pub category_title: String,
+    pub baseline_period: String,
+    pub impact_period: String,
+}
+
+#[derive(Serialize)]
+pub struct TopArticleGoogleSearch {
+    pub qid: u32,
+    pub title: String,
+    pub clicks: u64,
+    pub impressions: u64,
+    pub ctr: f64,
+}
+
+#[derive(Serialize)]
+pub struct GoogleSearchCategoryTrendResponse {
+    pub qid: u32,
+    pub title: String,
+    pub search: Vec<DailyGoogleSearch>,
+    pub top_articles: Vec<TopArticleGoogleSearch>,
+}
+
+#[derive(Serialize)]
+pub struct GoogleSearchArticleTrendResponse {
+    pub qid: u32,
+    pub title: String,
+    pub search: Vec<DailyGoogleSearch>,
+}
+
+#[derive(Serialize)]
+pub struct GoogleSearchCategoryDeltaItemResponse {
+    pub category_qid: u32,
+    pub category_title: String,
+    pub baseline_clicks: u64,
+    pub impact_clicks: u64,
+    pub baseline_impressions: u64,
+    pub impact_impressions: u64,
+    pub delta_percentage: f64,
+    pub absolute_delta: i64,
+}
+
+#[derive(Serialize)]
+pub struct GoogleSearchCategoryDeltaResponse {
+    pub categories: Vec<GoogleSearchCategoryDeltaItemResponse>,
+    pub baseline_period: String,
+    pub impact_period: String,
+}
+
+#[derive(Serialize)]
+pub struct GoogleSearchArticleDeltaItemResponse {
+    pub article_qid: u32,
+    pub article_title: String,
+    pub baseline_clicks: u64,
+    pub impact_clicks: u64,
+    pub baseline_impressions: u64,
+    pub impact_impressions: u64,
+    pub delta_percentage: f64,
+    pub absolute_delta: i64,
+}
+
+#[derive(Serialize)]
+pub struct GoogleSearchArticleDeltaResponse {
+    pub articles: Vec<GoogleSearchArticleDeltaItemResponse>,
     pub category_qid: u32,
     pub category_title: String,
     pub baseline_period: String,
