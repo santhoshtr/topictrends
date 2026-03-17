@@ -36,6 +36,7 @@ function ensureChartInitialized() {
 
 function updateChartWithSearchData(data, label) {
 	ensureChartInitialized();
+	document.getElementById("chart").style.display = "block";
 
 	const dates = data.map((item) => item.date);
 	const clicks = data.map((item) => item.clicks);
