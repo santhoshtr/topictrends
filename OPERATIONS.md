@@ -31,10 +31,12 @@ cd /path/to/topictrend
 cargo build --release
 ```
 
-This produces four binaries in `target/release/`:
+This produces binaries in `target/release/`:
 - `wikigraph`: CLI for graph analysis
 - `topictrend_web`: Web server (Axum)
 - `get-pageviews`: Pageview data processor
+- `get-pageedits`: Pageedits ETL from MediaWiki history dumps
+- `get-gsc-qid-date`: Google Search Console data processor (maps pages to QIDs per wiki per date)
 - `get-articles`, `get-categories`, `get-categorygraph`, `get-article_category`, `get-per_day_wiki_stats`: Data extraction utilities
 
 ### Initial Setup
@@ -232,6 +234,82 @@ make monthly END_DATE=2025-01-31
 6. Write binary vectors: `data/{wiki}/pageviews/{YEAR}/{MONTH}/{DAY}.bin`
 
 **Binary format:** Per-day files containing a vector where index is QID, value is pageview count. This enables O(1) lookup and mmap access.
+
+### Page Edit Ingestion (Monthly / On-demand)
+
+**Frequency**: Monthly (or on-demand, aligned with Wikimedia history dump releases)
+**Runtime**: 1–3 hours per wiki (dump files are large)
+**Operation**: Processes MediaWiki history dumps for each wiki
+
+```bash
+make data/mlwiki/pageedits/pageedits.parquet
+# or for all wikis: add pageedits dependency to per-wiki target
+```
+
+**Pipeline:**
+1. Fetch `.bz2` dump files from Wikimedia (`other/mediawiki_history/{snapshot}/{wiki}/`)
+2. Filter to `revision-create` events only
+3. Map `page_id` to QID via `articles.parquet`
+4. Aggregate edit counts by `(article_qid, date)`
+5. Write to `data/{wiki}/pageedits/pageedits.parquet`
+
+**Schema:** columns `article_qid` (u32), `date` (string YYYY-MM-DD), `edit_count` (u32).
+
+### Google Search Console (GSC) Ingestion
+
+**Frequency**: Daily (or whenever new GSC data is deposited)
+**Runtime**: ~1 minute per wiki
+**Operation**: Maps GSC page URLs to QIDs and writes per-wiki, per-date parquets
+
+**Prerequisites:**
+GSC source data is not fetched by the pipeline — it must be deposited externally into:
+```
+data/gsc_page_date/date=YYYY-MM-DD/data.parquet
+```
+Schema of source files: `date`, `page` (URL), `clicks`, `impressions`, `ctr`, `position`.
+
+**Run for a specific date (all wikis):**
+```bash
+make gsc DATE=2026-03-03
+```
+
+**Run for a single wiki/date manually:**
+```bash
+./target/release/get-gsc-qid-date \
+    --wiki enwiki \
+    --date 2026-03-03 \
+    --gsc-dir data/gsc_page_date \
+    --output data/enwiki/gsc/2026/03/03.parquet
+```
+
+**Pipeline:**
+1. Read `data/gsc_page_date/date=<DATE>/data.parquet`
+2. Parse wiki language and article title from page URL (`https://<lang>.wikipedia.org/wiki/<title>`)
+3. Filter rows to the target wiki; drop non-article URLs (portal, mobile subdomains, variant paths)
+4. URL-decode titles; join against `data/<wiki>/articles.parquet` to resolve QID
+5. Aggregate `(qid, clicks, impressions)` per date; recompute `ctr` and weighted-average `position`
+6. Write to `data/<wiki>/gsc/<YEAR>/<MONTH>/<DAY>.parquet`
+
+**Output schema per file:**
+
+| column      | type  | notes                             |
+|-------------|-------|-----------------------------------|
+| qid         | u32   | Wikidata QID                      |
+| clicks      | i64   | total clicks from Google Search   |
+| impressions | i64   | total search impressions          |
+| ctr         | f64   | clicks / impressions              |
+| position    | f64   | impression-weighted avg position  |
+
+Date is encoded in the path; no `date` column in the file.
+
+**Stats output:** The binary prints per-run counters: input rows, URL parse failures, wrong-wiki rows, unmapped titles, and output rows. Use these to monitor mapping coverage.
+
+**Coverage note:** GSC data covers only Wikipedia languages that appear in search results. Expect ~98% URL parse rate; QID mapping coverage depends on wiki size (large wikis >90%, small wikis lower).
+
+**Makefile variable:**
+```bash
+GSC_DIR ?= data/gsc_page_date   # override if source is elsewhere
+```
 
 ### Incremental Updates
 

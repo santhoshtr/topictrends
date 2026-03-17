@@ -14,6 +14,7 @@ CARGO := cargo
 CARGO_RELEASE := target/release
 
 DATA_DIR ?= data
+GSC_DIR ?= $(DATA_DIR)/gsc_page_date
 WIKIS := $(shell cat $(DATA_DIR)/wikipedia.list 2>/dev/null)
 QUERIES_DIR := queries
 PAGEVIEWS_DIR := $(DATA_DIR)/pageviews
@@ -22,7 +23,7 @@ MIN_EDIT_YEAR ?= 2020
 
 .DEFAULT_GOAL := run
 
-.PHONY: run init clean help $(WIKIS) monthly notebook index-wiki index-clean embedding-server web
+.PHONY: run init clean help $(WIKIS) monthly notebook index-wiki index-clean embedding-server web gsc
 
 # Help target
 help:
@@ -30,6 +31,7 @@ help:
 	@echo "Available targets:"
 	@echo "  run     - Process all wikis and run wikigraph cli"
 	@echo "  monthly - Process all wikis for the last 30 days"
+	@echo "  gsc     - Process Google Search Console data for all wikis (single date)"
 	@echo "  web     - Start webserver"
 	@echo "  init    - Initialize data directory and wikipedia list"
 	@echo "  clean   - Remove generated data files"
@@ -39,7 +41,10 @@ help:
 	@echo "  DATE          - Date to process (YYYY-MM-DD format, defaults to yesterday)"
 	@echo "  EDIT_SNAPSHOT - MediaWiki history dump version (defaults to 2026-01)"
 	@echo "  MIN_EDIT_YEAR - Minimum year for page edit files (defaults to 2020)"
+	@echo "  GSC_DIR       - Path to GSC source root (defaults to data/gsc_page_date)"
 	@echo "  Example: make run DATE=2025-01-15"
+	@echo "  Example: make gsc DATE=2026-03-03"
+	@echo "  Example: make gsc DATE=2026-03-03 GSC_DIR=/mnt/gsc_data"
 	@echo "  Example: make data/mlwiki/pageedits/pageedits.parquet EDIT_SNAPSHOT=2025-12"
 	@echo "  Example: make data/arwiki/pageedits/pageedits.parquet MIN_EDIT_YEAR=2015"
 	@echo ""
@@ -207,6 +212,25 @@ $(DATA_DIR)/wikipedia.list: | $(DATA_DIR)
 	@sed -i '/^arbcom/d; /^test/d; /^sysop/d; /^wg_en/d; /^cebwiki/d; /^warwiki/d; /^be_x_old/d' $@
 	@rm -f closed.dblist
 
+# GSC per-wiki-per-date target
+# Expands to data/enwiki/gsc/2026/03/03.parquet (example)
+# Depends on the GSC source parquet and the wiki's articles.parquet (for QID mapping)
+$(DATA_DIR)/%/gsc/$(YEAR)/$(MONTH)/$(DAY).parquet: \
+	$(GSC_DIR)/date=$(DATE)/data.parquet \
+	$(DATA_DIR)/%/articles.parquet
+	@mkdir -p $(dir $@)
+	$(CARGO_RELEASE)/get-gsc-qid-date \
+		--wiki $* \
+		--date $(DATE) \
+		--gsc-dir $(GSC_DIR) \
+		--output $@
+
+# Process GSC data for all wikis for a single date
+# Usage: make gsc DATE=2026-03-03
+# Falls back to yesterday if DATE is not set.
+.PHONY: gsc
+gsc: init $(foreach w,$(WIKIS),$(DATA_DIR)/$(w)/gsc/$(YEAR)/$(MONTH)/$(DAY).parquet)
+
 # Clean target
 clean:
 	@echo "Cleaning generated data..."
@@ -292,6 +316,7 @@ notebook:
            $(DATA_DIR)/%/category_graph.parquet \
            $(DATA_DIR)/%/article_category.parquet \
            $(DATA_DIR)/pageviews/%.parquet \
-           $(DATA_DIR)/%/pageedits/pageedits.parquet
+           $(DATA_DIR)/%/pageedits/pageedits.parquet \
+           $(DATA_DIR)/%/gsc/%.parquet
 # Prevent parallel issues with shared resources
 .NOTPARALLEL: $(DATA_DIR)/pageviews/%.parquet

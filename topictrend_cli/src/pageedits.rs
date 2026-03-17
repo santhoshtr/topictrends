@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 struct PageEditRecord {
@@ -46,8 +46,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn parse_line(line: &str) -> Result<PageEditRecord, Box<dyn std::error::Error>> {
     let parts: Vec<&str> = line.split('\t').collect();
 
-    // MediaWiki history dumps have 76 columns
-    if parts.len() < 76 {
+    // MediaWiki history dumps have 76 columns; we only need through index 26
+    if parts.len() < 27 {
         return Err("Invalid line format".into());
     }
 

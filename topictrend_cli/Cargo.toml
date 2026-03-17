@@ -50,6 +50,10 @@ path = "src/top_categories.rs"
 name = "get-pageedits"
 path = "src/pageedits.rs"
 
+[[bin]]
+name = "get-gsc-qid-date"
+path = "src/google_search_data.rs"
+
 [dependencies]
 topictrend_core = { path = "../topictrend_core" }
 parquet = { workspace = true }

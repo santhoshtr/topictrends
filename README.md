@@ -30,6 +30,7 @@ The solution requires architectural principles rather than framework selection.
 
 - **Pageview trend analytics** — category and article level pageview trends across all 345 Wikipedia editions, with daily granularity
 - **Page edit analytics** — edit activity trends and delta analysis per category or article, across all wikis
+- **Google Search Console analytics** — search clicks, impressions, CTR and position trends per article, keyed by QID, sourced from Google Search Console data
 - **Content gap analysis** — cross-wiki article coverage comparison to identify topics present in one language but absent in another
 - **Semantic category search** — English query returns semantically related categories in any target language, powered by neural embeddings
 - **Delta analysis** — compare any two time periods to identify categories or articles with significant changes in views or edits
@@ -42,12 +43,14 @@ graph TD
         SQL["Wikimedia SQL Replicas"]
         PV_DUMPS["Pageview Dumps\n(daily)"]
         PE_DUMPS["MediaWiki History Dumps"]
+        GSC_DUMPS["Google Search Console\n(external, per-date parquet)"]
     end
 
     subgraph "Batch Processing"
         META["Extract: Articles, Categories, Graph"]
         PV_PROC["Parse: Pageviews"]
         PE_PROC["Parse: Pageedits"]
+        GSC_PROC["Map: GSC pages → QIDs"]
     end
 
     subgraph "Data Representation"
@@ -56,6 +59,7 @@ graph TD
         PQ_GRAPH["Parquet: Topology"]
         BIN_PV["Binary: Pageview Time Series\n(per-day files)"]
         PQ_PE["Parquet: Pageedits\n(single file per wiki)"]
+        PQ_GSC["Parquet: GSC\n(per-wiki, per-day files)"]
     end
 
     subgraph "Core Engine (Rust, In-Memory)"
@@ -73,12 +77,14 @@ graph TD
     SQL -->|Monthly| META
     PV_DUMPS -->|Daily| PV_PROC
     PE_DUMPS -->|On refresh| PE_PROC
+    GSC_DUMPS -->|Daily| GSC_PROC
 
     META --> PQ_ART
     META --> PQ_CAT
     META --> PQ_GRAPH
     PV_PROC --> BIN_PV
     PE_PROC --> PQ_PE
+    GSC_PROC --> PQ_GSC
 
     PQ_ART -->|Load at startup| CSR_LINK
     PQ_GRAPH -->|Load at startup| CSR_TOPO
@@ -94,6 +100,8 @@ graph TD
 The system divides into four layers: ETL (data ingestion), batch processing (parsing and storage), core engine (in-memory numeric computation), and web layer (title translation and HTTP routing).
 
 Pageviews and pageedits use different storage strategies. Pageviews are written as per-day binary files and memory-mapped at runtime for O(1) access. Pageedits are stored in a single Parquet file per wiki and loaded at startup into a sparse in-memory structure (`HashMap<Date, DailyEditData>`) using sorted arrays with binary search — appropriate since edit data is sparser than pageview data.
+
+Google Search Console data is an external source deposited as Hive-partitioned parquets (`data/gsc_page_date/date=YYYY-MM-DD/data.parquet`). The `get-gsc-qid-date` ETL binary maps article page URLs to QIDs via `articles.parquet` and writes per-wiki, per-day parquets to `data/<wiki>/gsc/<YEAR>/<MONTH>/<DAY>.parquet`. The output schema is `(qid, clicks, impressions, ctr, position)` — no URLs or titles retained.
 
 ## Semantic Search
 
