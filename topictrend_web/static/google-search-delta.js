@@ -162,7 +162,7 @@ function createCategoryAccordion(category, accordionName) {
 
 	const plotLink = document.createElement("a");
 	plotLink.className = "plot-button";
-	plotLink.textContent = "📊";
+	plotLink.textContent = "📉";
 	plotLink.title = "View trend chart";
 	plotLink.target = "_blank";
 	plotLink.rel = "noopener noreferrer";
@@ -276,12 +276,12 @@ function renderArticles(container, articles, wiki, summaryMetrics) {
 
 	const clicksRow = document.createElement("div");
 	clicksRow.className = "articles-summary-row";
-	clicksRow.textContent = `Clicks: ${summaryMetrics.baselineClicks.toLocaleString()} -> ${summaryMetrics.impactClicks.toLocaleString()}`;
+	clicksRow.textContent = `Clicks: ${summaryMetrics.baselineClicks.toLocaleString()}  →  ${summaryMetrics.impactClicks.toLocaleString()}`;
 
 	const impressionsRow = document.createElement("div");
 	impressionsRow.className = "articles-summary-row";
 	const sign = impressionsDeltaPercent >= 0 ? "+" : "";
-	impressionsRow.textContent = `Impressions: ${summaryMetrics.baselineImpressions.toLocaleString()} -> ${summaryMetrics.impactImpressions.toLocaleString()} (${sign}${impressionsDeltaPercent.toFixed(2)}%)`;
+	impressionsRow.textContent = `Impressions: ${summaryMetrics.baselineImpressions.toLocaleString()}  →  ${summaryMetrics.impactImpressions.toLocaleString()} (${sign}${impressionsDeltaPercent.toFixed(2)}%)`;
 
 	summary.appendChild(clicksRow);
 	summary.appendChild(impressionsRow);
@@ -314,10 +314,10 @@ function renderArticles(container, articles, wiki, summaryMetrics) {
 		titleCell.appendChild(titleLink);
 
 		const clicksCell = document.createElement("td");
-		clicksCell.textContent = `${article.baseline_clicks.toLocaleString()} -> ${article.impact_clicks.toLocaleString()}`;
+		clicksCell.textContent = `${article.baseline_clicks.toLocaleString()} → ${article.impact_clicks.toLocaleString()}`;
 
 		const impressionsCell = document.createElement("td");
-		impressionsCell.textContent = `${article.baseline_impressions.toLocaleString()} -> ${article.impact_impressions.toLocaleString()}`;
+		impressionsCell.textContent = `${article.baseline_impressions.toLocaleString()}  → ${article.impact_impressions.toLocaleString()}`;
 
 		const deltaCell = document.createElement("td");
 		deltaCell.className =
@@ -329,7 +329,7 @@ function renderArticles(container, articles, wiki, summaryMetrics) {
 		const plotCell = document.createElement("td");
 		const plotLink = document.createElement("a");
 		plotLink.className = "plot-button";
-		plotLink.textContent = "Plot";
+		plotLink.textContent = "📉";
 		plotLink.title = "View trend chart";
 		plotLink.target = "_blank";
 		plotLink.rel = "noopener noreferrer";

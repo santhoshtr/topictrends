@@ -279,24 +279,8 @@
 		padding: var(--spacing-50) var(--spacing-75);
 		font-size: var(--font-size-large);
 		text-decoration: none;
-		border-radius: var(--border-radius-base);
-		background-color: var(--background-color-progressive-subtle);
-		color: var(--color-progressive);
-		transition:
-			background-color 0.2s ease,
-			transform 0.2s ease;
 		cursor: pointer;
 		min-inline-size: 2.5rem;
-
-		&:hover {
-			background-color: var(--background-color-progressive);
-			color: var(--color-inverted);
-			transform: scale(1.1);
-		}
-
-		&:active {
-			transform: scale(0.95);
-		}
 	}
 
 	/* ============================================

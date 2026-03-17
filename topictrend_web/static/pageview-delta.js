@@ -265,7 +265,7 @@ function createCategoryAccordion(category, type, accordionName) {
 	// Plot button
 	const plotLink = document.createElement("a");
 	plotLink.className = "plot-button";
-	plotLink.textContent = "📊";
+	plotLink.textContent = "📉";
 	plotLink.title = "View trend chart";
 	plotLink.target = "_blank";
 	plotLink.rel = "noopener noreferrer";
@@ -521,7 +521,7 @@ function createArticleElement(article, wiki) {
 	// Plot button
 	const plotLink = document.createElement("a");
 	plotLink.className = "plot-button";
-	plotLink.textContent = "📊";
+	plotLink.textContent = "📉";
 	plotLink.title = "View trend chart";
 	plotLink.target = "_blank";
 	plotLink.rel = "noopener noreferrer";

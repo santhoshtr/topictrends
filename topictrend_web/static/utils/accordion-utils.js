@@ -78,7 +78,7 @@ export function createCategoryAccordion(category, type, config) {
 function createPlotButton(category, trendsUrl) {
 	const plotLink = document.createElement("a");
 	plotLink.className = "plot-button";
-	plotLink.textContent = "📊";
+	plotLink.textContent = "📉";
 	plotLink.title = "View trend chart";
 	plotLink.target = "_blank";
 	plotLink.rel = "noopener noreferrer";
