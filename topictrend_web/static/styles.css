@@ -65,3 +65,48 @@
 		margin-bottom: var(--spacing-sm);
 	}
 }
+
+.gs-metric-cards {
+	display: flex;
+	gap: var(--spacing-md);
+	margin-top: var(--spacing-sm);
+	margin-bottom: var(--spacing-md);
+	flex-wrap: wrap;
+}
+
+.gs-metric-card {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--spacing-25);
+	padding: var(--spacing-sm) var(--spacing-md);
+	border: 1px solid var(--border-color-base);
+	border-radius: var(--border-radius-base);
+	background: var(--background-color-interactive-subtle);
+	min-width: 9rem;
+}
+
+.gs-metric-title {
+	font-size: var(--font-size-small);
+	color: var(--color-subtle);
+}
+
+.gs-metric-value {
+	font-size: var(--font-size-large);
+	font-weight: var(--font-weight-semi-bold);
+	line-height: 1.2;
+}
+
+.gs-top-articles-table {
+	width: 100%;
+	border-collapse: collapse;
+	margin-top: var(--spacing-sm);
+}
+
+.gs-top-articles-table th,
+.gs-top-articles-table td {
+	padding: var(--spacing-50) var(--spacing-75);
+	border-bottom: 1px solid var(--border-color-base);
+	text-align: left;
+	vertical-align: middle;
+}

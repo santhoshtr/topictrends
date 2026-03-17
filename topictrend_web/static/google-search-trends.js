@@ -80,13 +80,38 @@ function renderCtrSummary(title, search) {
 	ctrSummary.innerHTML = "";
 	const heading = document.createElement("h3");
 	heading.textContent = `CTR Summary: ${title.replaceAll("_", " ")}`;
-	const p = document.createElement("p");
-	p.textContent = `Clicks: ${totalClicks.toLocaleString()} | Impressions: ${totalImpressions.toLocaleString()} | CTR: ${(ctr * 100).toFixed(2)}%`;
 	ctrSummary.appendChild(heading);
-	ctrSummary.appendChild(p);
+
+	const cards = document.createElement("div");
+	cards.className = "gs-metric-cards";
+
+	const metrics = [
+		{ title: "Clicks", value: totalClicks.toLocaleString() },
+		{ title: "Impressions", value: totalImpressions.toLocaleString() },
+		{ title: "CTR", value: `${(ctr * 100).toFixed(2)}%` },
+	];
+
+	for (const metric of metrics) {
+		const card = document.createElement("div");
+		card.className = "gs-metric-card";
+
+		const metricTitle = document.createElement("div");
+		metricTitle.className = "gs-metric-title";
+		metricTitle.textContent = metric.title;
+
+		const metricValue = document.createElement("div");
+		metricValue.className = "gs-metric-value";
+		metricValue.textContent = metric.value;
+
+		card.appendChild(metricTitle);
+		card.appendChild(metricValue);
+		cards.appendChild(card);
+	}
+
+	ctrSummary.appendChild(cards);
 }
 
-function renderTopArticles(topArticles) {
+function renderTopArticles(wiki, topArticles) {
 	const container = document.getElementById("top-articles");
 	container.innerHTML = "";
 
@@ -98,13 +123,51 @@ function renderTopArticles(topArticles) {
 	heading.textContent = "Top Articles in Category";
 	container.appendChild(heading);
 
-	const list = document.createElement("ol");
-	for (const article of topArticles) {
-		const item = document.createElement("li");
-		item.textContent = `${article.title.replaceAll("_", " ")} - Clicks: ${article.clicks.toLocaleString()}, Impressions: ${article.impressions.toLocaleString()}, CTR: ${(article.ctr * 100).toFixed(2)}%`;
-		list.appendChild(item);
+	const table = document.createElement("table");
+	table.className = "gs-top-articles-table";
+
+	const thead = document.createElement("thead");
+	const headerRow = document.createElement("tr");
+	for (const label of ["Article", "Clicks", "Impressions", "CTR", "Plot"]) {
+		const th = document.createElement("th");
+		th.textContent = label;
+		headerRow.appendChild(th);
 	}
-	container.appendChild(list);
+	thead.appendChild(headerRow);
+	table.appendChild(thead);
+
+	const tbody = document.createElement("tbody");
+	for (const article of topArticles) {
+		const row = document.createElement("tr");
+
+		const articleCell = document.createElement("td");
+		articleCell.textContent = article.title.replaceAll("_", " ");
+
+		const clicksCell = document.createElement("td");
+		clicksCell.textContent = article.clicks.toLocaleString();
+
+		const impressionsCell = document.createElement("td");
+		impressionsCell.textContent = article.impressions.toLocaleString();
+
+		const ctrCell = document.createElement("td");
+		ctrCell.textContent = `${(article.ctr * 100).toFixed(2)}%`;
+
+		const plotCell = document.createElement("td");
+		const plotLink = document.createElement("a");
+		plotLink.href = `/googlesearch/trends?type=article&wiki=${wiki}&article=${encodeURIComponent(article.title)}`;
+		plotLink.textContent = "Plot";
+		plotLink.title = "Plot article trend";
+		plotCell.appendChild(plotLink);
+
+		row.appendChild(articleCell);
+		row.appendChild(clicksCell);
+		row.appendChild(impressionsCell);
+		row.appendChild(ctrCell);
+		row.appendChild(plotCell);
+		tbody.appendChild(row);
+	}
+	table.appendChild(tbody);
+	container.appendChild(table);
 }
 
 async function onSubmit(event) {
@@ -175,7 +238,7 @@ async function fetchCategorySearchData(
 		const data = await response.json();
 		updateChartWithSearchData(data.search, label);
 		renderCtrSummary(data.title, data.search);
-		renderTopArticles(data.top_articles);
+		renderTopArticles(wiki, data.top_articles);
 
 		const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
 		showMessage(`Fetched ${label} in ${elapsed} seconds.`, "success");
@@ -199,7 +262,7 @@ async function fetchArticleSearchData(wiki, article, startDate, endDate) {
 		const data = await response.json();
 		updateChartWithSearchData(data.search, label);
 		renderCtrSummary(data.title, data.search);
-		renderTopArticles([]);
+		renderTopArticles(wiki, []);
 
 		const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
 		showMessage(`Fetched ${label} in ${elapsed} seconds.`, "success");
