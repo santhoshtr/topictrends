@@ -177,6 +177,8 @@ class TopicTrends extends HTMLElement {
 		articleEl.setAttribute("metric", article.metricValue.toString());
 		articleEl.setAttribute("qid", article.qid.toString());
 		articleEl.setAttribute("categories", JSON.stringify(article.categories));
+		if (this.start_date) articleEl.setAttribute("start_date", this.start_date);
+		if (this.end_date) articleEl.setAttribute("end_date", this.end_date);
 		return articleEl;
 	}
 

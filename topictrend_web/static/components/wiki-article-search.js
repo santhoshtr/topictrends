@@ -7,7 +7,15 @@ class WikiArticleSearch extends HTMLElement {
 	}
 
 	static get observedAttributes() {
-		return ["wiki", "title", "metric", "categories", "qid"];
+		return [
+			"wiki",
+			"title",
+			"metric",
+			"categories",
+			"qid",
+			"start_date",
+			"end_date",
+		];
 	}
 
 	connectedCallback() {
@@ -32,6 +40,14 @@ class WikiArticleSearch extends HTMLElement {
 
 	get qid() {
 		return this.getAttribute("qid") || "";
+	}
+
+	get start_date() {
+		return this.getAttribute("start_date") || "";
+	}
+
+	get end_date() {
+		return this.getAttribute("end_date") || "";
 	}
 
 	get categories() {
@@ -79,11 +95,37 @@ class WikiArticleSearch extends HTMLElement {
 		const contentDiv = document.createElement("div");
 		contentDiv.className = "article-content";
 
-		const titleDiv = document.createElement("a");
-		titleDiv.className = "article-title";
-		titleDiv.textContent = this.formatTitle(this.title);
-		titleDiv.href = `https://${wikiCode}.wikipedia.org/wiki/${this.title}`;
-		titleDiv.target = "_blank";
+		// Title row: Wikipedia link + hover trend icon
+		const titleRow = document.createElement("div");
+		titleRow.className = "article-title-row";
+
+		const titleLink = document.createElement("a");
+		titleLink.className = "article-title";
+		titleLink.textContent = this.formatTitle(this.title);
+		titleLink.href = `https://${wikiCode}.wikipedia.org/wiki/${this.title}`;
+		titleLink.target = "_blank";
+		titleLink.rel = "noopener noreferrer";
+
+		const trendParams = new URLSearchParams({
+			type: "article",
+			wiki: this.wiki,
+			article: this.title,
+		});
+		if (this.start_date) trendParams.set("start_date", this.start_date);
+		if (this.end_date) trendParams.set("end_date", this.end_date);
+
+		const trendLink = document.createElement("a");
+		trendLink.className = "article-trend-link";
+		trendLink.href = `/googlesearch/trends?${trendParams}`;
+		trendLink.title = "View search trend";
+		trendLink.setAttribute(
+			"aria-label",
+			`View search trend for ${this.formatTitle(this.title)}`,
+		);
+		trendLink.textContent = "📉";
+
+		titleRow.appendChild(titleLink);
+		titleRow.appendChild(trendLink);
 
 		const categoriesDiv = document.createElement("div");
 		categoriesDiv.className = "categories";
@@ -97,25 +139,25 @@ class WikiArticleSearch extends HTMLElement {
 			categoryEl.setAttribute("title", categoryTitle);
 			categoryEl.setAttribute("qid", categoryQid.toString());
 			categoryEl.setAttribute("views", categoryMetric.toString());
+			categoryEl.setAttribute("wiki", this.wiki);
+			categoryEl.setAttribute("trend_path", "googlesearch/trends");
+			if (this.start_date)
+				categoryEl.setAttribute("start_date", this.start_date);
+			if (this.end_date) categoryEl.setAttribute("end_date", this.end_date);
 
 			categoriesDiv.appendChild(categoryEl);
 		});
 
-		contentDiv.appendChild(titleDiv);
+		contentDiv.appendChild(titleRow);
 		contentDiv.appendChild(categoriesDiv);
 
+		// Metric badge — plain text, no link
 		const clicksDiv = document.createElement("div");
 		clicksDiv.className = "views-count";
 
-		const clicksNumber = document.createElement("a");
+		const clicksNumber = document.createElement("span");
 		clicksNumber.className = "views-number";
 		clicksNumber.textContent = this.formatClicks(this.clicks);
-		const trendParams = new URLSearchParams({
-			type: "article",
-			wiki: this.wiki,
-			article: this.title,
-		});
-		clicksNumber.href = `/googlesearch/trends?${trendParams}`;
 
 		const clicksLabel = document.createElement("div");
 		clicksLabel.className = "views-label";

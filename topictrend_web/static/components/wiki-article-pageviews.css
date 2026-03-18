@@ -28,17 +28,33 @@
 	min-width: 0;
 }
 
+.article-title-row {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0 0 8px 0;
+}
+
 .article-title {
 	font-size: var(--font-size-large);
 	font-weight: 600;
-	margin: 0 0 8px 0;
 	color: var(--color-progressive);
-	cursor: pointer;
 	text-decoration: none;
 
 	&:hover {
 		text-decoration: underline;
 		color: var(--color-progressive--hover);
+	}
+}
+
+.article-trend-link {
+	visibility: hidden;
+	text-decoration: none;
+	line-height: 1;
+	font-size: 13px;
+
+	.article-title-row:hover & {
+		visibility: visible;
 	}
 }
 
@@ -61,7 +77,7 @@
 	font-size: var(--font-size-large);
 	font-weight: 600;
 	color: var(--color-base);
-	text-decoration: none;
+	display: block;
 }
 
 .views-label {

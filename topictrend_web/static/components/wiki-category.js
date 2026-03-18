@@ -7,7 +7,15 @@ class WikiCategory extends HTMLElement {
 	}
 
 	static get observedAttributes() {
-		return ["title", "qid", "views"];
+		return [
+			"title",
+			"qid",
+			"views",
+			"wiki",
+			"start_date",
+			"end_date",
+			"trend_path",
+		];
 	}
 
 	connectedCallback() {
@@ -30,6 +38,22 @@ class WikiCategory extends HTMLElement {
 		return parseInt(this.getAttribute("views") || "0");
 	}
 
+	get wiki() {
+		return this.getAttribute("wiki") || "enwiki";
+	}
+
+	get start_date() {
+		return this.getAttribute("start_date") || "";
+	}
+
+	get end_date() {
+		return this.getAttribute("end_date") || "";
+	}
+
+	get trend_path() {
+		return this.getAttribute("trend_path") || "pageviews/trends";
+	}
+
 	formatTitle(title) {
 		return title.replace(/_/g, " ");
 	}
@@ -46,52 +70,69 @@ class WikiCategory extends HTMLElement {
 	render() {
 		this.shadowRoot.innerHTML = "";
 
+		const wikiCode = this.wiki.replace("wiki", "");
+
 		const style = document.createElement("style");
 		style.textContent = `@import url(${styleURL});`;
 		this.shadowRoot.appendChild(style);
 
-		const categoryTag = document.createElement("span");
-		categoryTag.className = "category-tag";
-		categoryTag.title = `Category ${this.title} Q${this.qid}: ${this.formatViews(this.views)} pageviews`;
+		const wrapper = document.createElement("span");
+		wrapper.className = "category-tag";
 
+		// Category icon (label SVG)
 		const iconSvg = document.createElementNS(
 			"http://www.w3.org/2000/svg",
 			"svg",
 		);
-		iconSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
 		iconSvg.setAttribute("height", "14px");
 		iconSvg.setAttribute("viewBox", "0 -960 960 960");
 		iconSvg.setAttribute("width", "14px");
 		iconSvg.setAttribute("fill", "currentColor");
+		iconSvg.setAttribute("aria-hidden", "true");
 		iconSvg.classList.add("category-icon");
-
 		const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
 		path.setAttribute(
 			"d",
 			"M856-390 570-104q-12 12-27 18t-30 6q-15 0-30-6t-27-18L103-457q-11-11-17-25.5T80-513v-287q0-33 23.5-56.5T160-880h287q16 0 31 6.5t26 17.5l352 353q12 12 17.5 27t5.5 30q0 15-5.5 29.5T856-390ZM513-160l286-286-353-354H160v286l353 354ZM260-640q25 0 42.5-17.5T320-700q0-25-17.5-42.5T260-760q-25 0-42.5 17.5T200-700q0 25 17.5 42.5T260-640Zm220 160Z",
 		);
-
 		iconSvg.appendChild(path);
-		categoryTag.appendChild(iconSvg);
 
+		// Wikipedia category link
+		const wikiLink = document.createElement("a");
+		wikiLink.className = "category-wiki-link";
+		wikiLink.href = `https://${wikiCode}.wikipedia.org/wiki/Category:${this.title}`;
+		wikiLink.target = "_blank";
+		wikiLink.rel = "noopener noreferrer";
+		wikiLink.title = `${this.formatTitle(this.title)} — ${this.formatViews(this.views)} on Wikipedia`;
+		wikiLink.appendChild(iconSvg);
 		const textSpan = document.createElement("span");
 		textSpan.textContent = this.formatTitle(this.title);
-		categoryTag.appendChild(textSpan);
+		wikiLink.appendChild(textSpan);
 
-		categoryTag.addEventListener("click", () => {
-			const categoryInput = document.getElementById("category");
-			const categoryQidInput = document.getElementById("category_qid");
-
-			if (categoryInput) {
-				categoryInput.value = this.title;
-			}
-
-			if (categoryQidInput) {
-				categoryQidInput.value = this.qid;
-			}
+		// Trend link — visible only on hover
+		const trendParams = new URLSearchParams({
+			type: "category",
+			wiki: this.wiki,
+			depth: "4",
+			category: this.title,
 		});
+		if (this.start_date) trendParams.set("start_date", this.start_date);
+		if (this.end_date) trendParams.set("end_date", this.end_date);
 
-		this.shadowRoot.appendChild(categoryTag);
+		const trendLink = document.createElement("a");
+		trendLink.className = "category-trend-link";
+		trendLink.href = `/${this.trend_path}?${trendParams}`;
+		trendLink.title = "View trend";
+		trendLink.setAttribute(
+			"aria-label",
+			`View trend for ${this.formatTitle(this.title)}`,
+		);
+		trendLink.textContent = "📉";
+
+		wrapper.appendChild(wikiLink);
+		wrapper.appendChild(trendLink);
+
+		this.shadowRoot.appendChild(wrapper);
 	}
 }
 
