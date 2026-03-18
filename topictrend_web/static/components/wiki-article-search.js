@@ -1,13 +1,13 @@
 const styleURL = new URL("./wiki-article-pageviews.css", import.meta.url);
 
-class WikiArticlePageviews extends HTMLElement {
+class WikiArticleSearch extends HTMLElement {
 	constructor() {
 		super();
 		this.attachShadow({ mode: "open" });
 	}
 
 	static get observedAttributes() {
-		return ["wiki", "title", "views", "metric", "categories", "qid"];
+		return ["wiki", "title", "metric", "categories", "qid"];
 	}
 
 	connectedCallback() {
@@ -26,10 +26,8 @@ class WikiArticlePageviews extends HTMLElement {
 		return this.getAttribute("title") || "";
 	}
 
-	get views() {
-		return parseInt(
-			this.getAttribute("metric") || this.getAttribute("views") || "0",
-		);
+	get clicks() {
+		return parseInt(this.getAttribute("metric") || "0");
 	}
 
 	get qid() {
@@ -46,13 +44,13 @@ class WikiArticlePageviews extends HTMLElement {
 		}
 	}
 
-	formatViews(views) {
-		if (views >= 1000000) {
-			return (views / 1000000).toFixed(1) + "M";
-		} else if (views >= 1000) {
-			return (views / 1000).toFixed(0) + "k";
+	formatClicks(clicks) {
+		if (clicks >= 1000000) {
+			return (clicks / 1000000).toFixed(1) + "M";
+		} else if (clicks >= 1000) {
+			return (clicks / 1000).toFixed(0) + "k";
 		}
-		return views.toString();
+		return clicks.toString();
 	}
 
 	formatTitle(title) {
@@ -94,12 +92,11 @@ class WikiArticlePageviews extends HTMLElement {
 			const categoryEl = document.createElement("wiki-category");
 			const categoryTitle = typeof cat === "string" ? cat : cat.title;
 			const categoryQid = typeof cat === "string" ? "" : cat.qid;
-			const categoryViews =
-				typeof cat === "string" ? 0 : (cat.metric ?? cat.views ?? 0);
+			const categoryMetric = typeof cat === "string" ? 0 : (cat.metric ?? 0);
 
 			categoryEl.setAttribute("title", categoryTitle);
 			categoryEl.setAttribute("qid", categoryQid.toString());
-			categoryEl.setAttribute("views", categoryViews.toString());
+			categoryEl.setAttribute("views", categoryMetric.toString());
 
 			categoriesDiv.appendChild(categoryEl);
 		});
@@ -107,32 +104,32 @@ class WikiArticlePageviews extends HTMLElement {
 		contentDiv.appendChild(titleDiv);
 		contentDiv.appendChild(categoriesDiv);
 
-		const viewsDiv = document.createElement("div");
-		viewsDiv.className = "views-count";
+		const clicksDiv = document.createElement("div");
+		clicksDiv.className = "views-count";
 
-		const viewsNumber = document.createElement("a");
-		viewsNumber.className = "views-number";
-		viewsNumber.textContent = this.formatViews(this.views);
+		const clicksNumber = document.createElement("a");
+		clicksNumber.className = "views-number";
+		clicksNumber.textContent = this.formatClicks(this.clicks);
 		const trendParams = new URLSearchParams({
 			type: "article",
 			wiki: this.wiki,
 			article: this.title,
 		});
-		viewsNumber.href = `/pageviews/trends?${trendParams}`;
+		clicksNumber.href = `/googlesearch/trends?${trendParams}`;
 
-		const viewsLabel = document.createElement("div");
-		viewsLabel.className = "views-label";
-		viewsLabel.textContent = "Views";
+		const clicksLabel = document.createElement("div");
+		clicksLabel.className = "views-label";
+		clicksLabel.textContent = "Clicks";
 
-		viewsDiv.appendChild(viewsNumber);
-		viewsDiv.appendChild(viewsLabel);
+		clicksDiv.appendChild(clicksNumber);
+		clicksDiv.appendChild(clicksLabel);
 
 		articleDiv.appendChild(img);
 		articleDiv.appendChild(contentDiv);
-		articleDiv.appendChild(viewsDiv);
+		articleDiv.appendChild(clicksDiv);
 
 		this.shadowRoot.appendChild(articleDiv);
 	}
 }
 
-customElements.define("wiki-article-pageviews", WikiArticlePageviews);
+customElements.define("wiki-article-search", WikiArticleSearch);

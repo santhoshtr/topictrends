@@ -2,6 +2,30 @@ const styleURL = new URL("./wiki-trends.css", import.meta.url);
 
 import { hideProgress, showProgress } from "../utils/progress-bar.js";
 
+const API_PATHS = {
+	pageviews: "/api/pageviews/top_categories",
+	pageedits: "/api/pageedits/top_categories",
+	googlesearch: "/api/googlesearch/top_categories",
+};
+
+const ARTICLE_ELEMENTS = {
+	pageviews: "wiki-article-pageviews",
+	pageedits: "wiki-article-pageedits",
+	googlesearch: "wiki-article-search",
+};
+
+const METRIC_LABELS = {
+	pageviews: "views",
+	pageedits: "edits",
+	googlesearch: "clicks",
+};
+
+function getArticleMetricValue(article, metric) {
+	if (metric === "pageedits") return article.edits;
+	if (metric === "googlesearch") return article.clicks;
+	return article.views;
+}
+
 class TopicTrends extends HTMLElement {
 	constructor() {
 		super();
@@ -12,10 +36,11 @@ class TopicTrends extends HTMLElement {
 		this.wiki = this.getAttribute("wiki") || "enwiki";
 		this.start_date = this.getAttribute("start_date");
 		this.end_date = this.getAttribute("end_date");
+		this.metric = this.getAttribute("metric") || "pageviews";
 	}
 
 	static get observedAttributes() {
-		return ["wiki", "start_date", "end_date"];
+		return ["wiki", "start_date", "end_date", "metric"];
 	}
 
 	attributeChangedCallback(name, oldValue, newValue) {
@@ -26,6 +51,8 @@ class TopicTrends extends HTMLElement {
 				this.start_date = newValue;
 			} else if (name === "end_date") {
 				this.end_date = newValue;
+			} else if (name === "metric") {
+				this.metric = newValue;
 			}
 			if (this.wiki && this.start_date && this.end_date) {
 				this.fetchData();
@@ -44,7 +71,8 @@ class TopicTrends extends HTMLElement {
 
 		try {
 			showProgress();
-			let url = `https://topictrends.wmcloud.org/api/list/top_categories?wiki=${this.wiki}&top_n=50`;
+			const basePath = API_PATHS[this.metric] || API_PATHS.pageviews;
+			let url = `${basePath}?wiki=${this.wiki}&top_n=50`;
 
 			if (this.start_date) {
 				url += `&start_date=${this.start_date}`;
@@ -77,17 +105,18 @@ class TopicTrends extends HTMLElement {
 							existingArticle.categories.push({
 								qid: category.qid,
 								title: category.title,
-								views: category.views,
+								metric: getArticleMetricValue(category, this.metric),
 							});
 						}
 					} else {
 						articleMap.set(article.title, {
 							...article,
+							metricValue: getArticleMetricValue(article, this.metric),
 							categories: [
 								{
 									qid: category.qid,
 									title: category.title,
-									views: category.views,
+									metric: getArticleMetricValue(category, this.metric),
 								},
 							],
 						});
@@ -96,13 +125,14 @@ class TopicTrends extends HTMLElement {
 			});
 
 			this.articles = Array.from(articleMap.values()).sort(
-				(a, b) => b.views - a.views,
+				(a, b) => b.metricValue - a.metricValue,
 			);
 
 			const statsDisplay = document.getElementById("stats-display");
 			if (statsDisplay) {
 				const wikiCode = this.wiki.replace("wiki", "");
-				statsDisplay.textContent = `Showing ${this.articles.length} unique articles from ${data.categories.length} top categories (${wikiCode} Wikipedia)`;
+				const label = METRIC_LABELS[this.metric] || "views";
+				statsDisplay.textContent = `Showing ${this.articles.length} unique articles from ${data.categories.length} top categories (${wikiCode} Wikipedia) — sorted by ${label}`;
 			}
 		} catch (error) {
 			console.error("Error fetching data:", error);
@@ -140,10 +170,11 @@ class TopicTrends extends HTMLElement {
 	}
 
 	createArticleElement(article) {
-		const articleEl = document.createElement("wiki-article-pageviews");
+		const tag = ARTICLE_ELEMENTS[this.metric] || ARTICLE_ELEMENTS.pageviews;
+		const articleEl = document.createElement(tag);
 		articleEl.setAttribute("wiki", this.wiki);
 		articleEl.setAttribute("title", article.title);
-		articleEl.setAttribute("views", article.views.toString());
+		articleEl.setAttribute("metric", article.metricValue.toString());
 		articleEl.setAttribute("qid", article.qid.toString());
 		articleEl.setAttribute("categories", JSON.stringify(article.categories));
 		return articleEl;
