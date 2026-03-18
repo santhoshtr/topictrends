@@ -37,6 +37,8 @@ function updateTrendLinks() {
 		`${BASE_URL}/pageviews/trends?${params}`;
 	document.getElementById("pageedits-trends-link").href =
 		`${BASE_URL}/pageedits/trends?${params}`;
+	document.getElementById("googlesearch-trends-link").href =
+		`${BASE_URL}/googlesearch/trends?${params}`;
 }
 
 async function onSubmit(event) {
