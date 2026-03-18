@@ -265,12 +265,9 @@ function createCategoryAccordion(category, type, accordionName) {
 	// Plot button
 	const plotLink = document.createElement("a");
 	plotLink.className = "plot-button";
-	plotLink.textContent = "📉";
+	plotLink.innerHTML =
+		'<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor" aria-hidden="true"><path d="m140-220-60-60 300-300 160 160 284-320 56 56-340 384-160-160-240 240Z"/></svg>';
 	plotLink.title = "View trend chart";
-	plotLink.target = "_blank";
-	plotLink.rel = "noopener noreferrer";
-
-	// Get wiki and depth from form
 	const wiki = document.getElementById("wiki").value;
 	const depth = document.getElementById("depth").value || "0";
 
@@ -521,7 +518,8 @@ function createArticleElement(article, wiki) {
 	// Plot button
 	const plotLink = document.createElement("a");
 	plotLink.className = "plot-button";
-	plotLink.textContent = "📉";
+	plotLink.innerHTML =
+		'<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor" aria-hidden="true"><path d="m140-220-60-60 300-300 160 160 284-320 56 56-340 384-160-160-240 240Z"/></svg>';
 	plotLink.title = "View trend chart";
 	plotLink.target = "_blank";
 	plotLink.rel = "noopener noreferrer";
