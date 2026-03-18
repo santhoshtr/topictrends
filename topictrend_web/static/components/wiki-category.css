@@ -13,8 +13,19 @@
 	align-items: center;
 	gap: 4px;
 
+	.category-trend-link {
+		display: none;
+		text-decoration: none;
+		line-height: 1;
+		font-size: 11px;
+	}
+
 	&:hover {
 		background-color: var(--background-color-progressive-subtle--hover);
+
+		.category-trend-link {
+			display: inline;
+		}
 	}
 }
 
@@ -34,15 +45,4 @@
 	display: inline-block;
 	vertical-align: middle;
 	flex-shrink: 0;
-}
-
-.category-trend-link {
-	visibility: hidden;
-	text-decoration: none;
-	line-height: 1;
-	font-size: 11px;
-
-	.category-tag:hover & {
-		visibility: visible;
-	}
 }
