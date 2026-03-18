@@ -3,9 +3,10 @@ const styleURL = new URL("./wiki-trends.css", import.meta.url);
 import { hideProgress, showProgress } from "../utils/progress-bar.js";
 
 const API_PATHS = {
-	pageviews: "/api/pageviews/top_categories",
-	pageedits: "/api/pageedits/top_categories",
-	googlesearch: "/api/googlesearch/top_categories",
+	pageviews: "https://topictrends.wmcloud.org/api/pageviews/top_categories",
+	pageedits: "https://topictrends.wmcloud.org/api/pageedits/top_categories",
+	googlesearch:
+		"https://topictrends.wmcloud.org/api/googlesearch/top_categories",
 };
 
 const ARTICLE_ELEMENTS = {
