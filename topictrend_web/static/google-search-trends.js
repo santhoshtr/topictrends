@@ -161,7 +161,7 @@ function renderTopArticles(wiki, topArticles) {
 		const plotCell = document.createElement("td");
 		const plotLink = document.createElement("a");
 		plotLink.href = `/googlesearch/trends?type=article&wiki=${wiki}&article=${encodeURIComponent(article.title)}`;
-		plotLink.textContent =
+		plotLink.innerHTML =
 			'<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor" aria-hidden="true"><path d="m140-220-60-60 300-300 160 160 284-320 56 56-340 384-160-160-240 240Z"/></svg>';
 		plotLink.title = "Plot article trend";
 		plotCell.appendChild(plotLink);
