@@ -118,12 +118,14 @@ function renderResults(data) {
 				<th>Articles</th>
 				<th>Pageviews</th>
 				<th>Page edits</th>
+				<th>Google Search</th>
 			</tr>
 		</thead>
 	`;
 
 	const tbody = document.createElement("tbody");
-
+	const plotIcon =
+		'<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor" aria-hidden="true"><path d="m140-220-60-60 300-300 160 160 284-320 56 56-340 384-160-160-240 240Z"/></svg>';
 	data.wikis.forEach((wikiResult) => {
 		const tr = document.createElement("tr");
 		const searchUrl = buildSearchUrl(
@@ -134,8 +136,9 @@ function renderResults(data) {
 		tr.innerHTML = `
 			<td class="wiki-code">${wikiResult.wiki}</td>
 			<td><a href="${searchUrl}">${wikiResult.article_count} articles</a></td>
-			<td><a href="${buildTrendsUrl("pageviews", wikiResult.wiki, data.category, currentDepth)}">Pageviews</a></td>
-			<td><a href="${buildTrendsUrl("pageedits", wikiResult.wiki, data.category, currentDepth)}">Page edits</a></td>
+			<td><a href="${buildTrendsUrl("pageviews", wikiResult.wiki, data.category, currentDepth)}">${plotIcon}</a></td>
+			<td><a href="${buildTrendsUrl("pageedits", wikiResult.wiki, data.category, currentDepth)}">${plotIcon}</a></td>
+            <td><a href="${buildTrendsUrl("googlesearch", wikiResult.wiki, data.category, currentDepth)}">${plotIcon}</a></td>
 		`;
 		tbody.appendChild(tr);
 	});
@@ -299,7 +302,7 @@ function buildTrendsUrl(page, wiki, category, depth) {
 		category,
 		depth,
 	});
-	return `${page === "pageviews" ? "/pageviews/trends" : "/pageedits/trends"}?${params}`;
+	return `/${page}/trends?${params}`;
 }
 
 function populateFormFromQueryParams() {
