@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Topic Trends - Most Viewed Topics{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/styles.css">
+{% endblock %}
+
+{% block content %}
+<div class="app-container">
+  <div class="form-container">
+    <h2>Most Viewed Topics</h2>
+    <form id="top-form">
+      <div class="header-wiki-selector">
+        {% include "wiki-selector.html" %}
+      </div>
+      <div class="form-item row">
+        <div class="form-item">
+          <label for="start_date">Start Date</label>
+          <input type="date" id="start_date" name="start-date" class="cdx-text-input__input">
+        </div>
+        <div class="form-item">
+          <label for="end_date">End Date</label>
+          <input type="date" id="end_date" name="end-date" class="cdx-text-input__input">
+        </div>
+      </div>
+      <div class="form-item">
+        <button type="submit"
+          class="cdx-button cdx-button--action-progressive cdx-button--weight-primary">Show</button>
+      </div>
+    </form>
+    <p id="stats-display" class="status"></p>
+  </div>
+  <div class="main" data-metric="pageviews">
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/components/wiki-trends.js" type="module"></script>
+<script src="/static/components/wiki-article-pageviews.js" type="module"></script>
+<script src="/static/components/wiki-category.js" type="module"></script>
+<script src="/static/top-topics.js" type="module"></script>
+{% endblock %}
