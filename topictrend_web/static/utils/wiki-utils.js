@@ -24,6 +24,9 @@ export async function populateWikiDropdown() {
 		wikis.forEach((wiki) => {
 			const option = document.createElement("option");
 			option.value = wiki.code;
+			if (wiki.code === "enwiki") {
+				option.selected = true;
+			}
 			const displayName = `${wiki.langcode} - ${wiki.name}`;
 			option.textContent = displayName;
 			wikiSelect.appendChild(option);
