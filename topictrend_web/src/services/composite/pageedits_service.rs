@@ -2,6 +2,7 @@ use crate::models::AppState;
 use crate::services::composite::taxonomy_search_category_qids;
 use crate::services::core::{CoreServiceError, PageEditService, QidService};
 use chrono::NaiveDate;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 pub struct PageEditsService;
@@ -25,7 +26,77 @@ pub struct ArticleEditRank {
     pub edits: u64,
 }
 
+pub struct CategoryEditRank {
+    pub qid: u32,
+    pub title: String,
+    pub edits: u64,
+    pub top_articles: Vec<ArticleEditRank>,
+}
+
 impl PageEditsService {
+    pub async fn get_top_categories(
+        state: Arc<AppState>,
+        wiki: &str,
+        start_date: Option<NaiveDate>,
+        end_date: Option<NaiveDate>,
+        top_n: Option<u32>,
+    ) -> Result<Vec<CategoryEditRank>, CoreServiceError> {
+        let top_n = top_n.unwrap_or(10);
+        let start = start_date
+            .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
+        let end = end_date.unwrap_or_else(|| chrono::Local::now().date_naive());
+
+        let categories =
+            PageEditService::get_top_categories(Arc::clone(&state), wiki, start, end, top_n as usize)
+                .await?;
+
+        let mut all_qids = Vec::new();
+        for cat in &categories {
+            all_qids.push(cat.category_qid);
+            for art in &cat.top_articles {
+                all_qids.push(art.article_qid);
+            }
+        }
+
+        let titles_map: HashMap<u32, String> =
+            QidService::get_titles_by_qids(Arc::clone(&state), wiki, &all_qids).await?;
+
+        let result = categories
+            .into_iter()
+            .map(|cat| {
+                let title = titles_map
+                    .get(&cat.category_qid)
+                    .cloned()
+                    .unwrap_or_else(|| format!("Q{}", cat.category_qid));
+
+                let top_articles = cat
+                    .top_articles
+                    .into_iter()
+                    .map(|art| {
+                        let art_title = titles_map
+                            .get(&art.article_qid)
+                            .cloned()
+                            .unwrap_or_else(|| format!("Q{}", art.article_qid));
+                        ArticleEditRank {
+                            qid: art.article_qid,
+                            title: art_title,
+                            edits: art.total_edits,
+                        }
+                    })
+                    .collect();
+
+                CategoryEditRank {
+                    qid: cat.category_qid,
+                    title,
+                    edits: cat.total_edits,
+                    top_articles,
+                }
+            })
+            .collect();
+
+        Ok(result)
+    }
+
     pub async fn get_category_edit_trend(
         state: Arc<AppState>,
         wiki: &str,

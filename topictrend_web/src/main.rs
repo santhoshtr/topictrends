@@ -59,6 +59,12 @@ async fn run_http_server(
             get(|| async { render_template("pageview-delta.html", PageContext::pageview_delta()) }),
         )
         .route(
+            "/pageviews/top",
+            get(|| async {
+                render_template("pageviews-top.html", PageContext::pageviews_top())
+            }),
+        )
+        .route(
             "/pageedits/trends",
             get(|| async {
                 render_template("pageedit-trends.html", PageContext::pageedit_trends())
@@ -67,6 +73,12 @@ async fn run_http_server(
         .route(
             "/pageedits/delta",
             get(|| async { render_template("pageedit-delta.html", PageContext::pageedit_delta()) }),
+        )
+        .route(
+            "/pageedits/top",
+            get(|| async {
+                render_template("pageedits-top.html", PageContext::pageedits_top())
+            }),
         )
         .route(
             "/googlesearch/trends",
@@ -84,6 +96,12 @@ async fn run_http_server(
                     "google-search-delta.html",
                     PageContext::google_search_delta(),
                 )
+            }),
+        )
+        .route(
+            "/googlesearch/top",
+            get(|| async {
+                render_template("googlesearch-top.html", PageContext::googlesearch_top())
             }),
         )
         .route(
@@ -134,12 +152,20 @@ async fn run_http_server(
             get(handlers::get_article_google_search_trend_handler),
         )
         .route(
-            "/api/list/sub_categories",
-            get(handlers::get_sub_categories),
+            "/api/pageviews/top_categories",
+            get(handlers::get_pageviews_top_categories_handler),
         )
         .route(
-            "/api/list/top_categories",
-            get(handlers::get_top_categories_handler),
+            "/api/pageedits/top_categories",
+            get(handlers::get_pageedits_top_categories_handler),
+        )
+        .route(
+            "/api/googlesearch/top_categories",
+            get(handlers::get_googlesearch_top_categories_handler),
+        )
+        .route(
+            "/api/list/sub_categories",
+            get(handlers::get_sub_categories),
         )
         .route(
             "/api/pageviews/delta/categories",

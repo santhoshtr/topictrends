@@ -290,6 +290,50 @@ pub struct CategoryRankResponse {
 }
 
 #[derive(Serialize)]
+pub struct TopArticleByEdits {
+    pub qid: u32,
+    pub title: String,
+    pub edits: u64,
+}
+
+#[derive(Serialize)]
+pub struct TopCategoryByEdits {
+    pub qid: u32,
+    pub title: String,
+    pub edits: u64,
+    pub top_articles: Vec<TopArticleByEdits>,
+}
+
+#[derive(Serialize)]
+pub struct CategoryEditRankResponse {
+    pub categories: Vec<TopCategoryByEdits>,
+}
+
+#[derive(Serialize)]
+pub struct TopArticleBySearch {
+    pub qid: u32,
+    pub title: String,
+    pub clicks: u64,
+    pub impressions: u64,
+    pub ctr: f64,
+}
+
+#[derive(Serialize)]
+pub struct TopCategoryBySearch {
+    pub qid: u32,
+    pub title: String,
+    pub clicks: u64,
+    pub impressions: u64,
+    pub ctr: f64,
+    pub top_articles: Vec<TopArticleBySearch>,
+}
+
+#[derive(Serialize)]
+pub struct CategorySearchRankResponse {
+    pub categories: Vec<TopCategoryBySearch>,
+}
+
+#[derive(Serialize)]
 pub struct PageViewCategoryDeltaItemResponse {
     pub category_qid: u32,
     pub category_title: String,

@@ -11,17 +11,19 @@ use crate::services::{ContentGapService, PageEditsService, PageViewsService};
 use crate::{
     models::{
         AppState, ArticleEditTrendResponse, ArticleItem, ArticleTrendParams, ArticleTrendResponse,
-        ArticlesInCategoryResponse, CategoryEditTrendResponse, CategoryRankResponse,
-        CategorySearchItemResponse, CategorySearchParams, CategorySearchResponse,
-        CategoryTrendParams, CategoryTrendResponse, ContentGapParams, ContentGapResult, DailyEdits,
-        DailyGoogleSearch, DailyViews, GoogleSearchArticleDeltaParams,
-        GoogleSearchArticleDeltaResponse, GoogleSearchArticleTrendResponse,
-        GoogleSearchCategoryDeltaParams, GoogleSearchCategoryDeltaResponse,
-        GoogleSearchCategoryTrendResponse, ListArticlesInCategoryParams, PageEditArticleDeltaParams,
-        PageEditArticleDeltaResponse, PageEditCategoryDeltaParams, PageEditCategoryDeltaResponse,
-        PageViewArticleDeltaParams, PageViewArticleDeltaResponse, PageViewCategoryDeltaParams,
-        PageViewCategoryDeltaResponse, SubCategoryParams, TopArticle, TopArticleEdits,
-        TopArticleGoogleSearch, TopCategoriesParams, TopCategory,
+        ArticlesInCategoryResponse, CategoryEditRankResponse, CategoryEditTrendResponse,
+        CategoryRankResponse, CategorySearchItemResponse, CategorySearchParams,
+        CategorySearchResponse, CategorySearchRankResponse, CategoryTrendParams,
+        CategoryTrendResponse, ContentGapParams, ContentGapResult, DailyEdits, DailyGoogleSearch,
+        DailyViews, GoogleSearchArticleDeltaParams, GoogleSearchArticleDeltaResponse,
+        GoogleSearchArticleTrendResponse, GoogleSearchCategoryDeltaParams,
+        GoogleSearchCategoryDeltaResponse, GoogleSearchCategoryTrendResponse,
+        ListArticlesInCategoryParams, PageEditArticleDeltaParams, PageEditArticleDeltaResponse,
+        PageEditCategoryDeltaParams, PageEditCategoryDeltaResponse, PageViewArticleDeltaParams,
+        PageViewArticleDeltaResponse, PageViewCategoryDeltaParams, PageViewCategoryDeltaResponse,
+        SubCategoryParams, TopArticle, TopArticleByEdits, TopArticleBySearch, TopArticleEdits,
+        TopArticleGoogleSearch, TopCategoriesParams, TopCategory, TopCategoryByEdits,
+        TopCategoryBySearch,
     },
     services::core::CategoryService,
 };
@@ -328,7 +330,7 @@ pub async fn get_sub_categories(
 }
 
 #[debug_handler]
-pub async fn get_top_categories_handler(
+pub async fn get_pageviews_top_categories_handler(
     Query(params): Query<TopCategoriesParams>,
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<CategoryRankResponse>, ApiError> {
@@ -365,6 +367,84 @@ pub async fn get_top_categories_handler(
 
     let response = CategoryRankResponse {
         categories: top_categories_with_titles,
+    };
+
+    Ok(Json(response))
+}
+
+#[debug_handler]
+pub async fn get_pageedits_top_categories_handler(
+    Query(params): Query<TopCategoriesParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<CategoryEditRankResponse>, ApiError> {
+    let categories = PageEditsService::get_top_categories(
+        state,
+        &params.wiki,
+        params.start_date,
+        params.end_date,
+        params.top_n,
+    )
+    .await?;
+
+    let response = CategoryEditRankResponse {
+        categories: categories
+            .into_iter()
+            .map(|cat| TopCategoryByEdits {
+                qid: cat.qid,
+                title: cat.title,
+                edits: cat.edits,
+                top_articles: cat
+                    .top_articles
+                    .into_iter()
+                    .map(|art| TopArticleByEdits {
+                        qid: art.qid,
+                        title: art.title,
+                        edits: art.edits,
+                    })
+                    .collect(),
+            })
+            .collect(),
+    };
+
+    Ok(Json(response))
+}
+
+#[debug_handler]
+pub async fn get_googlesearch_top_categories_handler(
+    Query(params): Query<TopCategoriesParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<CategorySearchRankResponse>, ApiError> {
+    let categories = GoogleSearchTrendsService::get_top_categories(
+        state,
+        &params.wiki,
+        params.start_date,
+        params.end_date,
+        params.top_n,
+    )
+    .await?;
+
+    let response = CategorySearchRankResponse {
+        categories: categories
+            .into_iter()
+            .map(|cat| TopCategoryBySearch {
+                qid: cat.qid,
+                title: cat.title,
+                clicks: cat.clicks,
+                impressions: cat.impressions,
+                ctr: cat.ctr,
+                top_articles: cat
+                    .top_articles
+                    .into_iter()
+                    .map(|art| TopArticleBySearch {
+                        qid: art.qid,
+                        title: art.title,
+                        clicks: art.clicks,
+                        impressions: art.impressions,
+                        ctr: art.ctr,
+                    })
+                    .collect(),
+            })
+            .collect(),
     };
 
     Ok(Json(response))

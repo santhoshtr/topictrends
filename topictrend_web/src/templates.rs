@@ -37,10 +37,13 @@ pub struct PageContext {
     pub is_content_gap_active: bool,
     pub is_trends_pageviews: bool,
     pub is_delta_pageviews: bool,
+    pub is_top_pageviews: bool,
     pub is_trends_pageedits: bool,
     pub is_delta_pageedits: bool,
+    pub is_top_pageedits: bool,
     pub is_trends_google_search: bool,
     pub is_delta_google_search: bool,
+    pub is_top_google_search: bool,
     pub form_id: Option<String>,
 }
 
@@ -55,10 +58,13 @@ impl PageContext {
             is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
+            is_top_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
+            is_top_pageedits: false,
             is_trends_google_search: false,
             is_delta_google_search: false,
+            is_top_google_search: false,
             form_id: None,
         }
     }
@@ -73,10 +79,13 @@ impl PageContext {
             is_content_gap_active: false,
             is_trends_pageviews: true,
             is_delta_pageviews: false,
+            is_top_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
+            is_top_pageedits: false,
             is_trends_google_search: false,
             is_delta_google_search: false,
+            is_top_google_search: false,
             form_id: Some("trend-form".to_string()),
         }
     }
@@ -91,11 +100,35 @@ impl PageContext {
             is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: true,
+            is_top_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
+            is_top_pageedits: false,
             is_trends_google_search: false,
             is_delta_google_search: false,
+            is_top_google_search: false,
             form_id: Some("delta-form".to_string()),
+        }
+    }
+
+    pub fn pageviews_top() -> Self {
+        Self {
+            page_title: "Topic Trends - Most Viewed Topics".to_string(),
+            is_pageviews_active: true,
+            is_pageedits_active: false,
+            is_google_search_active: false,
+            is_search_active: false,
+            is_content_gap_active: false,
+            is_trends_pageviews: false,
+            is_delta_pageviews: false,
+            is_top_pageviews: true,
+            is_trends_pageedits: false,
+            is_delta_pageedits: false,
+            is_top_pageedits: false,
+            is_trends_google_search: false,
+            is_delta_google_search: false,
+            is_top_google_search: false,
+            form_id: Some("top-form".to_string()),
         }
     }
 
@@ -109,10 +142,13 @@ impl PageContext {
             is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
+            is_top_pageviews: false,
             is_trends_pageedits: true,
             is_delta_pageedits: false,
+            is_top_pageedits: false,
             is_trends_google_search: false,
             is_delta_google_search: false,
+            is_top_google_search: false,
             form_id: Some("trend-form".to_string()),
         }
     }
@@ -127,11 +163,35 @@ impl PageContext {
             is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
+            is_top_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: true,
+            is_top_pageedits: false,
             is_trends_google_search: false,
             is_delta_google_search: false,
+            is_top_google_search: false,
             form_id: Some("delta-form".to_string()),
+        }
+    }
+
+    pub fn pageedits_top() -> Self {
+        Self {
+            page_title: "Topic Trends - Most Edited Topics".to_string(),
+            is_pageviews_active: false,
+            is_pageedits_active: true,
+            is_google_search_active: false,
+            is_search_active: false,
+            is_content_gap_active: false,
+            is_trends_pageviews: false,
+            is_delta_pageviews: false,
+            is_top_pageviews: false,
+            is_trends_pageedits: false,
+            is_delta_pageedits: false,
+            is_top_pageedits: true,
+            is_trends_google_search: false,
+            is_delta_google_search: false,
+            is_top_google_search: false,
+            form_id: Some("top-form".to_string()),
         }
     }
 
@@ -145,10 +205,13 @@ impl PageContext {
             is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
+            is_top_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
+            is_top_pageedits: false,
             is_trends_google_search: true,
             is_delta_google_search: false,
+            is_top_google_search: false,
             form_id: Some("trend-form".to_string()),
         }
     }
@@ -163,11 +226,35 @@ impl PageContext {
             is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
+            is_top_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
+            is_top_pageedits: false,
             is_trends_google_search: false,
             is_delta_google_search: true,
+            is_top_google_search: false,
             form_id: Some("delta-form".to_string()),
+        }
+    }
+
+    pub fn googlesearch_top() -> Self {
+        Self {
+            page_title: "Topic Trends - Most Searched Topics".to_string(),
+            is_pageviews_active: false,
+            is_pageedits_active: false,
+            is_google_search_active: true,
+            is_search_active: false,
+            is_content_gap_active: false,
+            is_trends_pageviews: false,
+            is_delta_pageviews: false,
+            is_top_pageviews: false,
+            is_trends_pageedits: false,
+            is_delta_pageedits: false,
+            is_top_pageedits: false,
+            is_trends_google_search: false,
+            is_delta_google_search: false,
+            is_top_google_search: true,
+            form_id: Some("top-form".to_string()),
         }
     }
 
@@ -181,10 +268,13 @@ impl PageContext {
             is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
+            is_top_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
+            is_top_pageedits: false,
             is_trends_google_search: false,
             is_delta_google_search: false,
+            is_top_google_search: false,
             form_id: Some("search-form".to_string()),
         }
     }
@@ -199,10 +289,13 @@ impl PageContext {
             is_content_gap_active: true,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
+            is_top_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
+            is_top_pageedits: false,
             is_trends_google_search: false,
             is_delta_google_search: false,
+            is_top_google_search: false,
             form_id: Some("content-gap-form".to_string()),
         }
     }
@@ -224,8 +317,10 @@ pub fn render_template(
     context.insert("is_content_gap_active", &page_context.is_content_gap_active);
     context.insert("is_trends_pageviews", &page_context.is_trends_pageviews);
     context.insert("is_delta_pageviews", &page_context.is_delta_pageviews);
+    context.insert("is_top_pageviews", &page_context.is_top_pageviews);
     context.insert("is_trends_pageedits", &page_context.is_trends_pageedits);
     context.insert("is_delta_pageedits", &page_context.is_delta_pageedits);
+    context.insert("is_top_pageedits", &page_context.is_top_pageedits);
     context.insert(
         "is_trends_google_search",
         &page_context.is_trends_google_search,
@@ -234,6 +329,7 @@ pub fn render_template(
         "is_delta_google_search",
         &page_context.is_delta_google_search,
     );
+    context.insert("is_top_google_search", &page_context.is_top_google_search);
     context.insert("form_id", &page_context.form_id);
 
     TEMPLATES
