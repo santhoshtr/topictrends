@@ -1,8 +1,8 @@
 use super::CoreServiceError;
 use crate::models::{AppState, MetricEngine, MetricType};
 use std::sync::{Arc, RwLock};
-use topictrend::graphbuilder::GraphBuilder;
 use topictrend::google_search_engine::GoogleSearchEngine;
+use topictrend::graphbuilder::GraphBuilder;
 use topictrend::pageedits_engine::PageEditsEngine;
 use topictrend::pageview_engine::PageViewEngine;
 use topictrend::wikigraph::WikiGraph;

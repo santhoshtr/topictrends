@@ -13,8 +13,8 @@ use embedding::embedding_service_client::EmbeddingServiceClient;
 use embedding::{InjestRequest, SearchRequest};
 
 pub async fn injest(wiki: String) -> Result<(), Box<dyn Error>> {
-    let embedding_server = std::env::var("EMBEDDING_SERVER")
-        .unwrap_or_else(|_| "http://localhost:50051".to_string());
+    let embedding_server =
+        std::env::var("EMBEDDING_SERVER").unwrap_or_else(|_| "http://localhost:50051".to_string());
 
     let mut client = EmbeddingServiceClient::connect(embedding_server).await?;
 
@@ -22,7 +22,10 @@ pub async fn injest(wiki: String) -> Result<(), Box<dyn Error>> {
 
     let response = client.injest(Request::new(request)).await?;
 
-    println!("Ingested {} records", response.into_inner().records_processed);
+    println!(
+        "Ingested {} records",
+        response.into_inner().records_processed
+    );
 
     Ok(())
 }
@@ -33,8 +36,8 @@ pub async fn search(
     limit: u64,
     match_threshold: f32,
 ) -> Result<Vec<SearchResult>, Box<dyn Error>> {
-    let embedding_server = std::env::var("EMBEDDING_SERVER")
-        .unwrap_or_else(|_| "http://localhost:50051".to_string());
+    let embedding_server =
+        std::env::var("EMBEDDING_SERVER").unwrap_or_else(|_| "http://localhost:50051".to_string());
 
     let mut client = EmbeddingServiceClient::connect(embedding_server).await?;
 
@@ -52,7 +55,8 @@ pub async fn search(
         .into_iter()
         .filter_map(|r| {
             let similarity = 1.0 - r.score;
-            (similarity >= match_threshold).then(|| SearchResult::new(similarity, r.qid, r.page_title))
+            (similarity >= match_threshold)
+                .then(|| SearchResult::new(similarity, r.qid, r.page_title))
         })
         .collect();
 

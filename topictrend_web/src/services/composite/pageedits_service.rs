@@ -46,9 +46,14 @@ impl PageEditsService {
             .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
         let end = end_date.unwrap_or_else(|| chrono::Local::now().date_naive());
 
-        let categories =
-            PageEditService::get_top_categories(Arc::clone(&state), wiki, start, end, top_n as usize)
-                .await?;
+        let categories = PageEditService::get_top_categories(
+            Arc::clone(&state),
+            wiki,
+            start,
+            end,
+            top_n as usize,
+        )
+        .await?;
 
         let mut all_qids = Vec::new();
         for cat in &categories {

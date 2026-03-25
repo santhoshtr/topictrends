@@ -13,7 +13,7 @@ use crate::{
         AppState, ArticleEditTrendResponse, ArticleItem, ArticleTrendParams, ArticleTrendResponse,
         ArticlesInCategoryResponse, CategoryEditRankResponse, CategoryEditTrendResponse,
         CategoryRankResponse, CategorySearchItemResponse, CategorySearchParams,
-        CategorySearchResponse, CategorySearchRankResponse, CategoryTrendParams,
+        CategorySearchRankResponse, CategorySearchResponse, CategoryTrendParams,
         CategoryTrendResponse, ContentGapParams, ContentGapResult, DailyEdits, DailyGoogleSearch,
         DailyViews, GoogleSearchArticleDeltaParams, GoogleSearchArticleDeltaResponse,
         GoogleSearchArticleTrendResponse, GoogleSearchCategoryDeltaParams,
@@ -669,16 +669,18 @@ pub async fn get_category_google_search_delta_handler(
 
     let categories: Vec<crate::models::GoogleSearchCategoryDeltaItemResponse> = delta_items
         .into_iter()
-        .map(|item| crate::models::GoogleSearchCategoryDeltaItemResponse {
-            category_qid: item.category_qid,
-            category_title: item.category_title,
-            baseline_clicks: item.baseline_clicks,
-            impact_clicks: item.impact_clicks,
-            baseline_impressions: item.baseline_impressions,
-            impact_impressions: item.impact_impressions,
-            delta_percentage: item.delta_percentage,
-            absolute_delta: item.absolute_delta,
-        })
+        .map(
+            |item| crate::models::GoogleSearchCategoryDeltaItemResponse {
+                category_qid: item.category_qid,
+                category_title: item.category_title,
+                baseline_clicks: item.baseline_clicks,
+                impact_clicks: item.impact_clicks,
+                baseline_impressions: item.baseline_impressions,
+                impact_impressions: item.impact_impressions,
+                delta_percentage: item.delta_percentage,
+                absolute_delta: item.absolute_delta,
+            },
+        )
         .collect();
 
     let baseline_period = format!(
@@ -755,14 +757,18 @@ pub async fn search_categories(
     let limit: u64 = params.limit.unwrap_or(1000u64);
     let match_threshold = params.match_threshold.unwrap_or(0.6);
 
-    let search_results: Vec<topictrend_taxonomy::SearchResult> =
-        topictrend_taxonomy::search(params.query.clone(), "enwiki".to_string(), limit, match_threshold)
-            .await
-            .map_err(|e| {
-                ApiError::ServiceError(crate::services::ServiceError::CoreError(
-                    crate::services::core::CoreServiceError::InternalError(e.to_string()),
-                ))
-            })?;
+    let search_results: Vec<topictrend_taxonomy::SearchResult> = topictrend_taxonomy::search(
+        params.query.clone(),
+        "enwiki".to_string(),
+        limit,
+        match_threshold,
+    )
+    .await
+    .map_err(|e| {
+        ApiError::ServiceError(crate::services::ServiceError::CoreError(
+            crate::services::core::CoreServiceError::InternalError(e.to_string()),
+        ))
+    })?;
 
     let mut categories: Vec<CategorySearchItemResponse> = search_results
         .into_iter()
@@ -805,14 +811,18 @@ pub async fn get_categories_trend_by_search_handler(
 ) -> Result<Json<CategoriesTrendResponse>, ApiError> {
     let limit: u64 = params.limit.unwrap_or(1000u64);
     let match_threshold = params.match_threshold.unwrap_or(0.6);
-    let search_results: Vec<topictrend_taxonomy::SearchResult> =
-        topictrend_taxonomy::search(params.category_query.clone(), "enwiki".to_string(), limit, match_threshold)
-            .await
-            .map_err(|e| {
-                ApiError::ServiceError(crate::services::ServiceError::CoreError(
-                    crate::services::core::CoreServiceError::InternalError(e.to_string()),
-                ))
-            })?;
+    let search_results: Vec<topictrend_taxonomy::SearchResult> = topictrend_taxonomy::search(
+        params.category_query.clone(),
+        "enwiki".to_string(),
+        limit,
+        match_threshold,
+    )
+    .await
+    .map_err(|e| {
+        ApiError::ServiceError(crate::services::ServiceError::CoreError(
+            crate::services::core::CoreServiceError::InternalError(e.to_string()),
+        ))
+    })?;
 
     let category_qids: Vec<u32> = search_results
         .into_iter()
