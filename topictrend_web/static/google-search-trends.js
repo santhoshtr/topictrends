@@ -186,7 +186,6 @@ async function onSubmit(event) {
 	const wiki = document.getElementById("wiki").value;
 	const startDate = document.getElementById("start_date").value;
 	const endDate = document.getElementById("end_date").value;
-	const depth = document.getElementById("depth").value;
 
 	params.append("type", type);
 	params.append("wiki", wiki);
@@ -203,7 +202,7 @@ async function onSubmit(event) {
 				"",
 				`${window.location.pathname}?${params.toString()}`,
 			);
-			await fetchTopicSearchData(wiki, topic, startDate, endDate, depth);
+			await fetchTopicSearchData(wiki, topic, startDate, endDate, 1);
 		} else if (type === "category") {
 			const category = document
 				.getElementById("category")
