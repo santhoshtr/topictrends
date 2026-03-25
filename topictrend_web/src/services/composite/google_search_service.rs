@@ -162,7 +162,9 @@ impl GoogleSearchTrendsService {
                 })?;
 
                 for qid in &category_qids {
-                    let search_data = engine_lock.get_category_trend(*qid, depth, start, end);
+                    // Note depth becomes 1 in case of taxonomy search since we are matching flat
+                    // list of category titles against our query.
+                    let search_data = engine_lock.get_category_trend(*qid, 1, start, end);
 
                     for (date, metrics) in search_data {
                         let entry = all_search_by_date.entry(date).or_insert((0, 0, 0.0));
