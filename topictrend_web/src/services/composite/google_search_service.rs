@@ -1,6 +1,6 @@
 use crate::models::AppState;
 use crate::services::composite::taxonomy_search_category_qids;
-use crate::services::core::{CoreServiceError, GoogleSearchService, QidService};
+use crate::services::core::{CoreServiceError, EngineService, GoogleSearchService, QidService};
 use chrono::NaiveDate;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -153,40 +153,39 @@ impl GoogleSearchTrendsService {
             let category_qids = taxonomy_search_category_qids(category).await?;
             let mut all_search_by_date: HashMap<NaiveDate, (u64, u64, f64)> = HashMap::new();
             let mut all_articles: HashMap<u32, (u64, u64)> = HashMap::new();
+            {
+                let engine =
+                    EngineService::get_or_build_google_search_engine(Arc::clone(&state), wiki)
+                        .await?;
+                let engine_lock = engine.read().map_err(|e| {
+                    CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
+                })?;
 
-            for qid in &category_qids {
-                let search_data = GoogleSearchService::get_category_search_trend(
-                    Arc::clone(&state),
-                    wiki,
-                    *qid,
-                    start,
-                    end,
-                    depth,
-                )
-                .await?;
+                for qid in &category_qids {
+                    let search_data = engine_lock.get_category_trend(*qid, depth, start, end);
 
-                for item in search_data {
-                    let entry = all_search_by_date.entry(item.date).or_insert((0, 0, 0.0));
-                    entry.0 += item.clicks;
-                    entry.1 += item.impressions;
-                    entry.2 += item.position * item.impressions as f64;
-                }
+                    for (date, metrics) in search_data {
+                        let entry = all_search_by_date.entry(date).or_insert((0, 0, 0.0));
+                        entry.0 += metrics.clicks;
+                        entry.1 += metrics.impressions;
+                        entry.2 += metrics.position * metrics.impressions as f64;
+                    }
 
-                let top_articles = GoogleSearchService::get_top_articles(
-                    Arc::clone(&state),
-                    wiki,
-                    *qid,
-                    start,
-                    end,
-                    depth,
-                    50,
-                )
-                .await?;
+                    let top_articles = engine_lock
+                        .get_top_articles_in_category(*qid, start, end, depth, 50)
+                        .map_err(|e| {
+                            CoreServiceError::EngineError(format!(
+                                "Failed to get top articles: {}",
+                                e
+                            ))
+                        })?
+                        .top_articles;
 
-                for article in top_articles {
-                    let entry = all_articles.entry(article.article_qid).or_insert((0, 0));
-                    entry.0 += article.total_clicks;
-                    entry.1 += article.total_impressions;
+                    for article in top_articles {
+                        let entry = all_articles.entry(article.article_qid).or_insert((0, 0));
+                        entry.0 += article.total_clicks;
+                        entry.1 += article.total_impressions;
+                    }
                 }
             }
 
