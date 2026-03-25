@@ -130,8 +130,9 @@
 				align-self: bottom;
 			}
 
-			& #tab-category:checked ~ .tab label:nth-child(1),
-			& #tab-article:checked ~ .tab label:nth-child(2) {
+			& #tab-topic:checked ~ .tab label:nth-child(1),
+			& #tab-category:checked ~ .tab label:nth-child(2),
+			& #tab-article:checked ~ .tab label:nth-child(3) {
 				border-bottom: 2px solid var(--border-color-progressive);
 			}
 
@@ -154,8 +155,9 @@
 				display: none;
 			}
 
-			& #tab-category:checked ~ .tab-content div:nth-child(1),
-			& #tab-article:checked ~ .tab-content div:nth-child(2) {
+			& #tab-topic:checked ~ .tab-content div:nth-child(1),
+			& #tab-category:checked ~ .tab-content div:nth-child(2),
+			& #tab-article:checked ~ .tab-content div:nth-child(3) {
 				display: block;
 			}
 		}

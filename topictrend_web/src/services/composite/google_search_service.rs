@@ -141,124 +141,10 @@ impl GoogleSearchTrendsService {
         let end = end_date.unwrap_or_else(|| chrono::Local::now().date_naive());
 
         let category_qid = if let Some(qid) = category_qid {
-            Some(qid)
+            qid
         } else {
-            match QidService::get_qid_by_title(Arc::clone(&state), wiki, category, 14).await {
-                Ok(qid) => Some(qid),
-                Err(_) => None,
-            }
+            QidService::get_qid_by_title(Arc::clone(&state), wiki, category, 14).await?
         };
-
-        if category_qid.is_none() {
-            let category_qids = taxonomy_search_category_qids(category).await?;
-            let mut all_search_by_date: HashMap<NaiveDate, (u64, u64, f64)> = HashMap::new();
-            let mut all_articles: HashMap<u32, (u64, u64)> = HashMap::new();
-            {
-                let engine =
-                    EngineService::get_or_build_google_search_engine(Arc::clone(&state), wiki)
-                        .await?;
-                let engine_lock = engine.read().map_err(|e| {
-                    CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
-                })?;
-
-                for qid in &category_qids {
-                    // Note depth becomes 1 in case of taxonomy search since we are matching flat
-                    // list of category titles against our query.
-                    let search_data = engine_lock.get_category_trend(*qid, 1, start, end);
-
-                    for (date, metrics) in search_data {
-                        let entry = all_search_by_date.entry(date).or_insert((0, 0, 0.0));
-                        entry.0 += metrics.clicks;
-                        entry.1 += metrics.impressions;
-                        entry.2 += metrics.position * metrics.impressions as f64;
-                    }
-
-                    let top_articles = engine_lock
-                        .get_top_articles_in_category(*qid, start, end, 1, 50)
-                        .map_err(|e| {
-                            CoreServiceError::EngineError(format!(
-                                "Failed to get top articles: {}",
-                                e
-                            ))
-                        })?
-                        .top_articles;
-
-                    for article in top_articles {
-                        let entry = all_articles.entry(article.article_qid).or_insert((0, 0));
-                        entry.0 += article.total_clicks;
-                        entry.1 += article.total_impressions;
-                    }
-                }
-            }
-
-            let mut search: Vec<GoogleSearchDailyResult> = all_search_by_date
-                .into_iter()
-                .map(|(date, (clicks, impressions, weighted_position_sum))| {
-                    let ctr = if impressions == 0 {
-                        0.0
-                    } else {
-                        clicks as f64 / impressions as f64
-                    };
-                    let position = if impressions == 0 {
-                        0.0
-                    } else {
-                        weighted_position_sum / impressions as f64
-                    };
-
-                    GoogleSearchDailyResult {
-                        date,
-                        clicks,
-                        impressions,
-                        ctr,
-                        position,
-                    }
-                })
-                .collect();
-            search.sort_by_key(|item| item.date);
-
-            let mut article_totals: Vec<(u32, (u64, u64))> = all_articles.into_iter().collect();
-            article_totals.sort_by(|a, b| b.1.0.cmp(&a.1.0));
-            article_totals.truncate(10);
-
-            let article_qids: Vec<u32> = article_totals.iter().map(|(qid, _)| *qid).collect();
-            let titles_map = if article_qids.is_empty() {
-                HashMap::new()
-            } else {
-                QidService::get_titles_by_qids(Arc::clone(&state), wiki, &article_qids).await?
-            };
-
-            let top_articles = article_totals
-                .into_iter()
-                .map(|(qid, (clicks, impressions))| {
-                    let title = titles_map
-                        .get(&qid)
-                        .cloned()
-                        .unwrap_or_else(|| format!("Q{}", qid));
-                    let ctr = if impressions == 0 {
-                        0.0
-                    } else {
-                        clicks as f64 / impressions as f64
-                    };
-
-                    ArticleGoogleSearchRank {
-                        qid,
-                        title,
-                        clicks,
-                        impressions,
-                        ctr,
-                    }
-                })
-                .collect();
-
-            return Ok(CategoryGoogleSearchTrendResult {
-                qid: 0,
-                title: category.to_string(),
-                search,
-                top_articles,
-            });
-        }
-
-        let category_qid = category_qid.unwrap();
 
         let data = GoogleSearchService::get_category_search_trend(
             Arc::clone(&state),
@@ -368,6 +254,122 @@ impl GoogleSearchTrendsService {
                     position: item.position,
                 })
                 .collect(),
+        })
+    }
+
+    pub async fn get_topic_google_search_trend(
+        state: Arc<AppState>,
+        wiki: &str,
+        topic: &str,
+        depth: Option<u32>,
+        start_date: Option<NaiveDate>,
+        end_date: Option<NaiveDate>,
+    ) -> Result<CategoryGoogleSearchTrendResult, CoreServiceError> {
+        let start = start_date
+            .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
+        let end = end_date.unwrap_or_else(|| chrono::Local::now().date_naive());
+
+        let category_qids = taxonomy_search_category_qids(topic).await?;
+        let mut all_search_by_date: HashMap<NaiveDate, (u64, u64, f64)> = HashMap::new();
+        let mut all_articles: HashMap<u32, (u64, u64)> = HashMap::new();
+
+        {
+            let engine =
+                EngineService::get_or_build_google_search_engine(Arc::clone(&state), wiki).await?;
+            let engine_lock = engine.read().map_err(|e| {
+                CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
+            })?;
+
+            let effective_depth = depth.unwrap_or(1);
+            for qid in &category_qids {
+                let search_data = engine_lock.get_category_trend(*qid, effective_depth, start, end);
+                for (date, metrics) in search_data {
+                    let entry = all_search_by_date.entry(date).or_insert((0, 0, 0.0));
+                    entry.0 += metrics.clicks;
+                    entry.1 += metrics.impressions;
+                    entry.2 += metrics.position * metrics.impressions as f64;
+                }
+
+                let top_articles = engine_lock
+                    .get_top_articles_in_category(*qid, start, end, effective_depth, 50)
+                    .map_err(|e| {
+                        CoreServiceError::EngineError(format!(
+                            "Failed to get top articles: {}",
+                            e
+                        ))
+                    })?
+                    .top_articles;
+
+                for article in top_articles {
+                    let entry = all_articles.entry(article.article_qid).or_insert((0, 0));
+                    entry.0 += article.total_clicks;
+                    entry.1 += article.total_impressions;
+                }
+            }
+        }
+
+        let mut search: Vec<GoogleSearchDailyResult> = all_search_by_date
+            .into_iter()
+            .map(|(date, (clicks, impressions, weighted_position_sum))| {
+                let ctr = if impressions == 0 {
+                    0.0
+                } else {
+                    clicks as f64 / impressions as f64
+                };
+                let position = if impressions == 0 {
+                    0.0
+                } else {
+                    weighted_position_sum / impressions as f64
+                };
+                GoogleSearchDailyResult {
+                    date,
+                    clicks,
+                    impressions,
+                    ctr,
+                    position,
+                }
+            })
+            .collect();
+        search.sort_by_key(|item| item.date);
+
+        let mut article_totals: Vec<(u32, (u64, u64))> = all_articles.into_iter().collect();
+        article_totals.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+        article_totals.truncate(10);
+
+        let article_qids: Vec<u32> = article_totals.iter().map(|(qid, _)| *qid).collect();
+        let titles_map = if article_qids.is_empty() {
+            HashMap::new()
+        } else {
+            QidService::get_titles_by_qids(Arc::clone(&state), wiki, &article_qids).await?
+        };
+
+        let top_articles = article_totals
+            .into_iter()
+            .map(|(qid, (clicks, impressions))| {
+                let title = titles_map
+                    .get(&qid)
+                    .cloned()
+                    .unwrap_or_else(|| format!("Q{}", qid));
+                let ctr = if impressions == 0 {
+                    0.0
+                } else {
+                    clicks as f64 / impressions as f64
+                };
+                ArticleGoogleSearchRank {
+                    qid,
+                    title,
+                    clicks,
+                    impressions,
+                    ctr,
+                }
+            })
+            .collect();
+
+        Ok(CategoryGoogleSearchTrendResult {
+            qid: 0,
+            title: topic.to_string(),
+            search,
+            top_articles,
         })
     }
 }

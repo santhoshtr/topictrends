@@ -195,7 +195,16 @@ async function onSubmit(event) {
 	params.append("depth", depth);
 
 	try {
-		if (type === "category") {
+		if (type === "topic") {
+			const topic = document.getElementById("topic").value.replaceAll(" ", "_");
+			params.append("topic", topic);
+			window.history.pushState(
+				{},
+				"",
+				`${window.location.pathname}?${params.toString()}`,
+			);
+			await fetchTopicSearchData(wiki, topic, startDate, endDate, depth);
+		} else if (type === "category") {
 			const category = document
 				.getElementById("category")
 				.value.replaceAll(" ", "_");
@@ -221,6 +230,30 @@ async function onSubmit(event) {
 	} catch (error) {
 		console.error("Error:", error);
 		showMessage("Failed to fetch data. Please try again.", "error");
+	}
+}
+
+async function fetchTopicSearchData(wiki, topic, startDate, endDate, depth) {
+	const url = `https://topictrends.wmcloud.org/api/googlesearch/topic?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&topic=${encodeURIComponent(topic)}`;
+	const label = `Topic: ${wiki} - ${topic.replaceAll("_", " ")}`;
+
+	try {
+		showProgress();
+		const startTime = performance.now();
+		const response = await fetch(url);
+		if (!response.ok) {
+			throw new Error("Failed to fetch topic search data");
+		}
+
+		const data = await response.json();
+		updateChartWithSearchData(data.search, label);
+		renderCtrSummary(data.title, data.search);
+		renderTopArticles(wiki, data.top_articles);
+
+		const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+		showMessage(`Fetched ${label} in ${elapsed} seconds.`, "success");
+	} finally {
+		hideProgress();
 	}
 }
 
@@ -284,6 +317,7 @@ function populateFormFromQueryParams() {
 	const wiki = urlParams.get("wiki");
 	const startDate = urlParams.get("start_date");
 	const endDate = urlParams.get("end_date");
+	const topic = urlParams.get("topic");
 	const category = urlParams.get("category");
 	const article = urlParams.get("article");
 	const depth = urlParams.get("depth");
@@ -303,6 +337,9 @@ function populateFormFromQueryParams() {
 	}
 	if (depth) {
 		document.getElementById("depth").value = depth;
+	}
+	if (type === "topic" && topic) {
+		document.getElementById("topic").value = topic.replaceAll("_", " ");
 	}
 	if (type === "category" && category) {
 		document.getElementById("category").value = category.replaceAll("_", " ");

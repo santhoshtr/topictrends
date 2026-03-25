@@ -27,7 +27,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 	await populateWikiDropdown();
 	populateFormFromQueryParams();
 });
-
 function showSection(section) {
 	const chart = document.getElementById("chart");
 	const topArticles = document.getElementById("top-articles");
@@ -78,7 +77,15 @@ async function onSubmit(event) {
 		params.append("article_qid", article_qid);
 	}
 	try {
-		if (type === "category") {
+		if (type === "topic") {
+			const topic = document.getElementById("topic").value.replaceAll(" ", "_");
+			params.append("topic", topic);
+
+			const newUrl = `${window.location.pathname}?${params.toString()}`;
+			window.history.pushState({}, "", newUrl);
+
+			await fetchTopicPageviews(wiki, topic, startDate, endDate, depth);
+		} else if (type === "category") {
 			const category = document
 				.getElementById("category")
 				.value.replaceAll(" ", "_");
@@ -222,6 +229,39 @@ document.addEventListener("DOMContentLoaded", () => {
 	startDatePicker.value = `${year}-${month}-${day}`;
 });
 
+async function fetchTopicPageviews(wiki, topic, startDate, endDate, depth) {
+	showSection("chart-with-articles");
+
+	const apiUrl = `https://topictrends.wmcloud.org/api/pageviews/topic?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&topic=${encodeURIComponent(
+		topic,
+	)}`;
+	const label = `Topic: ${wiki} - ${topic.replaceAll("_", " ")}`;
+
+	try {
+		const startTime = performance.now();
+		showProgress();
+		const response = await fetch(apiUrl);
+		if (!response.ok) {
+			throw new Error("Failed to fetch data");
+		}
+
+		const data = await response.json();
+		hideProgress();
+		updateChartWithData(data.views, label);
+		const endTime = performance.now();
+		const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
+		showMessage(`Fetched ${label} in ${timeTaken} seconds.`, "success");
+
+		if (data.top_articles && data.top_articles.length > 0) {
+			renderTopArticles(wiki, data.top_articles);
+		}
+	} catch (error) {
+		hideProgress();
+		console.error("Error:", error);
+		showMessage("Failed to fetch topic data. Please try again.", "error");
+	}
+}
+
 async function fetchCategoryPageviews(
 	wiki,
 	category,
@@ -297,6 +337,7 @@ function populateFormFromQueryParams() {
 	const wiki = urlParams.get("wiki");
 	const startDate = urlParams.get("start_date");
 	const endDate = urlParams.get("end_date");
+	const topic = urlParams.get("topic");
 	const category = urlParams.get("category");
 	const category_qid = urlParams.get("category_qid");
 	const article = urlParams.get("article");
@@ -318,6 +359,9 @@ function populateFormFromQueryParams() {
 	}
 	if (endDate) {
 		document.getElementById("end_date").value = endDate;
+	}
+	if (type === "topic" && topic) {
+		document.getElementById("topic").value = topic.replaceAll("_", " ");
 	}
 	if (type === "category" && category) {
 		document.getElementById("category").value = category.replaceAll("_", " ");

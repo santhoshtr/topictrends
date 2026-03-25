@@ -68,27 +68,7 @@ impl PageViewsService {
         let category_qid = if let Some(qid) = category_qid {
             qid
         } else {
-            match QidService::get_qid_by_title(Arc::clone(&state), wiki, category, 14).await {
-                Ok(qid) => qid,
-                Err(_) => {
-                    let category_qids = taxonomy_search_category_qids(category).await?;
-                    let categories_result = Self::get_categories_trend(
-                        Arc::clone(&state),
-                        wiki,
-                        category_qids,
-                        Some(1),
-                        start_date,
-                        end_date,
-                    )
-                    .await?;
-                    return Ok(CategoryTrendResult {
-                        qid: 0,
-                        title: category.to_string(),
-                        views: categories_result.cumulative_views,
-                        top_articles: categories_result.top_articles,
-                    });
-                }
-            }
+            QidService::get_qid_by_title(Arc::clone(&state), wiki, category, 14).await?
         };
 
         // Get raw pageview data
@@ -272,6 +252,32 @@ impl PageViewsService {
             qid: article_qid,
             title: article.to_string(),
             views: data,
+        })
+    }
+
+    pub async fn get_topic_trend(
+        state: Arc<AppState>,
+        wiki: &str,
+        topic: &str,
+        depth: Option<u32>,
+        start_date: Option<NaiveDate>,
+        end_date: Option<NaiveDate>,
+    ) -> Result<CategoryTrendResult, ServiceError> {
+        let category_qids = taxonomy_search_category_qids(topic).await?;
+        let categories_result = Self::get_categories_trend(
+            Arc::clone(&state),
+            wiki,
+            category_qids,
+            Some(depth.unwrap_or(1)),
+            start_date,
+            end_date,
+        )
+        .await?;
+        Ok(CategoryTrendResult {
+            qid: 0,
+            title: topic.to_string(),
+            views: categories_result.cumulative_views,
+            top_articles: categories_result.top_articles,
         })
     }
 

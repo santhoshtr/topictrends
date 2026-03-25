@@ -114,6 +114,15 @@ pub struct ArticleTrendParams {
 }
 
 #[derive(Deserialize)]
+pub struct TopicTrendParams {
+    pub wiki: String,
+    pub topic: String,
+    pub depth: Option<u32>,
+    pub start_date: Option<NaiveDate>,
+    pub end_date: Option<NaiveDate>,
+}
+
+#[derive(Deserialize)]
 pub struct SubCategoryParams {
     pub wiki: String,
     pub category: String,

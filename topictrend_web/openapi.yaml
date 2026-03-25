@@ -179,6 +179,90 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/pageviews/topic:
+    get:
+      operationId: getTopicPageviewTrend
+      tags: [Pageviews]
+      summary: Topic pageview trend (semantic)
+      description: |
+        Performs a semantic search for Wikipedia categories matching `topic`,
+        then returns aggregated daily pageviews across all matched categories.
+
+        Unlike `/api/pageviews/category`, this endpoint never requires an exact
+        category title. The query is matched using embedding-based similarity
+        against the English Wikipedia category taxonomy and then mapped to the
+        requested `wiki`.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/Topic"
+        - $ref: "#/components/parameters/DepthOptional"
+        - $ref: "#/components/parameters/StartDateOptional"
+        - $ref: "#/components/parameters/EndDateOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryTrendResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/pageedits/topic:
+    get:
+      operationId: getTopicPageeditTrend
+      tags: [Pageedits]
+      summary: Topic page edit trend (semantic)
+      description: |
+        Performs a semantic search for Wikipedia categories matching `topic`,
+        then returns aggregated daily page edits across all matched categories.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/Topic"
+        - $ref: "#/components/parameters/DepthOptional"
+        - $ref: "#/components/parameters/StartDateOptional"
+        - $ref: "#/components/parameters/EndDateOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryEditTrendResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/googlesearch/topic:
+    get:
+      operationId: getTopicGoogleSearchTrend
+      tags: [GoogleSearch]
+      summary: Topic Google search trend (semantic)
+      description: |
+        Performs a semantic search for Wikipedia categories matching `topic`,
+        then returns aggregated daily Google search metrics across all matched
+        categories.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/Topic"
+        - $ref: "#/components/parameters/DepthOptional"
+        - $ref: "#/components/parameters/StartDateOptional"
+        - $ref: "#/components/parameters/EndDateOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoogleSearchCategoryTrendResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/list/sub_categories:
     get:
       operationId: listSubCategories
@@ -523,6 +607,17 @@ components:
       in: query
       required: true
       description: Category title in the given wiki (without the `Category:` prefix).
+      schema:
+        type: string
+        minLength: 1
+
+    Topic:
+      name: topic
+      in: query
+      required: true
+      description: |
+        Plain-language topic query for semantic search. Does not need to match an
+        exact Wikipedia category title. Cross-language queries are supported.
       schema:
         type: string
         minLength: 1

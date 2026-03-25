@@ -15,13 +15,19 @@
         {% include "wiki-selector.html" %}
       </div>
       <div class="form-item">
-        <input type="radio" id="tab-category" name="type" value="category" checked />
+        <input type="radio" id="tab-topic" name="type" value="topic" checked />
+        <input type="radio" id="tab-category" name="type" value="category" />
         <input type="radio" id="tab-article" name="type" value="article" />
         <div class="tab">
+          <label for="tab-topic" class="cdx-label">Topic</label>
           <label for="tab-category" class="cdx-label">Category</label>
           <label for="tab-article" class="cdx-label">Article</label>
         </div>
         <div class="tab-content">
+          <div class="tab-content-topic">
+            <input type="text" id="topic" name="topic" class="cdx-text-input__input"
+              placeholder="Enter a topic (e.g. Winter Olympics 2026)" />
+          </div>
           <div class="tab-content-category">
             <wiki-category-selector id="category" name="category" placeholder="Search category"></wiki-category-selector>
           </div>
@@ -54,7 +60,8 @@
     <section class="examples" hidden>
       <h2>Examples</h2>
       <ul>
-        <li><a href="/googlesearch/trends?type=category&wiki=enwiki&start_date=2026-03-01&end_date=2026-03-05&depth=4&category=2026_Winter_Olympics">Plot Google search trends for "2026 Winter Olympics".</a></li>
+        <li><a href="/googlesearch/trends?type=topic&wiki=enwiki&start_date=2026-03-01&end_date=2026-03-05&topic=2026_Winter_Olympics">Plot Google search trends for "2026 Winter Olympics" using topic search.</a></li>
+        <li><a href="/googlesearch/trends?type=category&wiki=enwiki&start_date=2026-03-01&end_date=2026-03-05&depth=4&category=2026_Winter_Olympics">Plot Google search trends for category "2026 Winter Olympics".</a></li>
       </ul>
     </section>
     <div id="chart" class="chart"></div>

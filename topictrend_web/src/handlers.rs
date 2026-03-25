@@ -23,7 +23,7 @@ use crate::{
         PageViewArticleDeltaResponse, PageViewCategoryDeltaParams, PageViewCategoryDeltaResponse,
         SubCategoryParams, TopArticle, TopArticleByEdits, TopArticleBySearch, TopArticleEdits,
         TopArticleGoogleSearch, TopCategoriesParams, TopCategory, TopCategoryByEdits,
-        TopCategoryBySearch,
+        TopCategoryBySearch, TopicTrendParams,
     },
     services::core::CategoryService,
 };
@@ -311,6 +311,128 @@ pub async fn get_article_google_search_trend_handler(
         qid: result.qid,
         title: result.title,
         search: daily_search,
+    }))
+}
+
+pub async fn get_topic_pageview_trend_handler(
+    Query(params): Query<TopicTrendParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<CategoryTrendResponse>, ApiError> {
+    let result = PageViewsService::get_topic_trend(
+        state,
+        &params.wiki,
+        &params.topic,
+        params.depth,
+        params.start_date,
+        params.end_date,
+    )
+    .await?;
+
+    let daily_views: Vec<DailyViews> = result
+        .views
+        .into_iter()
+        .map(|(date, views)| DailyViews { date, views })
+        .collect();
+
+    let top_articles: Vec<TopArticle> = result
+        .top_articles
+        .into_iter()
+        .map(|art| TopArticle {
+            qid: art.qid,
+            title: art.title,
+            views: art.views,
+        })
+        .collect();
+
+    Ok(Json(CategoryTrendResponse {
+        qid: result.qid,
+        title: result.title,
+        views: daily_views,
+        top_articles,
+    }))
+}
+
+pub async fn get_topic_edit_trend_handler(
+    Query(params): Query<TopicTrendParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<CategoryEditTrendResponse>, ApiError> {
+    let result = PageEditsService::get_topic_edit_trend(
+        state,
+        &params.wiki,
+        &params.topic,
+        params.depth,
+        params.start_date,
+        params.end_date,
+    )
+    .await?;
+
+    let daily_edits: Vec<DailyEdits> = result
+        .edits
+        .into_iter()
+        .map(|(date, edits)| DailyEdits { date, edits })
+        .collect();
+
+    let top_articles: Vec<TopArticleEdits> = result
+        .top_articles
+        .into_iter()
+        .map(|art| TopArticleEdits {
+            qid: art.qid,
+            title: art.title,
+            edits: art.edits,
+        })
+        .collect();
+
+    Ok(Json(CategoryEditTrendResponse {
+        qid: result.qid,
+        title: result.title,
+        edits: daily_edits,
+        top_articles,
+    }))
+}
+
+pub async fn get_topic_google_search_trend_handler(
+    Query(params): Query<TopicTrendParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<GoogleSearchCategoryTrendResponse>, ApiError> {
+    let result = GoogleSearchTrendsService::get_topic_google_search_trend(
+        state,
+        &params.wiki,
+        &params.topic,
+        params.depth,
+        params.start_date,
+        params.end_date,
+    )
+    .await?;
+
+    let daily_search: Vec<DailyGoogleSearch> = result
+        .search
+        .into_iter()
+        .map(|item| DailyGoogleSearch {
+            date: item.date,
+            clicks: item.clicks,
+            impressions: item.impressions,
+            ctr: item.ctr,
+            position: item.position,
+        })
+        .collect();
+
+    let top_articles: Vec<TopArticleGoogleSearch> = result
+        .top_articles
+        .into_iter()
+        .map(|article| TopArticleGoogleSearch {
+            qid: article.qid,
+            title: article.title,
+            clicks: article.clicks,
+            impressions: article.impressions,
+            ctr: article.ctr,
+        })
+        .collect();
+
+    Ok(Json(GoogleSearchCategoryTrendResponse {
+        qid: result.qid,
+        title: result.title,
+        search: daily_search,
+        top_articles,
     }))
 }
 
