@@ -174,7 +174,7 @@ impl GoogleSearchTrendsService {
                     }
 
                     let top_articles = engine_lock
-                        .get_top_articles_in_category(*qid, start, end, depth, 50)
+                        .get_top_articles_in_category(*qid, start, end, 1, 50)
                         .map_err(|e| {
                             CoreServiceError::EngineError(format!(
                                 "Failed to get top articles: {}",

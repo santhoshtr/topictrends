@@ -138,13 +138,15 @@ impl PageEditsService {
                 })?;
 
                 for qid in &category_qids {
-                    let edits_data = engine_lock.get_category_trend(*qid, depth, start, end);
+                    // Note depth becomes 1 in case of taxonomy search since we are matching flat
+                    // list of category titles against our query.
+                    let edits_data = engine_lock.get_category_trend(*qid, 1, start, end);
                     for (date, edits) in edits_data {
                         *all_edits_by_date.entry(date).or_insert(0) += edits;
                     }
 
                     let top_articles = engine_lock
-                        .get_top_articles_in_category(*qid, start, end, depth, 50)
+                        .get_top_articles_in_category(*qid, start, end, 1, 50)
                         .map_err(|e| {
                             CoreServiceError::EngineError(format!(
                                 "Failed to get top articles: {}",
