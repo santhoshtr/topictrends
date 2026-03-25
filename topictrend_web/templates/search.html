@@ -15,7 +15,7 @@
       {% include "wiki-selector.html" %}
       <div class="form-item">
         <label for="category" class="cdx-label">Category</label>
-        <input class="cdx-text-input__input" type="search" id="category" name="category"
+        <input class="cdx-text-input__input" type="search" id="category" name="category" pattern="[\x00-\x7F]+"
           placeholder="Search category"/>
       </div>
       <div class="form-item">

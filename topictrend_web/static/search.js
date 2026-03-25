@@ -24,14 +24,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 function updateTrendLinks() {
 	const wiki = document.getElementById("wiki").value;
-	const category = document
-		.getElementById("category")
-		.value.replaceAll(" ", "_");
+	const topic = document.getElementById("category").value.replaceAll(" ", "_");
 	const params = new URLSearchParams({
-		type: "category",
+		type: "topic",
 		wiki,
-		depth: 4,
-		category,
+		depth: 1,
+		topic,
 	});
 	document.getElementById("pageviews-trends-link").href =
 		`${BASE_URL}/pageviews/trends?${params}`;
