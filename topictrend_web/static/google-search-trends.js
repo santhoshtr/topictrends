@@ -186,6 +186,7 @@ async function onSubmit(event) {
 	const wiki = document.getElementById("wiki").value;
 	const startDate = document.getElementById("start_date").value;
 	const endDate = document.getElementById("end_date").value;
+	const depth = document.getElementById("depth").value;
 
 	params.append("type", type);
 	params.append("wiki", wiki);
