@@ -141,16 +141,123 @@ impl GoogleSearchTrendsService {
         let end = end_date.unwrap_or_else(|| chrono::Local::now().date_naive());
 
         let category_qid = if let Some(qid) = category_qid {
-            qid
+            Some(qid)
         } else {
             match QidService::get_qid_by_title(Arc::clone(&state), wiki, category, 14).await {
-                Ok(qid) => qid,
-                Err(_) => {
-                    let qids = taxonomy_search_category_qids(category).await?;
-                    *qids.first().ok_or(CoreServiceError::NotFound)?
-                }
+                Ok(qid) => Some(qid),
+                Err(_) => None,
             }
         };
+
+        if category_qid.is_none() {
+            let category_qids = taxonomy_search_category_qids(category).await?;
+            let mut all_search_by_date: HashMap<NaiveDate, (u64, u64, f64)> = HashMap::new();
+            let mut all_articles: HashMap<u32, (u64, u64)> = HashMap::new();
+
+            for qid in &category_qids {
+                let search_data = GoogleSearchService::get_category_search_trend(
+                    Arc::clone(&state),
+                    wiki,
+                    *qid,
+                    start,
+                    end,
+                    depth,
+                )
+                .await?;
+
+                for item in search_data {
+                    let entry = all_search_by_date.entry(item.date).or_insert((0, 0, 0.0));
+                    entry.0 += item.clicks;
+                    entry.1 += item.impressions;
+                    entry.2 += item.position * item.impressions as f64;
+                }
+
+                let top_articles = GoogleSearchService::get_top_articles(
+                    Arc::clone(&state),
+                    wiki,
+                    *qid,
+                    start,
+                    end,
+                    depth,
+                    50,
+                )
+                .await?;
+
+                for article in top_articles {
+                    let entry = all_articles.entry(article.article_qid).or_insert((0, 0));
+                    entry.0 += article.total_clicks;
+                    entry.1 += article.total_impressions;
+                }
+            }
+
+            let mut search: Vec<GoogleSearchDailyResult> = all_search_by_date
+                .into_iter()
+                .map(|(date, (clicks, impressions, weighted_position_sum))| {
+                    let ctr = if impressions == 0 {
+                        0.0
+                    } else {
+                        clicks as f64 / impressions as f64
+                    };
+                    let position = if impressions == 0 {
+                        0.0
+                    } else {
+                        weighted_position_sum / impressions as f64
+                    };
+
+                    GoogleSearchDailyResult {
+                        date,
+                        clicks,
+                        impressions,
+                        ctr,
+                        position,
+                    }
+                })
+                .collect();
+            search.sort_by_key(|item| item.date);
+
+            let mut article_totals: Vec<(u32, (u64, u64))> = all_articles.into_iter().collect();
+            article_totals.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+            article_totals.truncate(10);
+
+            let article_qids: Vec<u32> = article_totals.iter().map(|(qid, _)| *qid).collect();
+            let titles_map = if article_qids.is_empty() {
+                HashMap::new()
+            } else {
+                QidService::get_titles_by_qids(Arc::clone(&state), wiki, &article_qids).await?
+            };
+
+            let top_articles = article_totals
+                .into_iter()
+                .map(|(qid, (clicks, impressions))| {
+                    let title = titles_map
+                        .get(&qid)
+                        .cloned()
+                        .unwrap_or_else(|| format!("Q{}", qid));
+                    let ctr = if impressions == 0 {
+                        0.0
+                    } else {
+                        clicks as f64 / impressions as f64
+                    };
+
+                    ArticleGoogleSearchRank {
+                        qid,
+                        title,
+                        clicks,
+                        impressions,
+                        ctr,
+                    }
+                })
+                .collect();
+
+            return Ok(CategoryGoogleSearchTrendResult {
+                qid: 0,
+                title: category.to_string(),
+                search,
+                top_articles,
+            });
+        }
+
+        let category_qid = category_qid.unwrap();
 
         let data = GoogleSearchService::get_category_search_trend(
             Arc::clone(&state),
