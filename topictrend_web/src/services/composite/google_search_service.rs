@@ -2,7 +2,7 @@ use crate::models::AppState;
 use crate::services::composite::taxonomy_search_category_qids;
 use crate::services::core::{CoreServiceError, EngineService, GoogleSearchService, QidService};
 use chrono::NaiveDate;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 pub struct GoogleSearchTrendsService;
@@ -274,8 +274,10 @@ impl GoogleSearchTrendsService {
         let end = end_date.unwrap_or_else(|| chrono::Local::now().date_naive());
 
         let category_qids = taxonomy_search_category_qids(topic).await?;
+        let category_qid_set: HashSet<u32> = category_qids.iter().copied().collect();
         let mut all_search_by_date: HashMap<NaiveDate, (u64, u64, f64)> = HashMap::new();
         let mut all_articles: HashMap<u32, (u64, u64, u64, u32)> = HashMap::new();
+        let mut article_category_clicks: HashMap<u32, HashMap<u32, u64>> = HashMap::new();
         let category_titles =
             QidService::get_titles_by_qids(Arc::clone(&state), wiki, &category_qids).await?;
 
@@ -299,10 +301,7 @@ impl GoogleSearchTrendsService {
                 let top_articles = engine_lock
                     .get_top_articles_in_category(*qid, start, end, effective_depth, 50)
                     .map_err(|e| {
-                        CoreServiceError::EngineError(format!(
-                            "Failed to get top articles: {}",
-                            e
-                        ))
+                        CoreServiceError::EngineError(format!("Failed to get top articles: {}", e))
                     })?
                     .top_articles;
 
@@ -316,6 +315,11 @@ impl GoogleSearchTrendsService {
                         entry.2 = article.total_clicks;
                         entry.3 = *qid;
                     }
+
+                    let per_article_category_clicks = article_category_clicks
+                        .entry(article.article_qid)
+                        .or_default();
+                    *per_article_category_clicks.entry(*qid).or_insert(0) += article.total_clicks;
                 }
             }
         }
@@ -344,8 +348,9 @@ impl GoogleSearchTrendsService {
             .collect();
         search.sort_by_key(|item| item.date);
 
-        let mut article_totals: Vec<(u32, (u64, u64, u64, u32))> = all_articles.into_iter().collect();
-        article_totals.sort_by(|a, b| b.1 .0.cmp(&a.1 .0));
+        let mut article_totals: Vec<(u32, (u64, u64, u64, u32))> =
+            all_articles.into_iter().collect();
+        article_totals.sort_by(|a, b| b.1.0.cmp(&a.1.0));
         article_totals.truncate(10);
 
         let article_qids: Vec<u32> = article_totals.iter().map(|(qid, _)| *qid).collect();
@@ -355,32 +360,86 @@ impl GoogleSearchTrendsService {
             QidService::get_titles_by_qids(Arc::clone(&state), wiki, &article_qids).await?
         };
 
+        let direct_source_by_article: HashMap<u32, u32> = if article_qids.is_empty() {
+            HashMap::new()
+        } else {
+            let graph = EngineService::get_or_build_graph_engine(Arc::clone(&state), wiki).await?;
+            let graph_lock = graph.read().map_err(|e| {
+                CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
+            })?;
+
+            let mut direct_source = HashMap::new();
+            for article_qid in &article_qids {
+                let direct_categories = graph_lock
+                    .get_categories_for_article(*article_qid)
+                    .map_err(|e| {
+                        CoreServiceError::EngineError(format!(
+                            "Failed to get categories for article Q{}: {}",
+                            article_qid, e
+                        ))
+                    })?;
+
+                let mut best_match: Option<(u64, u32)> = None;
+                if let Some(per_category_clicks) = article_category_clicks.get(article_qid) {
+                    for category_qid in direct_categories {
+                        if !category_qid_set.contains(&category_qid) {
+                            continue;
+                        }
+
+                        let clicks = per_category_clicks.get(&category_qid).copied().unwrap_or(0);
+                        match best_match {
+                            None => best_match = Some((clicks, category_qid)),
+                            Some((best_clicks, best_category_qid)) => {
+                                if clicks > best_clicks
+                                    || (clicks == best_clicks && category_qid < best_category_qid)
+                                {
+                                    best_match = Some((clicks, category_qid));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if let Some((_, source_category_qid)) = best_match {
+                    direct_source.insert(*article_qid, source_category_qid);
+                }
+            }
+
+            direct_source
+        };
+
         let top_articles = article_totals
             .into_iter()
-            .map(|(qid, (clicks, impressions, _, source_category_qid))| {
-                let title = titles_map
-                    .get(&qid)
-                    .cloned()
-                    .unwrap_or_else(|| format!("Q{}", qid));
-                let source_category_title = category_titles
-                    .get(&source_category_qid)
-                    .cloned()
-                    .unwrap_or_else(|| format!("Q{}", source_category_qid));
-                let ctr = if impressions == 0 {
-                    0.0
-                } else {
-                    clicks as f64 / impressions as f64
-                };
-                ArticleGoogleSearchRank {
-                    qid,
-                    title,
-                    clicks,
-                    impressions,
-                    ctr,
-                    source_category_qid: Some(source_category_qid),
-                    source_category_title: Some(source_category_title),
-                }
-            })
+            .map(
+                |(qid, (clicks, impressions, _, fallback_source_category_qid))| {
+                    let source_category_qid = direct_source_by_article
+                        .get(&qid)
+                        .copied()
+                        .unwrap_or(fallback_source_category_qid);
+                    let title = titles_map
+                        .get(&qid)
+                        .cloned()
+                        .unwrap_or_else(|| format!("Q{}", qid));
+                    let source_category_title = category_titles
+                        .get(&source_category_qid)
+                        .cloned()
+                        .unwrap_or_else(|| format!("Q{}", source_category_qid));
+                    let ctr = if impressions == 0 {
+                        0.0
+                    } else {
+                        clicks as f64 / impressions as f64
+                    };
+                    ArticleGoogleSearchRank {
+                        qid,
+                        title,
+                        clicks,
+                        impressions,
+                        ctr,
+                        source_category_qid: Some(source_category_qid),
+                        source_category_title: Some(source_category_title),
+                    }
+                },
+            )
             .collect();
 
         Ok(CategoryGoogleSearchTrendResult {

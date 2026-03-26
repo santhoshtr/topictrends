@@ -1,8 +1,10 @@
 use crate::models::AppState;
 use crate::services::composite::taxonomy_search_category_qids;
-use crate::services::core::{CategoryService, CoreServiceError, PageViewService, QidService};
+use crate::services::core::{
+    CategoryService, CoreServiceError, EngineService, PageViewService, QidService,
+};
 use chrono::NaiveDate;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 pub struct PageViewsService;
@@ -144,10 +146,12 @@ impl PageViewsService {
         // Get titles for all categories
         let category_titles =
             QidService::get_titles_by_qids(Arc::clone(&state), wiki, &category_qids).await?;
+        let category_qid_set: HashSet<u32> = category_qids.iter().copied().collect();
 
         // Collect all view data and top articles from all categories
         let mut all_views_by_date: HashMap<NaiveDate, u64> = HashMap::new();
         let mut all_articles: HashMap<u32, (u64, u64, u32)> = HashMap::new();
+        let mut article_category_views: HashMap<u32, HashMap<u32, u64>> = HashMap::new();
 
         for category_qid in &category_qids {
             // Get views for this category
@@ -180,14 +184,21 @@ impl PageViewsService {
 
             // Aggregate article views
             for article in top_articles {
-                let entry = all_articles
-                    .entry(article.article_qid)
-                    .or_insert((0, 0, *category_qid));
+                let entry =
+                    all_articles
+                        .entry(article.article_qid)
+                        .or_insert((0, 0, *category_qid));
                 entry.0 += article.total_views;
                 if article.total_views > entry.1 {
                     entry.1 = article.total_views;
                     entry.2 = *category_qid;
                 }
+
+                let per_article_category_views = article_category_views
+                    .entry(article.article_qid)
+                    .or_default();
+                *per_article_category_views.entry(*category_qid).or_insert(0) +=
+                    article.total_views;
             }
         }
 
@@ -197,16 +208,68 @@ impl PageViewsService {
 
         // Get top 10 articles overall
         let mut article_vec: Vec<(u32, (u64, u64, u32))> = all_articles.into_iter().collect();
-        article_vec.sort_by(|a, b| b.1 .0.cmp(&a.1 .0));
+        article_vec.sort_by(|a, b| b.1.0.cmp(&a.1.0));
         article_vec.truncate(10);
 
         let article_qids: Vec<u32> = article_vec.iter().map(|(qid, _)| *qid).collect();
         let article_titles =
             QidService::get_titles_by_qids(Arc::clone(&state), wiki, &article_qids).await?;
 
+        let direct_source_by_article: HashMap<u32, u32> = if article_qids.is_empty() {
+            HashMap::new()
+        } else {
+            let graph = EngineService::get_or_build_graph_engine(Arc::clone(&state), wiki).await?;
+            let graph_lock = graph.read().map_err(|e| {
+                CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
+            })?;
+
+            let mut direct_source = HashMap::new();
+            for article_qid in &article_qids {
+                let direct_categories = graph_lock
+                    .get_categories_for_article(*article_qid)
+                    .map_err(|e| {
+                        CoreServiceError::EngineError(format!(
+                            "Failed to get categories for article Q{}: {}",
+                            article_qid, e
+                        ))
+                    })?;
+
+                let mut best_match: Option<(u64, u32)> = None;
+                if let Some(per_category_views) = article_category_views.get(article_qid) {
+                    for category_qid in direct_categories {
+                        if !category_qid_set.contains(&category_qid) {
+                            continue;
+                        }
+
+                        let views = per_category_views.get(&category_qid).copied().unwrap_or(0);
+                        match best_match {
+                            None => best_match = Some((views, category_qid)),
+                            Some((best_views, best_category_qid)) => {
+                                if views > best_views
+                                    || (views == best_views && category_qid < best_category_qid)
+                                {
+                                    best_match = Some((views, category_qid));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if let Some((_, source_category_qid)) = best_match {
+                    direct_source.insert(*article_qid, source_category_qid);
+                }
+            }
+
+            direct_source
+        };
+
         let top_articles: Vec<ArticleRank> = article_vec
             .into_iter()
-            .map(|(qid, (total_views, _, source_category_qid))| {
+            .map(|(qid, (total_views, _, fallback_source_category_qid))| {
+                let source_category_qid = direct_source_by_article
+                    .get(&qid)
+                    .copied()
+                    .unwrap_or(fallback_source_category_qid);
                 let title = article_titles
                     .get(&qid)
                     .cloned()
