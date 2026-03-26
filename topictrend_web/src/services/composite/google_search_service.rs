@@ -34,6 +34,8 @@ pub struct ArticleGoogleSearchRank {
     pub clicks: u64,
     pub impressions: u64,
     pub ctr: f64,
+    pub source_category_qid: Option<u32>,
+    pub source_category_title: Option<String>,
 }
 
 pub struct ArticleSearchRankResult {
@@ -185,6 +187,8 @@ impl GoogleSearchTrendsService {
                     clicks: article.total_clicks,
                     impressions: article.total_impressions,
                     ctr: article.ctr,
+                    source_category_qid: Some(category_qid),
+                    source_category_title: Some(category.to_string()),
                 }
             })
             .collect();
@@ -271,7 +275,9 @@ impl GoogleSearchTrendsService {
 
         let category_qids = taxonomy_search_category_qids(topic).await?;
         let mut all_search_by_date: HashMap<NaiveDate, (u64, u64, f64)> = HashMap::new();
-        let mut all_articles: HashMap<u32, (u64, u64)> = HashMap::new();
+        let mut all_articles: HashMap<u32, (u64, u64, u64, u32)> = HashMap::new();
+        let category_titles =
+            QidService::get_titles_by_qids(Arc::clone(&state), wiki, &category_qids).await?;
 
         {
             let engine =
@@ -301,9 +307,15 @@ impl GoogleSearchTrendsService {
                     .top_articles;
 
                 for article in top_articles {
-                    let entry = all_articles.entry(article.article_qid).or_insert((0, 0));
+                    let entry = all_articles
+                        .entry(article.article_qid)
+                        .or_insert((0, 0, 0, *qid));
                     entry.0 += article.total_clicks;
                     entry.1 += article.total_impressions;
+                    if article.total_clicks > entry.2 {
+                        entry.2 = article.total_clicks;
+                        entry.3 = *qid;
+                    }
                 }
             }
         }
@@ -332,8 +344,8 @@ impl GoogleSearchTrendsService {
             .collect();
         search.sort_by_key(|item| item.date);
 
-        let mut article_totals: Vec<(u32, (u64, u64))> = all_articles.into_iter().collect();
-        article_totals.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+        let mut article_totals: Vec<(u32, (u64, u64, u64, u32))> = all_articles.into_iter().collect();
+        article_totals.sort_by(|a, b| b.1 .0.cmp(&a.1 .0));
         article_totals.truncate(10);
 
         let article_qids: Vec<u32> = article_totals.iter().map(|(qid, _)| *qid).collect();
@@ -345,11 +357,15 @@ impl GoogleSearchTrendsService {
 
         let top_articles = article_totals
             .into_iter()
-            .map(|(qid, (clicks, impressions))| {
+            .map(|(qid, (clicks, impressions, _, source_category_qid))| {
                 let title = titles_map
                     .get(&qid)
                     .cloned()
                     .unwrap_or_else(|| format!("Q{}", qid));
+                let source_category_title = category_titles
+                    .get(&source_category_qid)
+                    .cloned()
+                    .unwrap_or_else(|| format!("Q{}", source_category_qid));
                 let ctr = if impressions == 0 {
                     0.0
                 } else {
@@ -361,6 +377,8 @@ impl GoogleSearchTrendsService {
                     clicks,
                     impressions,
                     ctr,
+                    source_category_qid: Some(source_category_qid),
+                    source_category_title: Some(source_category_title),
                 }
             })
             .collect();

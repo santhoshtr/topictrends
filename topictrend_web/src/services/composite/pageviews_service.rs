@@ -35,6 +35,8 @@ pub struct ArticleRank {
     pub qid: u32,
     pub title: String,
     pub views: u32,
+    pub source_category_qid: Option<u32>,
+    pub source_category_title: Option<String>,
 }
 
 pub struct CategoryRank {
@@ -112,6 +114,8 @@ impl PageViewsService {
                     qid: art.article_qid,
                     title: article_title,
                     views: art.total_views as u32,
+                    source_category_qid: Some(category_qid),
+                    source_category_title: Some(category.to_string()),
                 }
             })
             .collect();
@@ -143,7 +147,7 @@ impl PageViewsService {
 
         // Collect all view data and top articles from all categories
         let mut all_views_by_date: HashMap<NaiveDate, u64> = HashMap::new();
-        let mut all_articles: HashMap<u32, u64> = HashMap::new();
+        let mut all_articles: HashMap<u32, (u64, u64, u32)> = HashMap::new();
 
         for category_qid in &category_qids {
             // Get views for this category
@@ -176,7 +180,14 @@ impl PageViewsService {
 
             // Aggregate article views
             for article in top_articles {
-                *all_articles.entry(article.article_qid).or_insert(0) += article.total_views;
+                let entry = all_articles
+                    .entry(article.article_qid)
+                    .or_insert((0, 0, *category_qid));
+                entry.0 += article.total_views;
+                if article.total_views > entry.1 {
+                    entry.1 = article.total_views;
+                    entry.2 = *category_qid;
+                }
             }
         }
 
@@ -185,8 +196,8 @@ impl PageViewsService {
         cumulative_views.sort_by_key(|(date, _)| *date);
 
         // Get top 10 articles overall
-        let mut article_vec: Vec<(u32, u64)> = all_articles.into_iter().collect();
-        article_vec.sort_by(|a, b| b.1.cmp(&a.1));
+        let mut article_vec: Vec<(u32, (u64, u64, u32))> = all_articles.into_iter().collect();
+        article_vec.sort_by(|a, b| b.1 .0.cmp(&a.1 .0));
         article_vec.truncate(10);
 
         let article_qids: Vec<u32> = article_vec.iter().map(|(qid, _)| *qid).collect();
@@ -195,16 +206,22 @@ impl PageViewsService {
 
         let top_articles: Vec<ArticleRank> = article_vec
             .into_iter()
-            .map(|(qid, total_views)| {
+            .map(|(qid, (total_views, _, source_category_qid))| {
                 let title = article_titles
                     .get(&qid)
                     .cloned()
                     .unwrap_or_else(|| format!("Q{}", qid));
+                let source_category_title = category_titles
+                    .get(&source_category_qid)
+                    .cloned()
+                    .unwrap_or_else(|| format!("Q{}", source_category_qid));
 
                 ArticleRank {
                     qid,
                     title,
                     views: total_views as u32,
+                    source_category_qid: Some(source_category_qid),
+                    source_category_title: Some(source_category_title),
                 }
             })
             .collect();
@@ -335,6 +352,8 @@ impl PageViewsService {
                             qid: art.article_qid,
                             title: article_title,
                             views: art.total_views as u32,
+                            source_category_qid: Some(cat.category_qid),
+                            source_category_title: Some(category_title.clone()),
                         }
                     })
                     .collect();

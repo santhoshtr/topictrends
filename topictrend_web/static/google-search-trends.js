@@ -1,5 +1,6 @@
 import { initializeChart } from "./utils/chart-utils.js";
 import { hideProgress, showProgress } from "./utils/progress-bar.js";
+import { renderGoogleSearchTopArticles } from "./utils/top-articles-table.js";
 import { showMessage } from "./utils/ui-utils.js";
 import { populateWikiDropdown } from "./utils/wiki-utils.js";
 
@@ -113,68 +114,15 @@ function renderCtrSummary(title, search) {
 
 function renderTopArticles(wiki, topArticles) {
 	const container = document.getElementById("top-articles");
-	container.innerHTML = "";
-
-	if (!topArticles || topArticles.length === 0) {
-		return;
-	}
-
-	const heading = document.createElement("h3");
-	heading.textContent = "Top Articles in Category";
-	container.appendChild(heading);
-
-	const table = document.createElement("table");
-	table.className = "gs-top-articles-table";
-
-	const thead = document.createElement("thead");
-	const headerRow = document.createElement("tr");
-	for (const label of ["Article", "Clicks", "Impressions", "CTR", "Plot"]) {
-		const th = document.createElement("th");
-		th.textContent = label;
-		headerRow.appendChild(th);
-	}
-	thead.appendChild(headerRow);
-	table.appendChild(thead);
-
-	const tbody = document.createElement("tbody");
-	for (const article of topArticles) {
-		const row = document.createElement("tr");
-
-		const articleCell = document.createElement("td");
-		const articleLink = document.createElement("a");
-		articleLink.className = "article-title";
-		articleLink.textContent = article.title.replaceAll("_", " ");
-		articleLink.href = `https://${wiki.replace("wiki", "")}.wikipedia.org/wiki/${encodeURIComponent(article.title)}`;
-		articleLink.target = "_blank";
-		articleLink.rel = "noopener noreferrer";
-		articleCell.appendChild(articleLink);
-
-		const clicksCell = document.createElement("td");
-		clicksCell.textContent = article.clicks.toLocaleString();
-
-		const impressionsCell = document.createElement("td");
-		impressionsCell.textContent = article.impressions.toLocaleString();
-
-		const ctrCell = document.createElement("td");
-		ctrCell.textContent = `${(article.ctr * 100).toFixed(2)}%`;
-
-		const plotCell = document.createElement("td");
-		const plotLink = document.createElement("a");
-		plotLink.href = `/googlesearch/trends?type=article&wiki=${wiki}&article=${encodeURIComponent(article.title)}`;
-		plotLink.innerHTML =
-			'<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor" aria-hidden="true"><path d="m140-220-60-60 300-300 160 160 284-320 56 56-340 384-160-160-240 240Z"/></svg>';
-		plotLink.title = "Plot article trend";
-		plotCell.appendChild(plotLink);
-
-		row.appendChild(articleCell);
-		row.appendChild(clicksCell);
-		row.appendChild(impressionsCell);
-		row.appendChild(ctrCell);
-		row.appendChild(plotCell);
-		tbody.appendChild(row);
-	}
-	table.appendChild(tbody);
-	container.appendChild(table);
+	const startDate = document.getElementById("start_date").value;
+	const endDate = document.getElementById("end_date").value;
+	renderGoogleSearchTopArticles(
+		container,
+		wiki,
+		topArticles,
+		startDate,
+		endDate,
+	);
 }
 
 async function onSubmit(event) {

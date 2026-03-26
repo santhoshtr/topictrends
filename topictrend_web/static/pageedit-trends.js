@@ -1,6 +1,7 @@
 import { autocomp } from "./autocomp.js";
 import { initializeChart, updateChart } from "./utils/chart-utils.js";
 import { hideProgress, showProgress } from "./utils/progress-bar.js";
+import { renderPageeditsTopArticles } from "./utils/top-articles-table.js";
 import { showMessage } from "./utils/ui-utils.js";
 import { populateWikiDropdown } from "./utils/wiki-utils.js";
 
@@ -188,26 +189,9 @@ async function renderSubCategories(wiki, category, depth = 4) {
 
 function renderTopArticles(wiki, topArticles) {
 	const container = document.getElementById("top-articles");
-
-	container.innerHTML = "";
-
-	if (!topArticles || topArticles.length === 0) {
-		return;
-	}
-
-	const subheading = document.createElement("h3");
-	subheading.textContent = "Top Articles in Category";
-	container.appendChild(subheading);
-
-	topArticles.forEach((article) => {
-		const articleEl = document.createElement("wiki-article-pageviews");
-		articleEl.setAttribute("wiki", wiki);
-		articleEl.setAttribute("title", article.title);
-		articleEl.setAttribute("views", article.edits.toString());
-		articleEl.setAttribute("qid", article.qid.toString());
-		articleEl.setAttribute("categories", "[]");
-		container.appendChild(articleEl);
-	});
+	const startDate = document.getElementById("start_date").value;
+	const endDate = document.getElementById("end_date").value;
+	renderPageeditsTopArticles(container, wiki, topArticles, startDate, endDate);
 }
 
 document.addEventListener("DOMContentLoaded", () => {

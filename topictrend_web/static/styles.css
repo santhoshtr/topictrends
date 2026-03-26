@@ -97,16 +97,110 @@
 	line-height: 1.2;
 }
 
-.gs-top-articles-table {
+.tt-top-articles-table {
 	width: 100%;
 	border-collapse: collapse;
 	margin-top: var(--spacing-sm);
+	background-color: var(--background-color-base);
+	border: 1px solid var(--border-color-base);
 }
 
-.gs-top-articles-table th,
-.gs-top-articles-table td {
+.tt-top-articles-table th,
+.tt-top-articles-table td {
 	padding: var(--spacing-50) var(--spacing-75);
 	border-bottom: 1px solid var(--border-color-base);
 	text-align: left;
 	vertical-align: middle;
+}
+
+.tt-top-articles-table th {
+	font-weight: var(--font-weight-bold);
+	background-color: var(--background-color-neutral-subtle);
+}
+
+.tt-article-cell {
+	display: grid;
+	grid-template-columns: 72px 1fr;
+	gap: var(--spacing-50);
+	align-items: center;
+}
+
+.tt-article-image-link {
+	display: block;
+	line-height: 0;
+}
+
+.tt-article-image {
+	width: 72px;
+	height: 72px;
+	object-fit: cover;
+	object-position: center 33%;
+	border-radius: var(--border-radius-base);
+	background-color: var(--background-color-neutral-subtle);
+}
+
+.tt-article-details {
+	display: grid;
+	gap: var(--spacing-25);
+	min-width: 0;
+}
+
+.tt-article-title {
+	color: var(--color-progressive);
+	text-decoration: none;
+	font-weight: var(--font-weight-semi-bold);
+
+	&:hover {
+		text-decoration: underline;
+	}
+}
+
+.tt-article-meta {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-50);
+	flex-wrap: wrap;
+}
+
+.tt-category-chip {
+	display: inline-flex;
+	align-items: center;
+	padding: var(--spacing-25) var(--spacing-50);
+	border-radius: var(--border-radius-base);
+	background-color: var(--background-color-neutral-subtle);
+	color: var(--color-base);
+	text-decoration: none;
+	font-size: var(--font-size-small);
+
+	&:hover {
+		background-color: var(--background-color-interactive-subtle);
+	}
+}
+
+.tt-plot-link {
+	display: inline-flex;
+	align-items: center;
+	color: var(--color-base);
+	text-decoration: none;
+}
+
+.tt-number-cell {
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 768px) {
+	.tt-top-articles-table th,
+	.tt-top-articles-table td {
+		padding: var(--spacing-50);
+	}
+
+	.tt-article-cell {
+		grid-template-columns: 56px 1fr;
+	}
+
+	.tt-article-image {
+		width: 56px;
+		height: 56px;
+	}
 }

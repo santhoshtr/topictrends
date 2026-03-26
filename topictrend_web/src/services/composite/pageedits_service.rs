@@ -24,6 +24,8 @@ pub struct ArticleEditRank {
     pub qid: u32,
     pub title: String,
     pub edits: u64,
+    pub source_category_qid: Option<u32>,
+    pub source_category_title: Option<String>,
 }
 
 pub struct CategoryEditRank {
@@ -86,6 +88,8 @@ impl PageEditsService {
                             qid: art.article_qid,
                             title: art_title,
                             edits: art.total_edits,
+                            source_category_qid: Some(cat.category_qid),
+                            source_category_title: Some(title.clone()),
                         }
                     })
                     .collect();
@@ -163,6 +167,8 @@ impl PageEditsService {
                     qid: art.article_qid,
                     title: article_title,
                     edits: art.total_edits,
+                    source_category_qid: Some(category_qid),
+                    source_category_title: Some(category.to_string()),
                 }
             })
             .collect();
@@ -229,7 +235,9 @@ impl PageEditsService {
 
         let category_qids = taxonomy_search_category_qids(topic).await?;
         let mut all_edits_by_date: HashMap<NaiveDate, u64> = HashMap::new();
-        let mut all_articles: HashMap<u32, u64> = HashMap::new();
+        let mut all_articles: HashMap<u32, (u64, u64, u32)> = HashMap::new();
+        let category_titles =
+            QidService::get_titles_by_qids(Arc::clone(&state), wiki, &category_qids).await?;
 
         {
             let engine =
@@ -256,7 +264,14 @@ impl PageEditsService {
                     .top_articles;
 
                 for article in top_articles {
-                    *all_articles.entry(article.article_qid).or_insert(0) += article.total_edits;
+                    let entry = all_articles
+                        .entry(article.article_qid)
+                        .or_insert((0, 0, *qid));
+                    entry.0 += article.total_edits;
+                    if article.total_edits > entry.1 {
+                        entry.1 = article.total_edits;
+                        entry.2 = *qid;
+                    }
                 }
             }
         }
@@ -264,8 +279,8 @@ impl PageEditsService {
         let mut edits: Vec<(NaiveDate, u64)> = all_edits_by_date.into_iter().collect();
         edits.sort_by_key(|(date, _)| *date);
 
-        let mut article_totals: Vec<(u32, u64)> = all_articles.into_iter().collect();
-        article_totals.sort_by(|a, b| b.1.cmp(&a.1));
+        let mut article_totals: Vec<(u32, (u64, u64, u32))> = all_articles.into_iter().collect();
+        article_totals.sort_by(|a, b| b.1 .0.cmp(&a.1 .0));
         article_totals.truncate(10);
 
         let article_qids: Vec<u32> = article_totals.iter().map(|(qid, _)| *qid).collect();
@@ -277,12 +292,22 @@ impl PageEditsService {
 
         let top_articles: Vec<ArticleEditRank> = article_totals
             .into_iter()
-            .map(|(qid, edits)| {
+            .map(|(qid, (edits, _, source_category_qid))| {
                 let title = titles_map
                     .get(&qid)
                     .cloned()
                     .unwrap_or_else(|| format!("Q{}", qid));
-                ArticleEditRank { qid, title, edits }
+                let source_category_title = category_titles
+                    .get(&source_category_qid)
+                    .cloned()
+                    .unwrap_or_else(|| format!("Q{}", source_category_qid));
+                ArticleEditRank {
+                    qid,
+                    title,
+                    edits,
+                    source_category_qid: Some(source_category_qid),
+                    source_category_title: Some(source_category_title),
+                }
             })
             .collect();
 

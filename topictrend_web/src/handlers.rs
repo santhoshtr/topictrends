@@ -130,6 +130,8 @@ pub async fn get_category_trend_handler(
             qid: art.qid,
             title: art.title,
             views: art.views,
+            source_category_qid: art.source_category_qid,
+            source_category_title: art.source_category_title,
         })
         .collect();
 
@@ -196,6 +198,8 @@ pub async fn get_category_edit_trend_handler(
             qid: art.qid,
             title: art.title,
             edits: art.edits,
+            source_category_qid: art.source_category_qid,
+            source_category_title: art.source_category_title,
         })
         .collect();
 
@@ -270,6 +274,8 @@ pub async fn get_category_google_search_trend_handler(
             clicks: article.clicks,
             impressions: article.impressions,
             ctr: article.ctr,
+            source_category_qid: article.source_category_qid,
+            source_category_title: article.source_category_title,
         })
         .collect();
 
@@ -341,6 +347,8 @@ pub async fn get_topic_pageview_trend_handler(
             qid: art.qid,
             title: art.title,
             views: art.views,
+            source_category_qid: art.source_category_qid,
+            source_category_title: art.source_category_title,
         })
         .collect();
 
@@ -379,6 +387,8 @@ pub async fn get_topic_edit_trend_handler(
             qid: art.qid,
             title: art.title,
             edits: art.edits,
+            source_category_qid: art.source_category_qid,
+            source_category_title: art.source_category_title,
         })
         .collect();
 
@@ -425,6 +435,8 @@ pub async fn get_topic_google_search_trend_handler(
             clicks: article.clicks,
             impressions: article.impressions,
             ctr: article.ctr,
+            source_category_qid: article.source_category_qid,
+            source_category_title: article.source_category_title,
         })
         .collect();
 
@@ -475,6 +487,8 @@ pub async fn get_pageviews_top_categories_handler(
                     qid: art.qid,
                     title: art.title,
                     views: art.views,
+                    source_category_qid: art.source_category_qid,
+                    source_category_title: art.source_category_title,
                 })
                 .collect();
 
@@ -974,6 +988,8 @@ pub async fn get_categories_trend_by_search_handler(
             qid: art.qid,
             title: art.title,
             views: art.views,
+            source_category_qid: art.source_category_qid,
+            source_category_title: art.source_category_title,
         })
         .collect();
 
