@@ -40,8 +40,22 @@ pub fn app_router(state: Arc<AppState>) -> Router {
             get(|| async { render_template("pageview-delta.html", PageContext::pageview_delta()) }),
         )
         .route(
-            "/pageviews/top",
-            get(|| async { render_template("pageviews-top.html", PageContext::pageviews_top()) }),
+            "/pageviews/top_articles",
+            get(|| async {
+                render_template(
+                    "pageviews-top-articles.html",
+                    PageContext::pageviews_top_articles(),
+                )
+            }),
+        )
+        .route(
+            "/pageviews/top_categories",
+            get(|| async {
+                render_template(
+                    "pageviews-top-categories.html",
+                    PageContext::pageviews_top_categories(),
+                )
+            }),
         )
         .route(
             "/pageedits/trends",
@@ -143,6 +157,10 @@ pub fn app_router(state: Arc<AppState>) -> Router {
         .route(
             "/api/pageviews/top_categories",
             get(handlers::get_pageviews_top_categories_handler),
+        )
+        .route(
+            "/api/pageviews/top_articles",
+            get(handlers::get_pageviews_top_articles_handler),
         )
         .route(
             "/api/pageedits/top_categories",

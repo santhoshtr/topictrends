@@ -37,7 +37,8 @@ pub struct PageContext {
     pub is_content_gap_active: bool,
     pub is_trends_pageviews: bool,
     pub is_delta_pageviews: bool,
-    pub is_top_pageviews: bool,
+    pub is_top_articles_pageviews: bool,
+    pub is_top_categories_pageviews: bool,
     pub is_trends_pageedits: bool,
     pub is_delta_pageedits: bool,
     pub is_top_pageedits: bool,
@@ -58,7 +59,8 @@ impl PageContext {
             is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
-            is_top_pageviews: false,
+            is_top_articles_pageviews: false,
+            is_top_categories_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
             is_top_pageedits: false,
@@ -79,7 +81,8 @@ impl PageContext {
             is_content_gap_active: false,
             is_trends_pageviews: true,
             is_delta_pageviews: false,
-            is_top_pageviews: false,
+            is_top_articles_pageviews: false,
+            is_top_categories_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
             is_top_pageedits: false,
@@ -100,7 +103,8 @@ impl PageContext {
             is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: true,
-            is_top_pageviews: false,
+            is_top_articles_pageviews: false,
+            is_top_categories_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
             is_top_pageedits: false,
@@ -111,9 +115,9 @@ impl PageContext {
         }
     }
 
-    pub fn pageviews_top() -> Self {
+    pub fn pageviews_top_articles() -> Self {
         Self {
-            page_title: "Topic Trends - Most Viewed Topics".to_string(),
+            page_title: "Topic Trends - Most Viewed Articles".to_string(),
             is_pageviews_active: true,
             is_pageedits_active: false,
             is_google_search_active: false,
@@ -121,7 +125,30 @@ impl PageContext {
             is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
-            is_top_pageviews: true,
+            is_top_articles_pageviews: true,
+            is_top_categories_pageviews: false,
+            is_trends_pageedits: false,
+            is_delta_pageedits: false,
+            is_top_pageedits: false,
+            is_trends_google_search: false,
+            is_delta_google_search: false,
+            is_top_google_search: false,
+            form_id: Some("top-form".to_string()),
+        }
+    }
+
+    pub fn pageviews_top_categories() -> Self {
+        Self {
+            page_title: "Topic Trends - Most Viewed Categories".to_string(),
+            is_pageviews_active: true,
+            is_pageedits_active: false,
+            is_google_search_active: false,
+            is_search_active: false,
+            is_content_gap_active: false,
+            is_trends_pageviews: false,
+            is_delta_pageviews: false,
+            is_top_articles_pageviews: false,
+            is_top_categories_pageviews: true,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
             is_top_pageedits: false,
@@ -142,7 +169,8 @@ impl PageContext {
             is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
-            is_top_pageviews: false,
+            is_top_articles_pageviews: false,
+            is_top_categories_pageviews: false,
             is_trends_pageedits: true,
             is_delta_pageedits: false,
             is_top_pageedits: false,
@@ -163,7 +191,8 @@ impl PageContext {
             is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
-            is_top_pageviews: false,
+            is_top_articles_pageviews: false,
+            is_top_categories_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: true,
             is_top_pageedits: false,
@@ -184,7 +213,8 @@ impl PageContext {
             is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
-            is_top_pageviews: false,
+            is_top_articles_pageviews: false,
+            is_top_categories_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
             is_top_pageedits: true,
@@ -205,7 +235,8 @@ impl PageContext {
             is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
-            is_top_pageviews: false,
+            is_top_articles_pageviews: false,
+            is_top_categories_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
             is_top_pageedits: false,
@@ -226,7 +257,8 @@ impl PageContext {
             is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
-            is_top_pageviews: false,
+            is_top_articles_pageviews: false,
+            is_top_categories_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
             is_top_pageedits: false,
@@ -247,7 +279,8 @@ impl PageContext {
             is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
-            is_top_pageviews: false,
+            is_top_articles_pageviews: false,
+            is_top_categories_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
             is_top_pageedits: false,
@@ -268,7 +301,8 @@ impl PageContext {
             is_content_gap_active: false,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
-            is_top_pageviews: false,
+            is_top_articles_pageviews: false,
+            is_top_categories_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
             is_top_pageedits: false,
@@ -289,7 +323,8 @@ impl PageContext {
             is_content_gap_active: true,
             is_trends_pageviews: false,
             is_delta_pageviews: false,
-            is_top_pageviews: false,
+            is_top_articles_pageviews: false,
+            is_top_categories_pageviews: false,
             is_trends_pageedits: false,
             is_delta_pageedits: false,
             is_top_pageedits: false,
@@ -317,7 +352,14 @@ pub fn render_template(
     context.insert("is_content_gap_active", &page_context.is_content_gap_active);
     context.insert("is_trends_pageviews", &page_context.is_trends_pageviews);
     context.insert("is_delta_pageviews", &page_context.is_delta_pageviews);
-    context.insert("is_top_pageviews", &page_context.is_top_pageviews);
+    context.insert(
+        "is_top_articles_pageviews",
+        &page_context.is_top_articles_pageviews,
+    );
+    context.insert(
+        "is_top_categories_pageviews",
+        &page_context.is_top_categories_pageviews,
+    );
     context.insert("is_trends_pageedits", &page_context.is_trends_pageedits);
     context.insert("is_delta_pageedits", &page_context.is_delta_pageedits);
     context.insert("is_top_pageedits", &page_context.is_top_pageedits);

@@ -1,0 +1,105 @@
+@import url("common.css");
+
+@layer components {
+	.main {
+		display: flex;
+		flex-direction: column;
+		width: 100%;
+		padding: 1em;
+	}
+
+	.results {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-75);
+		width: 100%;
+	}
+
+	.category-accordion {
+		border: var(--border-width-base) solid var(--border-color-base);
+		border-radius: var(--border-radius-base);
+		background-color: var(--background-color-base);
+		overflow: hidden;
+	}
+
+	.category-summary {
+		list-style: none;
+		cursor: pointer;
+		display: grid;
+		grid-template-columns: 1fr auto auto;
+		gap: var(--spacing-100);
+		align-items: center;
+		padding: var(--spacing-75) var(--spacing-100);
+		background-color: var(--background-color-interactive-subtle);
+
+		&::-webkit-details-marker {
+			display: none;
+		}
+	}
+
+	.category-name {
+		font-weight: var(--font-weight-semi-bold);
+	}
+
+	.category-views {
+		font-variant-numeric: tabular-nums;
+		font-weight: var(--font-weight-semi-bold);
+	}
+
+	.plot-button,
+	.article-plot-link,
+	.article-wiki-link {
+		color: var(--color-progressive);
+		text-decoration: none;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: var(--spacing-25);
+	}
+
+	.article-list {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-50);
+		padding: var(--spacing-75) var(--spacing-100);
+	}
+
+	.article-row {
+		display: grid;
+		grid-template-columns: 1fr auto auto auto;
+		gap: var(--spacing-75);
+		align-items: center;
+		padding: var(--spacing-50) 0;
+		border-bottom: var(--border-subtle);
+	}
+
+	.article-row:last-child {
+		border-bottom: 0;
+	}
+
+	.article-title {
+		color: var(--color-progressive);
+		text-decoration: none;
+	}
+
+	.article-views {
+		font-variant-numeric: tabular-nums;
+		color: var(--color-subtle);
+	}
+
+	.empty-state {
+		padding: 1em;
+		color: var(--color-subtle);
+	}
+
+	@media (max-width: 800px) {
+		.article-row {
+			grid-template-columns: 1fr auto;
+		}
+
+		.article-plot-link,
+		.article-wiki-link {
+			justify-self: start;
+		}
+	}
+}

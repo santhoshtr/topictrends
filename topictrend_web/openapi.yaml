@@ -311,6 +311,29 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/pageviews/top_articles:
+    get:
+      operationId: getPageviewsTopArticles
+      tags: [Pageviews]
+      summary: Top articles by pageviews
+      description: Returns globally top viewed articles for the period.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/StartDateOptional"
+        - $ref: "#/components/parameters/EndDateOptional"
+        - $ref: "#/components/parameters/TopNOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageViewTopArticlesResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/pageedits/top_categories:
     get:
       operationId: getPageeditsTopCategories
@@ -1120,6 +1143,45 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TopCategory"
+
+    TopArticleCategory:
+      type: object
+      required: [qid, title]
+      properties:
+        qid:
+          type: integer
+          format: int32
+          minimum: 0
+        title:
+          type: string
+
+    PageViewTopArticle:
+      type: object
+      required: [qid, title, views, categories]
+      properties:
+        qid:
+          type: integer
+          format: int32
+          minimum: 0
+        title:
+          type: string
+        views:
+          type: integer
+          format: int32
+          minimum: 0
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopArticleCategory"
+
+    PageViewTopArticlesResponse:
+      type: object
+      required: [articles]
+      properties:
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/PageViewTopArticle"
 
     TopArticleByEdits:
       type: object

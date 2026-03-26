@@ -305,6 +305,25 @@ pub struct CategoryRankResponse {
 }
 
 #[derive(Serialize)]
+pub struct TopArticleCategory {
+    pub qid: u32,
+    pub title: String,
+}
+
+#[derive(Serialize)]
+pub struct PageViewTopArticle {
+    pub qid: u32,
+    pub title: String,
+    pub views: u32,
+    pub categories: Vec<TopArticleCategory>,
+}
+
+#[derive(Serialize)]
+pub struct PageViewTopArticlesResponse {
+    pub articles: Vec<PageViewTopArticle>,
+}
+
+#[derive(Serialize)]
 pub struct TopArticleByEdits {
     pub qid: u32,
     pub title: String,

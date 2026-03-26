@@ -21,7 +21,8 @@ use crate::{
         ListArticlesInCategoryParams, PageEditArticleDeltaParams, PageEditArticleDeltaResponse,
         PageEditCategoryDeltaParams, PageEditCategoryDeltaResponse, PageViewArticleDeltaParams,
         PageViewArticleDeltaResponse, PageViewCategoryDeltaParams, PageViewCategoryDeltaResponse,
-        SubCategoryParams, TopArticle, TopArticleByEdits, TopArticleBySearch, TopArticleEdits,
+        PageViewTopArticle, PageViewTopArticlesResponse, SubCategoryParams, TopArticle,
+        TopArticleByEdits, TopArticleBySearch, TopArticleCategory, TopArticleEdits,
         TopArticleGoogleSearch, TopCategoriesParams, TopCategory, TopCategoryByEdits,
         TopCategoryBySearch, TopicTrendParams,
     },
@@ -510,6 +511,42 @@ pub async fn get_pageviews_top_categories_handler(
 
     let response = CategoryRankResponse {
         categories: top_categories_with_titles,
+    };
+
+    Ok(Json(response))
+}
+
+#[debug_handler]
+pub async fn get_pageviews_top_articles_handler(
+    Query(params): Query<TopCategoriesParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<PageViewTopArticlesResponse>, ApiError> {
+    let articles = PageViewsService::get_top_articles_global(
+        state,
+        &params.wiki,
+        params.start_date,
+        params.end_date,
+        params.top_n,
+    )
+    .await?;
+
+    let response = PageViewTopArticlesResponse {
+        articles: articles
+            .into_iter()
+            .map(|article| PageViewTopArticle {
+                qid: article.qid,
+                title: article.title,
+                views: article.views,
+                categories: article
+                    .categories
+                    .into_iter()
+                    .map(|category| TopArticleCategory {
+                        qid: category.qid,
+                        title: category.title,
+                    })
+                    .collect(),
+            })
+            .collect(),
     };
 
     Ok(Json(response))

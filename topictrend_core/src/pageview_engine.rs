@@ -510,6 +510,46 @@ impl PageViewEngine {
         Ok(results)
     }
 
+    pub fn get_top_articles(
+        &self,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+        top_n: usize,
+    ) -> Result<Vec<ArticleRank>, Box<dyn Error>> {
+        let num_articles = self.wikigraph.art_dense_to_original.len();
+
+        let mut article_views = vec![0u64; num_articles];
+
+        self.load_history_for_date_range(start_date, end_date)?;
+
+        let cache = self.daily_views.read().expect("daily_views lock poisoned");
+        let mut curr = start_date;
+        while curr <= end_date {
+            if let Some(day_vec) = cache.get(&curr) {
+                for (article_dense_id, &views) in day_vec.iter().enumerate() {
+                    article_views[article_dense_id] += views as u64;
+                }
+            }
+            curr = curr.succ_opt().unwrap();
+        }
+        drop(cache);
+
+        let mut ranked: Vec<(usize, u64)> = article_views.into_iter().enumerate().collect();
+        ranked.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+
+        let results = ranked
+            .into_iter()
+            .take(top_n)
+            .filter(|(_, total_views)| *total_views > 0)
+            .map(|(article_dense_id, total_views)| ArticleRank {
+                article_qid: self.wikigraph.art_dense_to_original[article_dense_id],
+                total_views,
+            })
+            .collect();
+
+        Ok(results)
+    }
+
     pub fn get_top_articles_in_category(
         &self,
         category_qid: u32,
