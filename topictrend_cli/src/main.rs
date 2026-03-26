@@ -1,4 +1,5 @@
 use clap::{Arg, ArgMatches, Command};
+use std::collections::HashMap;
 use std::{error::Error, time::Instant};
 use topictrend::{
     graphbuilder::GraphBuilder, pageedits_engine::PageEditsEngine, pageview_engine::PageViewEngine,
@@ -219,7 +220,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             let graph_builder = GraphBuilder::new(wiki_id);
             let graph = graph_builder.build().expect("Error while building graph");
 
-            handle_get_article_categories(&graph, sub_m)
+            handle_get_article_categories(&graph, sub_m, wiki_id)
         }
         Some(("category-trend", sub_m)) => handle_category_trend(wiki_id, sub_m),
         Some(("article-edits", sub_m)) => handle_article_edits(wiki_id, sub_m),
@@ -318,8 +319,25 @@ fn handle_get_parent_categories(graph: &wikigraph::WikiGraph, matches: &ArgMatch
     }
 }
 
-fn handle_get_article_categories(graph: &wikigraph::WikiGraph, matches: &ArgMatches) {
-    let article_qid: &u32 = matches.get_one::<u32>("article-id").unwrap();
+fn load_qid_title_map(path: &str) -> Result<HashMap<u32, String>, Box<dyn Error>> {
+    use polars::prelude::{LazyFrame, PlRefPath};
+    let ref_path = PlRefPath::try_from_path(std::path::Path::new(path))?;
+    let df = LazyFrame::scan_parquet(ref_path, Default::default())?.collect()?;
+    let qids = df.column("qid")?.u32()?;
+    let titles = df.column("page_title")?.str()?;
+    Ok(qids
+        .into_iter()
+        .zip(titles.into_iter())
+        .filter_map(|(q, t)| Some((q?, t?.to_string())))
+        .collect())
+}
+
+fn handle_get_article_categories(
+    graph: &wikigraph::WikiGraph,
+    matches: &ArgMatches,
+    wiki_id: &str,
+) {
+    let article_qid: &u32 = matches.get_one::<u32>("article-qid").unwrap();
 
     let categories = match graph.get_categories_for_article(*article_qid) {
         Ok(categories) => categories,
@@ -328,14 +346,27 @@ fn handle_get_article_categories(graph: &wikigraph::WikiGraph, matches: &ArgMatc
             std::process::exit(1);
         }
     };
+
+    let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "data".to_string());
+    let art_titles = load_qid_title_map(&format!("{}/{}/articles.parquet", data_dir, wiki_id))
+        .unwrap_or_default();
+    let cat_titles = load_qid_title_map(&format!("{}/{}/categories.parquet", data_dir, wiki_id))
+        .unwrap_or_default();
+
+    let article_title = art_titles
+        .get(article_qid)
+        .map(String::as_str)
+        .unwrap_or("?");
     println!(
-        "Found {} categories for article {}.",
+        "Found {} categories for article {} ({}).",
         categories.len(),
+        article_title,
         article_qid
     );
 
     for id in categories {
-        println!(" - {} ", id);
+        let title = cat_titles.get(&id).map(String::as_str).unwrap_or("?");
+        println!(" - {} ({})", title, id);
     }
 }
 
