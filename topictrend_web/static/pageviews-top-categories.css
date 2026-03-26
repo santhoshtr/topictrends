@@ -47,8 +47,7 @@
 	}
 
 	.plot-button,
-	.article-plot-link,
-	.article-wiki-link {
+	.article-plot-link {
 		color: var(--color-progressive);
 		text-decoration: none;
 		display: inline-flex;
@@ -62,11 +61,13 @@
 		flex-direction: column;
 		gap: var(--spacing-50);
 		padding: var(--spacing-75) var(--spacing-100);
+		max-height: 50dvh;
+		overflow-y: auto;
 	}
 
 	.article-row {
 		display: grid;
-		grid-template-columns: 1fr auto auto auto;
+		grid-template-columns: 1fr auto auto;
 		gap: var(--spacing-75);
 		align-items: center;
 		padding: var(--spacing-50) 0;
@@ -97,8 +98,7 @@
 			grid-template-columns: 1fr auto;
 		}
 
-		.article-plot-link,
-		.article-wiki-link {
+		.article-plot-link {
 			justify-self: start;
 		}
 	}
