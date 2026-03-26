@@ -1,3 +1,5 @@
+@import url("../utils/top-articles-table.css");
+
 :host {
 	display: block;
 }
