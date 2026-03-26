@@ -6,9 +6,174 @@ function getWikiCode(wiki) {
 	return (wiki || "enwiki").replace("wiki", "");
 }
 
-function createCategoryPill(article, wiki, trendPath, startDate, endDate) {
-	const categoryTitle =
-		article.source_category_title || article.source_category_qid;
+const TABLE_STYLE_ID = "tt-top-articles-table-styles";
+
+const TABLE_STYLES = `
+.tt-top-articles-table {
+	width: 100%;
+	border-collapse: collapse;
+	margin-top: var(--spacing-sm);
+	background-color: var(--background-color-base);
+	border: 1px solid var(--border-color-base);
+}
+
+.tt-top-articles-table th:last-child,
+.tt-top-articles-table td:last-child {
+	width: 56px;
+}
+
+.tt-top-articles-table th,
+.tt-top-articles-table td {
+	padding: var(--spacing-50) var(--spacing-75);
+	border-bottom: 1px solid var(--border-color-base);
+	text-align: left;
+	vertical-align: middle;
+}
+
+.tt-top-articles-table th {
+	font-weight: var(--font-weight-bold);
+	background-color: var(--background-color-neutral-subtle);
+}
+
+.tt-top-articles-table th:not(:first-child):not(:last-child),
+.tt-top-articles-table td:not(:first-child):not(:last-child) {
+	text-align: right;
+}
+
+.tt-article-cell {
+	display: grid;
+	grid-template-columns: 72px 1fr;
+	gap: var(--spacing-50);
+	align-items: start;
+}
+
+.tt-article-image-link {
+	display: block;
+	line-height: 0;
+}
+
+.tt-article-image {
+	width: 72px;
+	height: 72px;
+	object-fit: cover;
+	object-position: center 33%;
+	border-radius: var(--border-radius-base);
+	background-color: var(--background-color-neutral-subtle);
+}
+
+.tt-article-details {
+	display: grid;
+	gap: var(--spacing-25);
+	min-width: 0;
+	padding-top: 2px;
+}
+
+.tt-article-title {
+	color: var(--color-progressive);
+	text-decoration: none;
+	font-weight: var(--font-weight-semi-bold);
+}
+
+.tt-article-title:hover {
+	text-decoration: underline;
+}
+
+.tt-article-meta {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-50);
+	flex-wrap: nowrap;
+	overflow-x: auto;
+	overflow-y: hidden;
+	max-width: 100%;
+	padding-bottom: var(--spacing-25);
+    scrollbar-width: thin;
+}
+
+.tt-category-wrap {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--spacing-25);
+	flex: 0 0 auto;
+}
+
+.tt-category-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--spacing-25);
+	padding: var(--spacing-25) var(--spacing-50);
+	border-radius: var(--border-radius-base);
+	background-color: var(--background-color-progressive-subtle);
+	color: var(--color-progressive);
+	text-decoration: none;
+	font-size: var(--font-size-small);
+	line-height: 1.2;
+}
+
+.tt-category-chip:hover {
+	background-color: var(--background-color-progressive-subtle--hover);
+}
+
+.tt-category-trend-link {
+	visibility: hidden;
+	display: inline-flex;
+	align-items: center;
+	color: var(--color-progressive);
+	text-decoration: none;
+}
+
+.tt-category-wrap:hover .tt-category-trend-link {
+	visibility: visible;
+}
+
+.tt-number-cell {
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+
+.tt-plot-cell {
+	text-align: center;
+	white-space: nowrap;
+	vertical-align: middle;
+}
+
+.tt-row-plot-link {
+	display: inline-flex;
+	align-items: center;
+	color: var(--color-base);
+	text-decoration: none;
+}
+
+@media (max-width: 768px) {
+	.tt-top-articles-table th,
+	.tt-top-articles-table td {
+		padding: var(--spacing-50);
+	}
+
+	.tt-article-cell {
+		grid-template-columns: 56px 1fr;
+	}
+
+	.tt-article-image {
+		width: 56px;
+		height: 56px;
+	}
+}
+`;
+
+function ensureTableStyles(container) {
+	if (container.querySelector(`#${TABLE_STYLE_ID}`)) {
+		return;
+	}
+	const style = document.createElement("style");
+	style.id = TABLE_STYLE_ID;
+	style.textContent = TABLE_STYLES;
+	container.appendChild(style);
+}
+
+function createCategoryPill(category, wiki, trendPath, startDate, endDate) {
+	const categoryTitle = category?.title;
+	const categoryQid = category?.qid;
 	if (!categoryTitle) return null;
 
 	const wrapper = document.createElement("div");
@@ -20,8 +185,8 @@ function createCategoryPill(article, wiki, trendPath, startDate, endDate) {
 		category: categoryTitle.toString(),
 		depth: "4",
 	});
-	if (article.source_category_qid) {
-		params.set("category_qid", article.source_category_qid.toString());
+	if (categoryQid) {
+		params.set("category_qid", categoryQid.toString());
 	}
 	if (startDate) params.set("start_date", startDate);
 	if (endDate) params.set("end_date", endDate);
@@ -84,15 +249,28 @@ function createArticleCell(article, wiki, trendPath, startDate, endDate) {
 	const meta = document.createElement("div");
 	meta.className = "tt-article-meta";
 
-	const categoryPill = createCategoryPill(
-		article,
-		wiki,
-		trendPath,
-		startDate,
-		endDate,
-	);
-	if (categoryPill) {
-		meta.appendChild(categoryPill);
+	const categories = Array.isArray(article.categories)
+		? article.categories
+		: article.source_category_title || article.source_category_qid
+			? [
+					{
+						title: article.source_category_title || article.source_category_qid,
+						qid: article.source_category_qid,
+					},
+				]
+			: [];
+
+	for (const category of categories) {
+		const categoryPill = createCategoryPill(
+			category,
+			wiki,
+			trendPath,
+			startDate,
+			endDate,
+		);
+		if (categoryPill) {
+			meta.appendChild(categoryPill);
+		}
 	}
 
 	details.appendChild(titleLink);
@@ -166,6 +344,7 @@ export function renderPageviewsTopArticles(
 	endDate,
 ) {
 	container.innerHTML = "";
+	ensureTableStyles(container);
 	if (!topArticles?.length) return;
 
 	const heading = document.createElement("h3");
@@ -196,6 +375,7 @@ export function renderPageeditsTopArticles(
 	endDate,
 ) {
 	container.innerHTML = "";
+	ensureTableStyles(container);
 	if (!topArticles?.length) return;
 
 	const heading = document.createElement("h3");
@@ -226,6 +406,7 @@ export function renderGoogleSearchTopArticles(
 	endDate,
 ) {
 	container.innerHTML = "";
+	ensureTableStyles(container);
 	if (!topArticles?.length) return;
 
 	const heading = document.createElement("h3");

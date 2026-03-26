@@ -1,18 +1,15 @@
 const styleURL = new URL("./wiki-trends.css", import.meta.url);
 
 import { hideProgress, showProgress } from "../utils/progress-bar.js";
+import { renderPageeditsArticlesTable } from "./wiki-article-pageedits.js";
+import { renderPageviewsArticlesTable } from "./wiki-article-pageviews.js";
+import { renderSearchArticlesTable } from "./wiki-article-search.js";
 
 const API_PATHS = {
 	pageviews: "https://topictrends.wmcloud.org/api/pageviews/top_categories",
 	pageedits: "https://topictrends.wmcloud.org/api/pageedits/top_categories",
 	googlesearch:
 		"https://topictrends.wmcloud.org/api/googlesearch/top_categories",
-};
-
-const ARTICLE_ELEMENTS = {
-	pageviews: "wiki-article-pageviews",
-	pageedits: "wiki-article-pageedits",
-	googlesearch: "wiki-article-search",
 };
 
 const METRIC_LABELS = {
@@ -96,8 +93,29 @@ class TopicTrends extends HTMLElement {
 
 			data.categories.forEach((category) => {
 				category.top_articles.forEach((article) => {
-					if (articleMap.has(article.title)) {
-						const existingArticle = articleMap.get(article.title);
+					const metricValue = getArticleMetricValue(article, this.metric);
+					const existingArticle = articleMap.get(article.title);
+					if (!existingArticle) {
+						articleMap.set(article.title, {
+							...article,
+							metricValue,
+							source_category_qid: category.qid,
+							source_category_title: category.title,
+							categories: [
+								{
+									qid: category.qid,
+									title: category.title,
+									metric: getArticleMetricValue(category, this.metric),
+								},
+							],
+						});
+					} else {
+						if (metricValue > existingArticle.metricValue) {
+							existingArticle.metricValue = metricValue;
+							existingArticle.qid = article.qid;
+							existingArticle.source_category_qid = category.qid;
+							existingArticle.source_category_title = category.title;
+						}
 						if (
 							!existingArticle.categories.some(
 								(cat) => cat.title === category.title,
@@ -109,18 +127,6 @@ class TopicTrends extends HTMLElement {
 								metric: getArticleMetricValue(category, this.metric),
 							});
 						}
-					} else {
-						articleMap.set(article.title, {
-							...article,
-							metricValue: getArticleMetricValue(article, this.metric),
-							categories: [
-								{
-									qid: category.qid,
-									title: category.title,
-									metric: getArticleMetricValue(category, this.metric),
-								},
-							],
-						});
 					}
 				});
 			});
@@ -170,26 +176,35 @@ class TopicTrends extends HTMLElement {
 		return errorDiv;
 	}
 
-	createArticleElement(article) {
-		const tag = ARTICLE_ELEMENTS[this.metric] || ARTICLE_ELEMENTS.pageviews;
-		const articleEl = document.createElement(tag);
-		articleEl.setAttribute("wiki", this.wiki);
-		articleEl.setAttribute("title", article.title);
-		articleEl.setAttribute("metric", article.metricValue.toString());
-		articleEl.setAttribute("qid", article.qid.toString());
-		articleEl.setAttribute("categories", JSON.stringify(article.categories));
-		if (this.start_date) articleEl.setAttribute("start_date", this.start_date);
-		if (this.end_date) articleEl.setAttribute("end_date", this.end_date);
-		return articleEl;
-	}
-
 	createArticlesListElement() {
 		const articlesDiv = document.createElement("div");
 		articlesDiv.className = "articles-list";
 
-		this.articles.forEach((article) => {
-			articlesDiv.appendChild(this.createArticleElement(article));
-		});
+		if (this.metric === "pageedits") {
+			renderPageeditsArticlesTable(
+				articlesDiv,
+				this.wiki,
+				this.articles,
+				this.start_date,
+				this.end_date,
+			);
+		} else if (this.metric === "googlesearch") {
+			renderSearchArticlesTable(
+				articlesDiv,
+				this.wiki,
+				this.articles,
+				this.start_date,
+				this.end_date,
+			);
+		} else {
+			renderPageviewsArticlesTable(
+				articlesDiv,
+				this.wiki,
+				this.articles,
+				this.start_date,
+				this.end_date,
+			);
+		}
 
 		return articlesDiv;
 	}

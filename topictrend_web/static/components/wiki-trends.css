@@ -26,9 +26,7 @@
 }
 
 .articles-list {
-	display: grid;
-	gap: 1px;
-	background-color: var(--background-color-neutral);
+	padding: var(--spacing-100);
 }
 
 .empty-state {
