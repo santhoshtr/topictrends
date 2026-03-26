@@ -1,4 +1,5 @@
 use crate::models::AppState;
+use crate::services::composite::source_attribution::resolve_source_categories;
 use crate::services::composite::taxonomy_search_category_qids;
 use crate::services::core::{CoreServiceError, EngineService, PageEditService, QidService};
 use chrono::NaiveDate;
@@ -26,6 +27,7 @@ pub struct ArticleEditRank {
     pub edits: u64,
     pub source_category_qid: Option<u32>,
     pub source_category_title: Option<String>,
+    pub source_category_origin: Option<String>,
 }
 
 pub struct CategoryEditRank {
@@ -90,6 +92,7 @@ impl PageEditsService {
                             edits: art.total_edits,
                             source_category_qid: Some(cat.category_qid),
                             source_category_title: Some(title.clone()),
+                            source_category_origin: None,
                         }
                     })
                     .collect();
@@ -169,6 +172,7 @@ impl PageEditsService {
                     edits: art.total_edits,
                     source_category_qid: Some(category_qid),
                     source_category_title: Some(category.to_string()),
+                    source_category_origin: None,
                 }
             })
             .collect();
@@ -237,7 +241,6 @@ impl PageEditsService {
         let category_qid_set: HashSet<u32> = category_qids.iter().copied().collect();
         let mut all_edits_by_date: HashMap<NaiveDate, u64> = HashMap::new();
         let mut all_articles: HashMap<u32, (u64, u64, u32)> = HashMap::new();
-        let mut article_category_edits: HashMap<u32, HashMap<u32, u64>> = HashMap::new();
         let category_titles =
             QidService::get_titles_by_qids(Arc::clone(&state), wiki, &category_qids).await?;
 
@@ -271,11 +274,6 @@ impl PageEditsService {
                         entry.1 = article.total_edits;
                         entry.2 = *qid;
                     }
-
-                    let per_article_category_edits = article_category_edits
-                        .entry(article.article_qid)
-                        .or_default();
-                    *per_article_category_edits.entry(*qid).or_insert(0) += article.total_edits;
                 }
             }
         }
@@ -288,66 +286,67 @@ impl PageEditsService {
         article_totals.truncate(10);
 
         let article_qids: Vec<u32> = article_totals.iter().map(|(qid, _)| *qid).collect();
+        let top_article_qid_set: HashSet<u32> = article_qids.iter().copied().collect();
+
+        let mut article_category_edits: HashMap<u32, HashMap<u32, u64>> = HashMap::new();
+        if !top_article_qid_set.is_empty() {
+            let engine =
+                EngineService::get_or_build_pageedit_engine(Arc::clone(&state), wiki).await?;
+            let engine_lock = engine.read().map_err(|e| {
+                CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
+            })?;
+
+            let effective_depth = depth.unwrap_or(1);
+            for qid in &category_qids {
+                let top_articles = engine_lock
+                    .get_top_articles_in_category(*qid, start, end, effective_depth, 50)
+                    .map_err(|e| {
+                        CoreServiceError::EngineError(format!("Failed to get top articles: {}", e))
+                    })?
+                    .top_articles;
+
+                for article in top_articles {
+                    if !top_article_qid_set.contains(&article.article_qid) {
+                        continue;
+                    }
+
+                    let per_article_category_edits = article_category_edits
+                        .entry(article.article_qid)
+                        .or_default();
+                    *per_article_category_edits.entry(*qid).or_insert(0) += article.total_edits;
+                }
+            }
+        }
+
+        let fallback_source_by_article: HashMap<u32, u32> = article_totals
+            .iter()
+            .map(|(qid, (_, _, fallback_source_category_qid))| {
+                (*qid, *fallback_source_category_qid)
+            })
+            .collect();
+
         let titles_map = if article_qids.is_empty() {
             HashMap::new()
         } else {
             QidService::get_titles_by_qids(Arc::clone(&state), wiki, &article_qids).await?
         };
 
-        let direct_source_by_article: HashMap<u32, u32> = if article_qids.is_empty() {
-            HashMap::new()
-        } else {
-            let graph = EngineService::get_or_build_graph_engine(Arc::clone(&state), wiki).await?;
-            let graph_lock = graph.read().map_err(|e| {
-                CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
-            })?;
-
-            let mut direct_source = HashMap::new();
-            for article_qid in &article_qids {
-                let direct_categories = graph_lock
-                    .get_categories_for_article(*article_qid)
-                    .map_err(|e| {
-                        CoreServiceError::EngineError(format!(
-                            "Failed to get categories for article Q{}: {}",
-                            article_qid, e
-                        ))
-                    })?;
-
-                let mut best_match: Option<(u64, u32)> = None;
-                if let Some(per_category_edits) = article_category_edits.get(article_qid) {
-                    for category_qid in direct_categories {
-                        if !category_qid_set.contains(&category_qid) {
-                            continue;
-                        }
-
-                        let edits = per_category_edits.get(&category_qid).copied().unwrap_or(0);
-                        match best_match {
-                            None => best_match = Some((edits, category_qid)),
-                            Some((best_edits, best_category_qid)) => {
-                                if edits > best_edits
-                                    || (edits == best_edits && category_qid < best_category_qid)
-                                {
-                                    best_match = Some((edits, category_qid));
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if let Some((_, source_category_qid)) = best_match {
-                    direct_source.insert(*article_qid, source_category_qid);
-                }
-            }
-
-            direct_source
-        };
+        let source_by_article = resolve_source_categories(
+            Arc::clone(&state),
+            wiki,
+            &article_qids,
+            &category_qid_set,
+            &article_category_edits,
+            &fallback_source_by_article,
+        )
+        .await?;
 
         let top_articles: Vec<ArticleEditRank> = article_totals
             .into_iter()
             .map(|(qid, (edits, _, fallback_source_category_qid))| {
-                let source_category_qid = direct_source_by_article
-                    .get(&qid)
-                    .copied()
+                let resolved_source = source_by_article.get(&qid).copied();
+                let source_category_qid = resolved_source
+                    .map(|source| source.category_qid)
                     .unwrap_or(fallback_source_category_qid);
                 let title = titles_map
                     .get(&qid)
@@ -363,6 +362,8 @@ impl PageEditsService {
                     edits,
                     source_category_qid: Some(source_category_qid),
                     source_category_title: Some(source_category_title),
+                    source_category_origin: resolved_source
+                        .map(|source| source.origin.as_str().to_string()),
                 }
             })
             .collect();

@@ -1,7 +1,8 @@
 use crate::models::AppState;
+use crate::services::composite::source_attribution::resolve_source_categories;
 use crate::services::composite::taxonomy_search_category_qids;
 use crate::services::core::{
-    CategoryService, CoreServiceError, EngineService, PageViewService, QidService,
+    CategoryService, CoreServiceError, PageViewService, QidService,
 };
 use chrono::NaiveDate;
 use std::collections::{HashMap, HashSet};
@@ -39,6 +40,7 @@ pub struct ArticleRank {
     pub views: u32,
     pub source_category_qid: Option<u32>,
     pub source_category_title: Option<String>,
+    pub source_category_origin: Option<String>,
 }
 
 pub struct CategoryRank {
@@ -118,6 +120,7 @@ impl PageViewsService {
                     views: art.total_views as u32,
                     source_category_qid: Some(category_qid),
                     source_category_title: Some(category.to_string()),
+                    source_category_origin: None,
                 }
             })
             .collect();
@@ -151,7 +154,6 @@ impl PageViewsService {
         // Collect all view data and top articles from all categories
         let mut all_views_by_date: HashMap<NaiveDate, u64> = HashMap::new();
         let mut all_articles: HashMap<u32, (u64, u64, u32)> = HashMap::new();
-        let mut article_category_views: HashMap<u32, HashMap<u32, u64>> = HashMap::new();
 
         for category_qid in &category_qids {
             // Get views for this category
@@ -193,12 +195,6 @@ impl PageViewsService {
                     entry.1 = article.total_views;
                     entry.2 = *category_qid;
                 }
-
-                let per_article_category_views = article_category_views
-                    .entry(article.article_qid)
-                    .or_default();
-                *per_article_category_views.entry(*category_qid).or_insert(0) +=
-                    article.total_views;
             }
         }
 
@@ -212,63 +208,62 @@ impl PageViewsService {
         article_vec.truncate(10);
 
         let article_qids: Vec<u32> = article_vec.iter().map(|(qid, _)| *qid).collect();
+        let top_article_qid_set: HashSet<u32> = article_qids.iter().copied().collect();
+
+        let mut article_category_views: HashMap<u32, HashMap<u32, u64>> = HashMap::new();
+        if !top_article_qid_set.is_empty() {
+            for category_qid in &category_qids {
+                let top_articles = PageViewService::get_top_articles(
+                    Arc::clone(&state),
+                    wiki,
+                    *category_qid,
+                    start,
+                    end,
+                    depth,
+                    50,
+                )
+                .await?;
+
+                for article in top_articles {
+                    if !top_article_qid_set.contains(&article.article_qid) {
+                        continue;
+                    }
+
+                    let per_article_category_views = article_category_views
+                        .entry(article.article_qid)
+                        .or_default();
+                    *per_article_category_views.entry(*category_qid).or_insert(0) +=
+                        article.total_views;
+                }
+            }
+        }
+
+        let fallback_source_by_article: HashMap<u32, u32> = article_vec
+            .iter()
+            .map(|(qid, (_, _, fallback_source_category_qid))| {
+                (*qid, *fallback_source_category_qid)
+            })
+            .collect();
+
         let article_titles =
             QidService::get_titles_by_qids(Arc::clone(&state), wiki, &article_qids).await?;
 
-        let direct_source_by_article: HashMap<u32, u32> = if article_qids.is_empty() {
-            HashMap::new()
-        } else {
-            let graph = EngineService::get_or_build_graph_engine(Arc::clone(&state), wiki).await?;
-            let graph_lock = graph.read().map_err(|e| {
-                CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
-            })?;
-
-            let mut direct_source = HashMap::new();
-            for article_qid in &article_qids {
-                let direct_categories = graph_lock
-                    .get_categories_for_article(*article_qid)
-                    .map_err(|e| {
-                        CoreServiceError::EngineError(format!(
-                            "Failed to get categories for article Q{}: {}",
-                            article_qid, e
-                        ))
-                    })?;
-
-                let mut best_match: Option<(u64, u32)> = None;
-                if let Some(per_category_views) = article_category_views.get(article_qid) {
-                    for category_qid in direct_categories {
-                        if !category_qid_set.contains(&category_qid) {
-                            continue;
-                        }
-
-                        let views = per_category_views.get(&category_qid).copied().unwrap_or(0);
-                        match best_match {
-                            None => best_match = Some((views, category_qid)),
-                            Some((best_views, best_category_qid)) => {
-                                if views > best_views
-                                    || (views == best_views && category_qid < best_category_qid)
-                                {
-                                    best_match = Some((views, category_qid));
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if let Some((_, source_category_qid)) = best_match {
-                    direct_source.insert(*article_qid, source_category_qid);
-                }
-            }
-
-            direct_source
-        };
+        let source_by_article = resolve_source_categories(
+            Arc::clone(&state),
+            wiki,
+            &article_qids,
+            &category_qid_set,
+            &article_category_views,
+            &fallback_source_by_article,
+        )
+        .await?;
 
         let top_articles: Vec<ArticleRank> = article_vec
             .into_iter()
             .map(|(qid, (total_views, _, fallback_source_category_qid))| {
-                let source_category_qid = direct_source_by_article
-                    .get(&qid)
-                    .copied()
+                let resolved_source = source_by_article.get(&qid).copied();
+                let source_category_qid = resolved_source
+                    .map(|source| source.category_qid)
                     .unwrap_or(fallback_source_category_qid);
                 let title = article_titles
                     .get(&qid)
@@ -285,6 +280,8 @@ impl PageViewsService {
                     views: total_views as u32,
                     source_category_qid: Some(source_category_qid),
                     source_category_title: Some(source_category_title),
+                    source_category_origin: resolved_source
+                        .map(|source| source.origin.as_str().to_string()),
                 }
             })
             .collect();
@@ -417,6 +414,7 @@ impl PageViewsService {
                             views: art.total_views as u32,
                             source_category_qid: Some(cat.category_qid),
                             source_category_title: Some(category_title.clone()),
+                            source_category_origin: None,
                         }
                     })
                     .collect();

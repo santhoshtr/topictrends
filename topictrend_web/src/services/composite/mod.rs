@@ -5,6 +5,7 @@ pub mod pageedit_delta_service;
 pub mod pageedits_service;
 pub mod pageview_delta_service;
 pub mod pageviews_service;
+pub mod source_attribution;
 
 pub use content_gap_service::ContentGapService;
 pub use google_search_delta_service::GoogleSearchDeltaService;
