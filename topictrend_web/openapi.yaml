@@ -888,6 +888,18 @@ components:
           type: integer
           format: int32
           minimum: 0
+        source_category_qid:
+          type: integer
+          format: int32
+          minimum: 0
+          nullable: true
+        source_category_title:
+          type: string
+          nullable: true
+        source_category_origin:
+          type: string
+          nullable: true
+          enum: [direct, fallback]
 
     TopArticleEdits:
       type: object
@@ -903,6 +915,18 @@ components:
           type: integer
           format: int64
           minimum: 0
+        source_category_qid:
+          type: integer
+          format: int32
+          minimum: 0
+          nullable: true
+        source_category_title:
+          type: string
+          nullable: true
+        source_category_origin:
+          type: string
+          nullable: true
+          enum: [direct, fallback]
 
     TopArticleGoogleSearch:
       type: object
@@ -926,6 +950,18 @@ components:
           type: number
           format: double
           minimum: 0
+        source_category_qid:
+          type: integer
+          format: int32
+          minimum: 0
+          nullable: true
+        source_category_title:
+          type: string
+          nullable: true
+        source_category_origin:
+          type: string
+          nullable: true
+          enum: [direct, fallback]
 
     ArticleTrendResponse:
       type: object

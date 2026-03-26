@@ -278,6 +278,7 @@ pub struct TopArticle {
     pub views: u32,
     pub source_category_qid: Option<u32>,
     pub source_category_title: Option<String>,
+    pub source_category_origin: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -287,6 +288,7 @@ pub struct TopArticleEdits {
     pub edits: u64,
     pub source_category_qid: Option<u32>,
     pub source_category_title: Option<String>,
+    pub source_category_origin: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -427,6 +429,7 @@ pub struct TopArticleGoogleSearch {
     pub ctr: f64,
     pub source_category_qid: Option<u32>,
     pub source_category_title: Option<String>,
+    pub source_category_origin: Option<String>,
 }
 
 #[derive(Serialize)]
