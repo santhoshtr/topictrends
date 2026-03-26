@@ -167,4 +167,36 @@ impl GoogleSearchService {
             })
             .collect())
     }
+
+    pub async fn get_top_articles_global(
+        state: Arc<AppState>,
+        wiki: &str,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+        limit: usize,
+    ) -> Result<Vec<ArticleSearchRank>, CoreServiceError> {
+        let engine = EngineService::get_or_build_google_search_engine(state, wiki).await?;
+
+        let top_articles = {
+            let engine_lock = engine.read().map_err(|e| {
+                CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
+            })?;
+
+            engine_lock
+                .get_top_articles(start_date, end_date, limit)
+                .map_err(|e| {
+                    CoreServiceError::EngineError(format!("Failed to get top articles: {}", e))
+                })?
+        };
+
+        Ok(top_articles
+            .into_iter()
+            .map(|article| ArticleSearchRank {
+                article_qid: article.article_qid,
+                total_clicks: article.total_clicks,
+                total_impressions: article.total_impressions,
+                ctr: article.ctr,
+            })
+            .collect())
+    }
 }

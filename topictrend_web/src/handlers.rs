@@ -18,13 +18,14 @@ use crate::{
         DailyViews, GoogleSearchArticleDeltaParams, GoogleSearchArticleDeltaResponse,
         GoogleSearchArticleTrendResponse, GoogleSearchCategoryDeltaParams,
         GoogleSearchCategoryDeltaResponse, GoogleSearchCategoryTrendResponse,
-        ListArticlesInCategoryParams, PageEditArticleDeltaParams, PageEditArticleDeltaResponse,
-        PageEditCategoryDeltaParams, PageEditCategoryDeltaResponse, PageViewArticleDeltaParams,
-        PageViewArticleDeltaResponse, PageViewCategoryDeltaParams, PageViewCategoryDeltaResponse,
-        PageViewTopArticle, PageViewTopArticlesResponse, SubCategoryParams, TopArticle,
-        TopArticleByEdits, TopArticleBySearch, TopArticleCategory, TopArticleEdits,
-        TopArticleGoogleSearch, TopCategoriesParams, TopCategory, TopCategoryByEdits,
-        TopCategoryBySearch, TopicTrendParams,
+        GoogleSearchTopArticle, GoogleSearchTopArticlesResponse, ListArticlesInCategoryParams,
+        PageEditArticleDeltaParams, PageEditArticleDeltaResponse, PageEditCategoryDeltaParams,
+        PageEditCategoryDeltaResponse, PageEditTopArticle, PageEditTopArticlesResponse,
+        PageViewArticleDeltaParams, PageViewArticleDeltaResponse, PageViewCategoryDeltaParams,
+        PageViewCategoryDeltaResponse, PageViewTopArticle, PageViewTopArticlesResponse,
+        SubCategoryParams, TopArticle, TopArticleByEdits, TopArticleBySearch, TopArticleCategory,
+        TopArticleEdits, TopArticleGoogleSearch, TopCategoriesParams, TopCategory,
+        TopCategoryByEdits, TopCategoryBySearch, TopicTrendParams,
     },
     services::core::CategoryService,
 };
@@ -590,6 +591,42 @@ pub async fn get_pageedits_top_categories_handler(
 }
 
 #[debug_handler]
+pub async fn get_pageedits_top_articles_handler(
+    Query(params): Query<TopCategoriesParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<PageEditTopArticlesResponse>, ApiError> {
+    let articles = PageEditsService::get_top_articles_global(
+        state,
+        &params.wiki,
+        params.start_date,
+        params.end_date,
+        params.top_n,
+    )
+    .await?;
+
+    let response = PageEditTopArticlesResponse {
+        articles: articles
+            .into_iter()
+            .map(|article| PageEditTopArticle {
+                qid: article.qid,
+                title: article.title,
+                edits: article.edits,
+                categories: article
+                    .categories
+                    .into_iter()
+                    .map(|category| TopArticleCategory {
+                        qid: category.qid,
+                        title: category.title,
+                    })
+                    .collect(),
+            })
+            .collect(),
+    };
+
+    Ok(Json(response))
+}
+
+#[debug_handler]
 pub async fn get_googlesearch_top_categories_handler(
     Query(params): Query<TopCategoriesParams>,
     State(state): State<Arc<AppState>>,
@@ -621,6 +658,44 @@ pub async fn get_googlesearch_top_categories_handler(
                         clicks: art.clicks,
                         impressions: art.impressions,
                         ctr: art.ctr,
+                    })
+                    .collect(),
+            })
+            .collect(),
+    };
+
+    Ok(Json(response))
+}
+
+#[debug_handler]
+pub async fn get_googlesearch_top_articles_handler(
+    Query(params): Query<TopCategoriesParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<GoogleSearchTopArticlesResponse>, ApiError> {
+    let articles = GoogleSearchTrendsService::get_top_articles_global(
+        state,
+        &params.wiki,
+        params.start_date,
+        params.end_date,
+        params.top_n,
+    )
+    .await?;
+
+    let response = GoogleSearchTopArticlesResponse {
+        articles: articles
+            .into_iter()
+            .map(|article| GoogleSearchTopArticle {
+                qid: article.qid,
+                title: article.title,
+                clicks: article.clicks,
+                impressions: article.impressions,
+                ctr: article.ctr,
+                categories: article
+                    .categories
+                    .into_iter()
+                    .map(|category| TopArticleCategory {
+                        qid: category.qid,
+                        title: category.title,
                     })
                     .collect(),
             })

@@ -615,6 +615,62 @@ impl GoogleSearchEngine {
         Ok(results)
     }
 
+    pub fn get_top_articles(
+        &self,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+        top_n: usize,
+    ) -> Result<Vec<ArticleRank>, Box<dyn Error>> {
+        let num_articles = self.wikigraph.art_dense_to_original.len();
+
+        let mut article_clicks = vec![0u64; num_articles];
+        let mut article_impressions = vec![0u64; num_articles];
+
+        let mut curr = start_date;
+        while curr <= end_date {
+            if let Some(day_data) = self.daily_search.get(&curr) {
+                for (article_dense_id, clicks, impressions, _) in day_data.iter() {
+                    article_clicks[article_dense_id as usize] += clicks;
+                    article_impressions[article_dense_id as usize] += impressions;
+                }
+            }
+            curr = curr.succ_opt().expect("Invalid date progression");
+        }
+
+        let mut ranked: Vec<(usize, u64, u64)> = article_clicks
+            .into_iter()
+            .zip(article_impressions)
+            .enumerate()
+            .map(|(article_dense_id, (clicks, impressions))| {
+                (article_dense_id, clicks, impressions)
+            })
+            .collect();
+
+        ranked.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+
+        let results = ranked
+            .into_iter()
+            .take(top_n)
+            .filter(|(_, clicks, _)| *clicks > 0)
+            .map(|(article_dense_id, total_clicks, total_impressions)| {
+                let ctr = if total_impressions > 0 {
+                    total_clicks as f64 / total_impressions as f64
+                } else {
+                    0.0
+                };
+
+                ArticleRank {
+                    article_qid: self.wikigraph.art_dense_to_original[article_dense_id],
+                    total_clicks,
+                    total_impressions,
+                    ctr,
+                }
+            })
+            .collect();
+
+        Ok(results)
+    }
+
     pub fn get_top_articles_in_category(
         &self,
         category_qid: u32,

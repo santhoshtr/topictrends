@@ -480,6 +480,41 @@ impl PageEditsEngine {
         Ok(results)
     }
 
+    pub fn get_top_articles(
+        &self,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+        top_n: usize,
+    ) -> Result<Vec<ArticleRank>, Box<dyn Error>> {
+        let num_articles = self.wikigraph.art_dense_to_original.len();
+        let mut article_edits = vec![0u64; num_articles];
+
+        let mut curr = start_date;
+        while curr <= end_date {
+            if let Some(day_data) = self.daily_edits.get(&curr) {
+                for (article_dense_id, count) in day_data.iter() {
+                    article_edits[article_dense_id as usize] += count as u64;
+                }
+            }
+            curr = curr.succ_opt().unwrap();
+        }
+
+        let mut ranked: Vec<(usize, u64)> = article_edits.into_iter().enumerate().collect();
+        ranked.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+
+        let results = ranked
+            .into_iter()
+            .take(top_n)
+            .filter(|(_, total_edits)| *total_edits > 0)
+            .map(|(article_dense_id, total_edits)| ArticleRank {
+                article_qid: self.wikigraph.art_dense_to_original[article_dense_id],
+                total_edits,
+            })
+            .collect();
+
+        Ok(results)
+    }
+
     /// Get top articles in a category by edit count
     pub fn get_top_articles_in_category(
         &self,

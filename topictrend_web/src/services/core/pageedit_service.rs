@@ -138,4 +138,36 @@ impl PageEditService {
 
         Ok(raw_categories)
     }
+
+    pub async fn get_top_articles_global(
+        state: Arc<AppState>,
+        wiki: &str,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+        limit: usize,
+    ) -> Result<Vec<ArticleEdits>, CoreServiceError> {
+        let engine = EngineService::get_or_build_pageedit_engine(state, wiki).await?;
+
+        let top_articles = {
+            let engine_lock = engine.read().map_err(|e| {
+                CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
+            })?;
+
+            engine_lock
+                .get_top_articles(start_date, end_date, limit)
+                .map_err(|e| {
+                    CoreServiceError::EngineError(format!("Failed to get top articles: {}", e))
+                })?
+        };
+
+        let raw_articles: Vec<ArticleEdits> = top_articles
+            .into_iter()
+            .map(|article| ArticleEdits {
+                article_qid: article.article_qid,
+                total_edits: article.total_edits,
+            })
+            .collect();
+
+        Ok(raw_articles)
+    }
 }

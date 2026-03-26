@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}Topic Trends - Most Viewed Articles{% endblock %}
+{% block title %}Topic Trends - Most Searched Categories{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/styles.css">
+<link rel="stylesheet" href="/static/pageviews-top-categories.css">
 {% endblock %}
 
 {% block content %}
 <div class="app-container">
   <div class="form-container">
-    <h2>Most Viewed Articles</h2>
+    <h2>Most Searched Categories</h2>
     <form id="top-form">
       <div class="header-wiki-selector">
         {% include "wiki-selector.html" %}
@@ -25,16 +25,22 @@
         </div>
       </div>
       <div class="form-item">
+        <label for="top_n">Number of categories</label>
+        <input name="top_n" id="top_n" value="50" class="cdx-text-input__input" type="number" min="1" max="200">
+      </div>
+      <div class="form-item">
         <button type="submit"
           class="cdx-button cdx-button--action-progressive cdx-button--weight-primary">Show</button>
       </div>
     </form>
-    <p id="stats-display" class="status"></p>
+    <p id="status" class="status"></p>
   </div>
-  <div class="main" data-metric="pageviews"></div>
+  <div class="main" data-metric="googlesearch">
+    <div id="results" class="results"></div>
+  </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/top-articles-page.js" type="module"></script>
+<script src="/static/top-categories-page.js" type="module"></script>
 {% endblock %}

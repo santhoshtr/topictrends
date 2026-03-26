@@ -2,6 +2,33 @@ import { formatDateToISO, getDaysAgo } from "./utils/date-utils.js";
 import { hideProgress, showProgress } from "./utils/progress-bar.js";
 import { buildWikipediaUrl, populateWikiDropdown } from "./utils/wiki-utils.js";
 
+const CONFIG = {
+	pageviews: {
+		endpoint: "https://topictrends.wmcloud.org/api/pageviews/top_categories",
+		categoryTrendPath: "/pageviews/trends",
+		articleTrendPath: "/pageviews/trends",
+		categoryMetricField: "views",
+		articleMetricField: "views",
+		metricLabel: "views",
+	},
+	pageedits: {
+		endpoint: "https://topictrends.wmcloud.org/api/pageedits/top_categories",
+		categoryTrendPath: "/pageedits/trends",
+		articleTrendPath: "/pageedits/trends",
+		categoryMetricField: "edits",
+		articleMetricField: "edits",
+		metricLabel: "edits",
+	},
+	googlesearch: {
+		endpoint: "https://topictrends.wmcloud.org/api/googlesearch/top_categories",
+		categoryTrendPath: "/googlesearch/trends",
+		articleTrendPath: "/googlesearch/trends",
+		categoryMetricField: "clicks",
+		articleMetricField: "clicks",
+		metricLabel: "clicks",
+	},
+};
+
 document.addEventListener("DOMContentLoaded", async () => {
 	await populateWikiDropdown();
 
@@ -11,6 +38,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 	const topNInput = document.getElementById("top_n");
 	const results = document.getElementById("results");
 	const status = document.getElementById("status");
+	const main = document.querySelector(".main");
+
+	const metric = main?.dataset.metric || "pageviews";
+	const config = CONFIG[metric] || CONFIG.pageviews;
 
 	startDateInput.value = formatDateToISO(getDaysAgo(30));
 	endDateInput.value = formatDateToISO(new Date());
@@ -26,42 +57,30 @@ document.addEventListener("DOMContentLoaded", async () => {
 		return (title || "").replaceAll("_", " ");
 	}
 
-	function getWikiCode(wiki) {
-		return (wiki || "enwiki").replace("wiki", "");
-	}
-
 	function setStatusText(text) {
 		if (status) status.textContent = text;
 	}
 
-	function createCategoryTrendUrl(
+	function createTrendUrl(
+		basePath,
+		type,
 		wiki,
-		category,
-		categoryQid,
+		title,
+		qid,
 		startDate,
 		endDate,
 	) {
-		const params = new URLSearchParams({
-			type: "category",
-			wiki,
-			depth: "4",
-			category,
-		});
-		if (categoryQid) params.set("category_qid", categoryQid.toString());
+		const params = new URLSearchParams({ type, wiki });
+		if (type === "category") {
+			params.set("depth", "4");
+			params.set("category", title);
+			if (qid) params.set("category_qid", qid.toString());
+		} else {
+			params.set("article", title);
+		}
 		if (startDate) params.set("start_date", startDate);
 		if (endDate) params.set("end_date", endDate);
-		return `/pageviews/trends?${params.toString()}`;
-	}
-
-	function createArticleTrendUrl(wiki, article, startDate, endDate) {
-		const params = new URLSearchParams({
-			type: "article",
-			wiki,
-			article,
-		});
-		if (startDate) params.set("start_date", startDate);
-		if (endDate) params.set("end_date", endDate);
-		return `/pageviews/trends?${params.toString()}`;
+		return `${basePath}?${params.toString()}`;
 	}
 
 	function renderCategories(wiki, categories, startDate, endDate) {
@@ -85,13 +104,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 			title.className = "category-name";
 			title.textContent = formatTitle(category.title);
 
-			const views = document.createElement("span");
-			views.className = "category-views";
-			views.textContent = Number(category.views || 0).toLocaleString();
+			const metricValue = document.createElement("span");
+			metricValue.className = "category-views";
+			metricValue.textContent = Number(
+				category[config.categoryMetricField] || 0,
+			).toLocaleString();
 
 			const plotLink = document.createElement("a");
 			plotLink.className = "plot-button";
-			plotLink.href = createCategoryTrendUrl(
+			plotLink.href = createTrendUrl(
+				config.categoryTrendPath,
+				"category",
 				wiki,
 				category.title,
 				category.qid,
@@ -99,18 +122,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 				endDate,
 			);
 			plotLink.title = "Plot category trend";
-			plotLink.setAttribute(
-				"aria-label",
-				`Plot trend for ${formatTitle(category.title)}`,
-			);
 			plotLink.innerHTML =
 				'<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor" aria-hidden="true"><path d="m140-220-60-60 300-300 160 160 284-320 56 56-340 384-160-160-240 240Z"/></svg>';
-			plotLink.addEventListener("click", (event) => {
-				event.stopPropagation();
-			});
+			plotLink.addEventListener("click", (event) => event.stopPropagation());
 
 			summary.appendChild(title);
-			summary.appendChild(views);
+			summary.appendChild(metricValue);
 			summary.appendChild(plotLink);
 			details.appendChild(summary);
 
@@ -128,15 +145,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 				articleLink.rel = "noopener noreferrer";
 				articleLink.textContent = formatTitle(article.title);
 
-				const articleViews = document.createElement("span");
-				articleViews.className = "article-views";
-				articleViews.textContent = Number(article.views || 0).toLocaleString();
+				const articleMetric = document.createElement("span");
+				articleMetric.className = "article-views";
+				articleMetric.textContent = Number(
+					article[config.articleMetricField] || 0,
+				).toLocaleString();
 
 				const articlePlot = document.createElement("a");
 				articlePlot.className = "article-plot-link";
-				articlePlot.href = createArticleTrendUrl(
+				articlePlot.href = createTrendUrl(
+					config.articleTrendPath,
+					"article",
 					wiki,
 					article.title,
+					null,
 					startDate,
 					endDate,
 				);
@@ -145,7 +167,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 					'<svg xmlns="http://www.w3.org/2000/svg" height="14px" viewBox="0 -960 960 960" width="14px" fill="currentColor" aria-hidden="true"><path d="m140-220-60-60 300-300 160 160 284-320 56 56-340 384-160-160-240 240Z"/></svg>';
 
 				row.appendChild(articleLink);
-				row.appendChild(articleViews);
+				row.appendChild(articleMetric);
 				row.appendChild(articlePlot);
 				articleList.appendChild(row);
 			}
@@ -167,9 +189,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 		try {
 			showProgress();
-			const response = await fetch(
-				`https://topictrends.wmcloud.org/api/pageviews/top_categories?${params.toString()}`,
-			);
+			const response = await fetch(`${config.endpoint}?${params.toString()}`);
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
 			}
@@ -179,7 +199,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 			const wikiCode = wiki.replace("wiki", "");
 			setStatusText(
-				`Showing ${data.categories?.length || 0} top categories (${wikiCode} Wikipedia) — sorted by views`,
+				`Showing ${data.categories?.length || 0} top categories (${wikiCode} Wikipedia) — sorted by ${config.metricLabel}`,
 			);
 		} catch (error) {
 			console.error("Error fetching top categories:", error);

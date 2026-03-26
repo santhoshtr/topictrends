@@ -1,7 +1,9 @@
 use crate::models::AppState;
 use crate::services::composite::source_attribution::resolve_source_categories;
 use crate::services::composite::taxonomy_search_category_qids;
-use crate::services::core::{CoreServiceError, EngineService, PageEditService, QidService};
+use crate::services::core::{
+    ArticleService, CoreServiceError, EngineService, PageEditService, QidService,
+};
 use chrono::NaiveDate;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -35,6 +37,18 @@ pub struct CategoryEditRank {
     pub title: String,
     pub edits: u64,
     pub top_articles: Vec<ArticleEditRank>,
+}
+
+pub struct ArticleCategoryRank {
+    pub qid: u32,
+    pub title: String,
+}
+
+pub struct TopArticleEditRank {
+    pub qid: u32,
+    pub title: String,
+    pub edits: u64,
+    pub categories: Vec<ArticleCategoryRank>,
 }
 
 impl PageEditsService {
@@ -188,6 +202,82 @@ impl PageEditsService {
             edits: data,
             top_articles,
         })
+    }
+
+    pub async fn get_top_articles_global(
+        state: Arc<AppState>,
+        wiki: &str,
+        start_date: Option<NaiveDate>,
+        end_date: Option<NaiveDate>,
+        top_n: Option<u32>,
+    ) -> Result<Vec<TopArticleEditRank>, CoreServiceError> {
+        let top_n = top_n.unwrap_or(50);
+        let start = start_date
+            .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
+        let end = end_date.unwrap_or_else(|| chrono::Local::now().date_naive());
+
+        let top_articles = PageEditService::get_top_articles_global(
+            Arc::clone(&state),
+            wiki,
+            start,
+            end,
+            top_n as usize,
+        )
+        .await?;
+
+        let article_qids: Vec<u32> = top_articles
+            .iter()
+            .map(|article| article.article_qid)
+            .collect();
+
+        let mut article_categories_by_qid: HashMap<u32, Vec<u32>> = HashMap::new();
+        let mut all_qids: HashSet<u32> = article_qids.iter().copied().collect();
+
+        for article_qid in &article_qids {
+            let category_qids =
+                ArticleService::get_article_categories(Arc::clone(&state), wiki, *article_qid)
+                    .await?;
+            all_qids.extend(category_qids.iter().copied());
+            article_categories_by_qid.insert(*article_qid, category_qids);
+        }
+
+        let all_qids_vec: Vec<u32> = all_qids.into_iter().collect();
+        let titles_map =
+            QidService::get_titles_by_qids(Arc::clone(&state), wiki, &all_qids_vec).await?;
+
+        let mut response_articles = Vec::with_capacity(top_articles.len());
+
+        for article in top_articles {
+            let article_title = titles_map
+                .get(&article.article_qid)
+                .cloned()
+                .unwrap_or_else(|| format!("Q{}", article.article_qid));
+
+            let mut categories: Vec<ArticleCategoryRank> = article_categories_by_qid
+                .get(&article.article_qid)
+                .cloned()
+                .unwrap_or_default()
+                .into_iter()
+                .map(|category_qid| ArticleCategoryRank {
+                    qid: category_qid,
+                    title: titles_map
+                        .get(&category_qid)
+                        .cloned()
+                        .unwrap_or_else(|| format!("Q{}", category_qid)),
+                })
+                .collect();
+
+            categories.sort_by(|a, b| a.title.cmp(&b.title));
+
+            response_articles.push(TopArticleEditRank {
+                qid: article.article_qid,
+                title: article_title,
+                edits: article.total_edits,
+                categories,
+            });
+        }
+
+        Ok(response_articles)
     }
 
     pub async fn get_article_edit_trend(

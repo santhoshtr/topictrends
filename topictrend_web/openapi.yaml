@@ -357,6 +357,29 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/pageedits/top_articles:
+    get:
+      operationId: getPageeditsTopArticles
+      tags: [Pageedits]
+      summary: Top articles by page edits
+      description: Returns globally top edited articles for the period.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/StartDateOptional"
+        - $ref: "#/components/parameters/EndDateOptional"
+        - $ref: "#/components/parameters/TopNOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageEditTopArticlesResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/googlesearch/top_categories:
     get:
       operationId: getGooglesearchTopCategories
@@ -375,6 +398,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CategorySearchRankResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/googlesearch/top_articles:
+    get:
+      operationId: getGooglesearchTopArticles
+      tags: [GoogleSearch]
+      summary: Top articles by Google search clicks
+      description: Returns globally top searched articles for the period.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/StartDateOptional"
+        - $ref: "#/components/parameters/EndDateOptional"
+        - $ref: "#/components/parameters/TopNOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoogleSearchTopArticlesResponse"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
@@ -1226,6 +1272,34 @@ components:
           items:
             $ref: "#/components/schemas/TopCategoryByEdits"
 
+    PageEditTopArticle:
+      type: object
+      required: [qid, title, edits, categories]
+      properties:
+        qid:
+          type: integer
+          format: int32
+          minimum: 0
+        title:
+          type: string
+        edits:
+          type: integer
+          format: int64
+          minimum: 0
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopArticleCategory"
+
+    PageEditTopArticlesResponse:
+      type: object
+      required: [articles]
+      properties:
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/PageEditTopArticle"
+
     TopArticleBySearch:
       type: object
       required: [qid, title, clicks, impressions, ctr]
@@ -1282,6 +1356,41 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TopCategoryBySearch"
+
+    GoogleSearchTopArticle:
+      type: object
+      required: [qid, title, clicks, impressions, ctr, categories]
+      properties:
+        qid:
+          type: integer
+          format: int32
+          minimum: 0
+        title:
+          type: string
+        clicks:
+          type: integer
+          format: int64
+          minimum: 0
+        impressions:
+          type: integer
+          format: int64
+          minimum: 0
+        ctr:
+          type: number
+          format: double
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopArticleCategory"
+
+    GoogleSearchTopArticlesResponse:
+      type: object
+      required: [articles]
+      properties:
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoogleSearchTopArticle"
 
     PageViewCategoryDeltaItemResponse:
       type: object

@@ -324,6 +324,19 @@ pub struct PageViewTopArticlesResponse {
 }
 
 #[derive(Serialize)]
+pub struct PageEditTopArticle {
+    pub qid: u32,
+    pub title: String,
+    pub edits: u64,
+    pub categories: Vec<TopArticleCategory>,
+}
+
+#[derive(Serialize)]
+pub struct PageEditTopArticlesResponse {
+    pub articles: Vec<PageEditTopArticle>,
+}
+
+#[derive(Serialize)]
 pub struct TopArticleByEdits {
     pub qid: u32,
     pub title: String,
@@ -365,6 +378,21 @@ pub struct TopCategoryBySearch {
 #[derive(Serialize)]
 pub struct CategorySearchRankResponse {
     pub categories: Vec<TopCategoryBySearch>,
+}
+
+#[derive(Serialize)]
+pub struct GoogleSearchTopArticle {
+    pub qid: u32,
+    pub title: String,
+    pub clicks: u64,
+    pub impressions: u64,
+    pub ctr: f64,
+    pub categories: Vec<TopArticleCategory>,
+}
+
+#[derive(Serialize)]
+pub struct GoogleSearchTopArticlesResponse {
+    pub articles: Vec<GoogleSearchTopArticle>,
 }
 
 #[derive(Serialize)]

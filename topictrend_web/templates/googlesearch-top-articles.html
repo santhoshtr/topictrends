@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Topic Trends - Most Edited Pages{% endblock %}
+{% block title %}Topic Trends - Most Searched Articles{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="/static/styles.css">
@@ -9,7 +9,7 @@
 {% block content %}
 <div class="app-container">
   <div class="form-container">
-    <h2>Most Edited Pages</h2>
+    <h2>Most Searched Articles</h2>
     <form id="top-form">
       <div class="header-wiki-selector">
         {% include "wiki-selector.html" %}
@@ -31,13 +31,10 @@
     </form>
     <p id="stats-display" class="status"></p>
   </div>
-  <div class="main" data-metric="pageedits">
-  </div>
+  <div class="main" data-metric="googlesearch"></div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/components/wiki-trends.js" type="module"></script>
-<script src="/static/components/wiki-category.js" type="module"></script>
-<script src="/static/top-topics.js" type="module"></script>
+<script src="/static/top-articles-page.js" type="module"></script>
 {% endblock %}

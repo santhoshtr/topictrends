@@ -68,8 +68,22 @@ pub fn app_router(state: Arc<AppState>) -> Router {
             get(|| async { render_template("pageedit-delta.html", PageContext::pageedit_delta()) }),
         )
         .route(
-            "/pageedits/top",
-            get(|| async { render_template("pageedits-top.html", PageContext::pageedits_top()) }),
+            "/pageedits/top_articles",
+            get(|| async {
+                render_template(
+                    "pageedits-top-articles.html",
+                    PageContext::pageedits_top_articles(),
+                )
+            }),
+        )
+        .route(
+            "/pageedits/top_categories",
+            get(|| async {
+                render_template(
+                    "pageedits-top-categories.html",
+                    PageContext::pageedits_top_categories(),
+                )
+            }),
         )
         .route(
             "/googlesearch/trends",
@@ -90,9 +104,21 @@ pub fn app_router(state: Arc<AppState>) -> Router {
             }),
         )
         .route(
-            "/googlesearch/top",
+            "/googlesearch/top_articles",
             get(|| async {
-                render_template("googlesearch-top.html", PageContext::googlesearch_top())
+                render_template(
+                    "googlesearch-top-articles.html",
+                    PageContext::googlesearch_top_articles(),
+                )
+            }),
+        )
+        .route(
+            "/googlesearch/top_categories",
+            get(|| async {
+                render_template(
+                    "googlesearch-top-categories.html",
+                    PageContext::googlesearch_top_categories(),
+                )
             }),
         )
         .route(
@@ -167,8 +193,16 @@ pub fn app_router(state: Arc<AppState>) -> Router {
             get(handlers::get_pageedits_top_categories_handler),
         )
         .route(
+            "/api/pageedits/top_articles",
+            get(handlers::get_pageedits_top_articles_handler),
+        )
+        .route(
             "/api/googlesearch/top_categories",
             get(handlers::get_googlesearch_top_categories_handler),
+        )
+        .route(
+            "/api/googlesearch/top_articles",
+            get(handlers::get_googlesearch_top_articles_handler),
         )
         .route(
             "/api/list/sub_categories",
