@@ -1,9 +1,11 @@
 const styleURL = new URL("./wiki-trends.css", import.meta.url);
 
 import { hideProgress, showProgress } from "../utils/progress-bar.js";
-import { renderPageeditsArticlesTable } from "./wiki-article-pageedits.js";
-import { renderPageviewsArticlesTable } from "./wiki-article-pageviews.js";
-import { renderSearchArticlesTable } from "./wiki-article-search.js";
+import {
+	renderGoogleSearchTopArticles,
+	renderPageeditsTopArticles,
+	renderPageviewsTopArticles,
+} from "../utils/top-articles-table.js";
 
 const API_PATHS = {
 	pageviews: "https://topictrends.wmcloud.org/api/pageviews/top_categories",
@@ -18,10 +20,92 @@ const METRIC_LABELS = {
 	googlesearch: "clicks",
 };
 
+const TABLE_RENDERERS = {
+	pageviews: renderPageviewsTopArticles,
+	pageedits: renderPageeditsTopArticles,
+	googlesearch: renderGoogleSearchTopArticles,
+};
+
+const SORT_POLICY = "max_single_category_metric";
+
 function getArticleMetricValue(article, metric) {
 	if (metric === "pageedits") return article.edits;
 	if (metric === "googlesearch") return article.clicks;
 	return article.views;
+}
+
+function getCategoryMetricValue(category, metric) {
+	if (metric === "pageedits") return category.edits;
+	if (metric === "googlesearch") return category.clicks;
+	return category.views;
+}
+
+function makeCategoryInfo(category, metric) {
+	return {
+		qid: category.qid,
+		title: category.title,
+		metric: getCategoryMetricValue(category, metric),
+	};
+}
+
+function dedupeCategories(categories) {
+	const seen = new Set();
+	const deduped = [];
+
+	for (const category of categories) {
+		const key = category.qid
+			? `qid:${category.qid}`
+			: `title:${category.title}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		deduped.push(category);
+	}
+
+	return deduped;
+}
+
+function aggregateArticlesByCategory(categories, metric) {
+	const articleMap = new Map();
+
+	for (const category of categories) {
+		for (const article of category.top_articles) {
+			const metricValue = getArticleMetricValue(article, metric);
+			const existingArticle = articleMap.get(article.title);
+			const categoryInfo = makeCategoryInfo(category, metric);
+
+			if (!existingArticle) {
+				articleMap.set(article.title, {
+					...article,
+					metricValue,
+					source_category_qid: category.qid,
+					source_category_title: category.title,
+					categories: [categoryInfo],
+				});
+				continue;
+			}
+
+			if (metricValue > existingArticle.metricValue) {
+				existingArticle.metricValue = metricValue;
+				existingArticle.qid = article.qid;
+				existingArticle.source_category_qid = category.qid;
+				existingArticle.source_category_title = category.title;
+			}
+
+			existingArticle.categories = dedupeCategories([
+				...existingArticle.categories,
+				categoryInfo,
+			]);
+		}
+	}
+
+	return Array.from(articleMap.values());
+}
+
+function sortArticles(articles) {
+	if (SORT_POLICY === "max_single_category_metric") {
+		return articles.sort((a, b) => b.metricValue - a.metricValue);
+	}
+	return articles;
 }
 
 class TopicTrends extends HTMLElement {
@@ -88,59 +172,21 @@ class TopicTrends extends HTMLElement {
 
 			const data = await response.json();
 
-			this.articles = [];
-			const articleMap = new Map();
-
-			data.categories.forEach((category) => {
-				category.top_articles.forEach((article) => {
-					const metricValue = getArticleMetricValue(article, this.metric);
-					const existingArticle = articleMap.get(article.title);
-					if (!existingArticle) {
-						articleMap.set(article.title, {
-							...article,
-							metricValue,
-							source_category_qid: category.qid,
-							source_category_title: category.title,
-							categories: [
-								{
-									qid: category.qid,
-									title: category.title,
-									metric: getArticleMetricValue(category, this.metric),
-								},
-							],
-						});
-					} else {
-						if (metricValue > existingArticle.metricValue) {
-							existingArticle.metricValue = metricValue;
-							existingArticle.qid = article.qid;
-							existingArticle.source_category_qid = category.qid;
-							existingArticle.source_category_title = category.title;
-						}
-						if (
-							!existingArticle.categories.some(
-								(cat) => cat.title === category.title,
-							)
-						) {
-							existingArticle.categories.push({
-								qid: category.qid,
-								title: category.title,
-								metric: getArticleMetricValue(category, this.metric),
-							});
-						}
-					}
-				});
-			});
-
-			this.articles = Array.from(articleMap.values()).sort(
-				(a, b) => b.metricValue - a.metricValue,
+			this.articles = sortArticles(
+				aggregateArticlesByCategory(data.categories, this.metric),
 			);
 
-			const statsDisplay = document.getElementById("stats-display");
-			if (statsDisplay) {
-				const wikiCode = this.wiki.replace("wiki", "");
-				const label = METRIC_LABELS[this.metric] || "views";
-				statsDisplay.textContent = `Showing ${this.articles.length} unique articles from ${data.categories.length} top categories (${wikiCode} Wikipedia) — sorted by ${label}`;
-			}
+			const wikiCode = this.wiki.replace("wiki", "");
+			const label = METRIC_LABELS[this.metric] || "views";
+			this.dispatchEvent(
+				new CustomEvent("topictrends:stats", {
+					bubbles: true,
+					composed: true,
+					detail: {
+						text: `Showing ${this.articles.length} unique articles from ${data.categories.length} top categories (${wikiCode} Wikipedia) — sorted by ${label}`,
+					},
+				}),
+			);
 		} catch (error) {
 			console.error("Error fetching data:", error);
 			this.error = error.message;
@@ -180,31 +226,15 @@ class TopicTrends extends HTMLElement {
 		const articlesDiv = document.createElement("div");
 		articlesDiv.className = "articles-list";
 
-		if (this.metric === "pageedits") {
-			renderPageeditsArticlesTable(
-				articlesDiv,
-				this.wiki,
-				this.articles,
-				this.start_date,
-				this.end_date,
-			);
-		} else if (this.metric === "googlesearch") {
-			renderSearchArticlesTable(
-				articlesDiv,
-				this.wiki,
-				this.articles,
-				this.start_date,
-				this.end_date,
-			);
-		} else {
-			renderPageviewsArticlesTable(
-				articlesDiv,
-				this.wiki,
-				this.articles,
-				this.start_date,
-				this.end_date,
-			);
-		}
+		const renderTable =
+			TABLE_RENDERERS[this.metric] || TABLE_RENDERERS.pageviews;
+		renderTable(
+			articlesDiv,
+			this.wiki,
+			this.articles,
+			this.start_date,
+			this.end_date,
+		);
 
 		return articlesDiv;
 	}

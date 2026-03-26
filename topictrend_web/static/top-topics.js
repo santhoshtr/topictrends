@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 	const form = document.getElementById("top-form");
 	const startDateInput = document.getElementById("start_date");
 	const endDateInput = document.getElementById("end_date");
+	const statsDisplay = document.getElementById("stats-display");
 
 	// Default date range: last 30 days
 	startDateInput.value = formatDateToISO(getDaysAgo(30));
@@ -22,6 +23,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 	// Auto-load on page open
 	showTopics(metric);
+
+	document.addEventListener("topictrends:stats", (event) => {
+		if (!statsDisplay) return;
+		statsDisplay.textContent = event.detail?.text || "";
+	});
 });
 
 function showTopics(metric) {

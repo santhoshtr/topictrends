@@ -1,11 +1,3 @@
-function formatTitle(title) {
-	return (title || "").replaceAll("_", " ");
-}
-
-function getWikiCode(wiki) {
-	return (wiki || "enwiki").replace("wiki", "");
-}
-
 const TABLE_STYLE_ID = "tt-top-articles-table-styles";
 
 const TABLE_STYLES = `
@@ -87,7 +79,7 @@ const TABLE_STYLES = `
 	overflow-y: hidden;
 	max-width: 100%;
 	padding-bottom: var(--spacing-25);
-    scrollbar-width: thin;
+	scrollbar-width: thin;
 }
 
 .tt-category-wrap {
@@ -161,6 +153,36 @@ const TABLE_STYLES = `
 }
 `;
 
+const TABLE_CONFIG = {
+	pageviews: {
+		headers: ["Article", "Views", "Plot"],
+		trendPath: "pageviews/trends",
+		metricColumns: [{ field: "views" }],
+	},
+	pageedits: {
+		headers: ["Article", "Edits", "Plot"],
+		trendPath: "pageedits/trends",
+		metricColumns: [{ field: "edits" }],
+	},
+	googlesearch: {
+		headers: ["Article", "Clicks", "Impressions", "CTR", "Plot"],
+		trendPath: "googlesearch/trends",
+		metricColumns: [
+			{ field: "clicks" },
+			{ field: "impressions" },
+			{ field: "ctr", formatter: (value) => `${(value * 100).toFixed(2)}%` },
+		],
+	},
+};
+
+function formatTitle(title) {
+	return (title || "").replaceAll("_", " ");
+}
+
+function getWikiCode(wiki) {
+	return (wiki || "enwiki").replace("wiki", "");
+}
+
 function ensureTableStyles(container) {
 	if (container.querySelector(`#${TABLE_STYLE_ID}`)) {
 		return;
@@ -171,25 +193,43 @@ function ensureTableStyles(container) {
 	container.appendChild(style);
 }
 
+function buildCategoryParams(category, wiki, startDate, endDate) {
+	const params = new URLSearchParams({
+		type: "category",
+		wiki,
+		category: category.title.toString(),
+		depth: "4",
+	});
+	if (category.qid) {
+		params.set("category_qid", category.qid.toString());
+	}
+	if (startDate) params.set("start_date", startDate);
+	if (endDate) params.set("end_date", endDate);
+	return params;
+}
+
+function normalizeArticleCategories(article) {
+	if (Array.isArray(article.categories)) {
+		return article.categories;
+	}
+	if (article.source_category_title || article.source_category_qid) {
+		return [
+			{
+				title: article.source_category_title || article.source_category_qid,
+				qid: article.source_category_qid,
+			},
+		];
+	}
+	return [];
+}
+
 function createCategoryPill(category, wiki, trendPath, startDate, endDate) {
-	const categoryTitle = category?.title;
-	const categoryQid = category?.qid;
-	if (!categoryTitle) return null;
+	if (!category?.title) return null;
 
 	const wrapper = document.createElement("div");
 	wrapper.className = "tt-category-wrap";
 
-	const params = new URLSearchParams({
-		type: "category",
-		wiki,
-		category: categoryTitle.toString(),
-		depth: "4",
-	});
-	if (categoryQid) {
-		params.set("category_qid", categoryQid.toString());
-	}
-	if (startDate) params.set("start_date", startDate);
-	if (endDate) params.set("end_date", endDate);
+	const params = buildCategoryParams(category, wiki, startDate, endDate);
 
 	const labelLink = document.createElement("a");
 	labelLink.className = "tt-category-chip";
@@ -197,7 +237,7 @@ function createCategoryPill(category, wiki, trendPath, startDate, endDate) {
 	labelLink.innerHTML =
 		'<svg height="14px" viewBox="0 -960 960 960" width="14px" fill="currentColor" aria-hidden="true" class="category-icon"><path d="M856-390 570-104q-12 12-27 18t-30 6q-15 0-30-6t-27-18L103-457q-11-11-17-25.5T80-513v-287q0-33 23.5-56.5T160-880h287q16 0 31 6.5t26 17.5l352 353q12 12 17.5 27t5.5 30q0 15-5.5 29.5T856-390ZM513-160l286-286-353-354H160v286l353 354ZM260-640q25 0 42.5-17.5T320-700q0-25-17.5-42.5T260-760q-25 0-42.5 17.5T200-700q0 25 17.5 42.5T260-640Zm220 160Z"></path></svg>';
 	const text = document.createElement("span");
-	text.textContent = formatTitle(categoryTitle.toString());
+	text.textContent = formatTitle(category.title.toString());
 	labelLink.appendChild(text);
 
 	const plotLink = document.createElement("a");
@@ -206,7 +246,7 @@ function createCategoryPill(category, wiki, trendPath, startDate, endDate) {
 	plotLink.title = "Plot category trend";
 	plotLink.setAttribute(
 		"aria-label",
-		`Plot trend for ${formatTitle(categoryTitle.toString())}`,
+		`Plot trend for ${formatTitle(category.title.toString())}`,
 	);
 	plotLink.innerHTML =
 		'<svg xmlns="http://www.w3.org/2000/svg" height="14px" viewBox="0 -960 960 960" width="14px" fill="currentColor" aria-hidden="true"><path d="m140-220-60-60 300-300 160 160 284-320 56 56-340 384-160-160-240 240Z"/></svg>';
@@ -249,18 +289,7 @@ function createArticleCell(article, wiki, trendPath, startDate, endDate) {
 	const meta = document.createElement("div");
 	meta.className = "tt-article-meta";
 
-	const categories = Array.isArray(article.categories)
-		? article.categories
-		: article.source_category_title || article.source_category_qid
-			? [
-					{
-						title: article.source_category_title || article.source_category_qid,
-						qid: article.source_category_qid,
-					},
-				]
-			: [];
-
-	for (const category of categories) {
+	for (const category of normalizeArticleCategories(article)) {
 		const categoryPill = createCategoryPill(
 			category,
 			wiki,
@@ -336,7 +365,8 @@ function createTable(headers) {
 	return { table, tbody };
 }
 
-export function renderPageviewsTopArticles(
+function renderTopArticlesTable(
+	metric,
 	container,
 	wiki,
 	topArticles,
@@ -347,24 +377,46 @@ export function renderPageviewsTopArticles(
 	ensureTableStyles(container);
 	if (!topArticles?.length) return;
 
+	const config = TABLE_CONFIG[metric];
 	const heading = document.createElement("h3");
 	heading.textContent = "Top Articles";
 	container.appendChild(heading);
 
-	const { table, tbody } = createTable(["Article", "Views", "Plot"]);
+	const { table, tbody } = createTable(config.headers);
 	for (const article of topArticles) {
 		const row = document.createElement("tr");
 		row.appendChild(
-			createArticleCell(article, wiki, "pageviews/trends", startDate, endDate),
+			createArticleCell(article, wiki, config.trendPath, startDate, endDate),
 		);
-		row.appendChild(createNumberCell(article.views));
+		for (const column of config.metricColumns) {
+			row.appendChild(
+				createNumberCell(article[column.field], column.formatter),
+			);
+		}
 		row.appendChild(
-			createPlotCell(article, wiki, "pageviews/trends", startDate, endDate),
+			createPlotCell(article, wiki, config.trendPath, startDate, endDate),
 		);
 		tbody.appendChild(row);
 	}
 
 	container.appendChild(table);
+}
+
+export function renderPageviewsTopArticles(
+	container,
+	wiki,
+	topArticles,
+	startDate,
+	endDate,
+) {
+	renderTopArticlesTable(
+		"pageviews",
+		container,
+		wiki,
+		topArticles,
+		startDate,
+		endDate,
+	);
 }
 
 export function renderPageeditsTopArticles(
@@ -374,28 +426,14 @@ export function renderPageeditsTopArticles(
 	startDate,
 	endDate,
 ) {
-	container.innerHTML = "";
-	ensureTableStyles(container);
-	if (!topArticles?.length) return;
-
-	const heading = document.createElement("h3");
-	heading.textContent = "Top Articles";
-	container.appendChild(heading);
-
-	const { table, tbody } = createTable(["Article", "Edits", "Plot"]);
-	for (const article of topArticles) {
-		const row = document.createElement("tr");
-		row.appendChild(
-			createArticleCell(article, wiki, "pageedits/trends", startDate, endDate),
-		);
-		row.appendChild(createNumberCell(article.edits));
-		row.appendChild(
-			createPlotCell(article, wiki, "pageedits/trends", startDate, endDate),
-		);
-		tbody.appendChild(row);
-	}
-
-	container.appendChild(table);
+	renderTopArticlesTable(
+		"pageedits",
+		container,
+		wiki,
+		topArticles,
+		startDate,
+		endDate,
+	);
 }
 
 export function renderGoogleSearchTopArticles(
@@ -405,42 +443,12 @@ export function renderGoogleSearchTopArticles(
 	startDate,
 	endDate,
 ) {
-	container.innerHTML = "";
-	ensureTableStyles(container);
-	if (!topArticles?.length) return;
-
-	const heading = document.createElement("h3");
-	heading.textContent = "Top Articles";
-	container.appendChild(heading);
-
-	const { table, tbody } = createTable([
-		"Article",
-		"Clicks",
-		"Impressions",
-		"CTR",
-		"Plot",
-	]);
-	for (const article of topArticles) {
-		const row = document.createElement("tr");
-		row.appendChild(
-			createArticleCell(
-				article,
-				wiki,
-				"googlesearch/trends",
-				startDate,
-				endDate,
-			),
-		);
-		row.appendChild(createNumberCell(article.clicks));
-		row.appendChild(createNumberCell(article.impressions));
-		row.appendChild(
-			createNumberCell(article.ctr, (v) => `${(v * 100).toFixed(2)}%`),
-		);
-		row.appendChild(
-			createPlotCell(article, wiki, "googlesearch/trends", startDate, endDate),
-		);
-		tbody.appendChild(row);
-	}
-
-	container.appendChild(table);
+	renderTopArticlesTable(
+		"googlesearch",
+		container,
+		wiki,
+		topArticles,
+		startDate,
+		endDate,
+	);
 }
