@@ -86,7 +86,7 @@ async function onSubmit(event) {
 			const newUrl = `${window.location.pathname}?${params.toString()}`;
 			window.history.pushState({}, "", newUrl);
 
-			await fetchTopicPageEdits(wiki, topic, startDate, endDate, 1);
+			await fetchTopicPageEdits(wiki, topic, startDate, endDate, 0);
 		} else if (type === "category") {
 			const category = document
 				.getElementById("category")

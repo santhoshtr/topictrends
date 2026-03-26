@@ -151,7 +151,7 @@ async function onSubmit(event) {
 				"",
 				`${window.location.pathname}?${params.toString()}`,
 			);
-			await fetchTopicSearchData(wiki, topic, startDate, endDate, 1);
+			await fetchTopicSearchData(wiki, topic, startDate, endDate, 0);
 		} else if (type === "category") {
 			const category = document
 				.getElementById("category")
