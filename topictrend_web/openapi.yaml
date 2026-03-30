@@ -660,6 +660,33 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/content_gap/topic:
+    get:
+      operationId: getContentGapTopic
+      tags: [ContentGap]
+      summary: Content gap for topic (semantic)
+      description: |
+        Performs a semantic search for Wikipedia categories matching `topic`,
+        then returns article counts across specified wikis for all matched categories.
+
+        Useful for understanding content coverage disparities across language editions
+        for a given topic.
+      parameters:
+        - $ref: "#/components/parameters/Topic"
+        - $ref: "#/components/parameters/Wikis"
+        - $ref: "#/components/parameters/DepthOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentGapResult"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
 components:
   parameters:
     Wiki:
@@ -667,6 +694,15 @@ components:
       in: query
       required: true
       description: Wikipedia edition database name (e.g., `enwiki`, `mlwiki`).
+      schema:
+        type: string
+        minLength: 1
+
+    Wikis:
+      name: wikis
+      in: query
+      required: true
+      description: Comma-separated list of Wikipedia edition database names (e.g., `enwiki,frwiki,dewiki`).
       schema:
         type: string
         minLength: 1
@@ -1688,6 +1724,42 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ArticleItem"
+
+    ContentGapWikiResult:
+      type: object
+      required: [wiki, article_count]
+      properties:
+        wiki:
+          type: string
+          description: Wikipedia edition code (e.g., `enwiki`, `frwiki`)
+        article_count:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Number of articles in the category/topic for this wiki
+
+    ContentGapResult:
+      type: object
+      required: [category, category_qid, depth, wikis]
+      properties:
+        category:
+          type: string
+          description: Category or topic label (input query or QID string)
+        category_qid:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Wikidata QID (0 for topic searches)
+        depth:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Traversal depth used in the query
+        wikis:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContentGapWikiResult"
+          description: Article counts per wiki
 
     QidTitleMap:
       type: object
