@@ -570,6 +570,13 @@ pub struct ContentGapParams {
     pub depth: Option<u32>,
 }
 
+#[derive(Deserialize)]
+pub struct ContentGapTopicParams {
+    pub topic: String,
+    pub wikis: String,
+    pub depth: Option<u32>,
+}
+
 #[derive(Serialize)]
 pub struct ArticlesInCategoryResponse {
     pub articles: Vec<ArticleItem>,
