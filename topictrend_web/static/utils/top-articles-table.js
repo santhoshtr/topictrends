@@ -44,13 +44,16 @@ function buildCategoryParams(category, wiki, startDate, endDate) {
 }
 
 function normalizeArticleCategories(article) {
-	// Prefer source_categories (from topic/category trends)
-	if (
-		Array.isArray(article.source_categories) &&
-		article.source_categories.length > 0
-	) {
+	// source_categories from topic/category trends
+	if (Array.isArray(article.source_categories) && article.source_categories.length > 0) {
 		return article.source_categories;
 	}
+	// categories from global top articles
+	if (Array.isArray(article.categories)) {
+		return article.categories;
+	}
+	return [];
+}
 	// Fall back to categories (from global top articles)
 	if (Array.isArray(article.categories)) {
 		return article.categories;

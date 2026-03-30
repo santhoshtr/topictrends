@@ -981,7 +981,7 @@ components:
 
     TopArticle:
       type: object
-      required: [qid, title, views]
+      required: [qid, title, views, source_categories]
       properties:
         qid:
           type: integer
@@ -993,22 +993,14 @@ components:
           type: integer
           format: int32
           minimum: 0
-        source_category_qid:
-          type: integer
-          format: int32
-          minimum: 0
-          nullable: true
-        source_category_title:
-          type: string
-          nullable: true
-        source_category_origin:
-          type: string
-          nullable: true
-          enum: [direct, fallback]
+        source_categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopArticleCategory"
 
     TopArticleEdits:
       type: object
-      required: [qid, title, edits]
+      required: [qid, title, edits, source_categories]
       properties:
         qid:
           type: integer
@@ -1020,22 +1012,14 @@ components:
           type: integer
           format: int64
           minimum: 0
-        source_category_qid:
-          type: integer
-          format: int32
-          minimum: 0
-          nullable: true
-        source_category_title:
-          type: string
-          nullable: true
-        source_category_origin:
-          type: string
-          nullable: true
-          enum: [direct, fallback]
+        source_categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopArticleCategory"
 
     TopArticleGoogleSearch:
       type: object
-      required: [qid, title, clicks, impressions, ctr]
+      required: [qid, title, clicks, impressions, ctr, source_categories]
       properties:
         qid:
           type: integer
@@ -1055,18 +1039,10 @@ components:
           type: number
           format: double
           minimum: 0
-        source_category_qid:
-          type: integer
-          format: int32
-          minimum: 0
-          nullable: true
-        source_category_title:
-          type: string
-          nullable: true
-        source_category_origin:
-          type: string
-          nullable: true
-          enum: [direct, fallback]
+        source_categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopArticleCategory"
 
     ArticleTrendResponse:
       type: object
