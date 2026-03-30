@@ -1,5 +1,6 @@
 use crate::models::{AppState, ContentGapResult, ContentGapWikiResult};
 use crate::services::core::{CoreServiceError, EngineService};
+use crate::services::composite::taxonomy_search_category_qids;
 use std::sync::Arc;
 
 pub struct ContentGapService;
@@ -36,6 +37,48 @@ impl ContentGapService {
             category: category_label.to_string(),
             category_qid,
             depth,
+            wikis: results,
+        })
+    }
+
+    pub async fn get_topic_content_gap(
+        state: Arc<AppState>,
+        topic: &str,
+        wikis: Vec<String>,
+        depth: Option<u32>,
+    ) -> Result<ContentGapResult, CoreServiceError> {
+        let effective_depth = depth.unwrap_or(0);
+        let category_qids = taxonomy_search_category_qids(topic).await?;
+
+        let mut results: Vec<ContentGapWikiResult> = Vec::new();
+
+        for wiki in &wikis {
+            let graph = EngineService::get_or_build_graph_engine(Arc::clone(&state), wiki).await?;
+            let mut total_article_count = 0;
+
+            {
+                let graph_lock = graph.read().map_err(|_| {
+                    CoreServiceError::InternalError("Failed to acquire graph lock".to_string())
+                })?;
+
+                for qid in &category_qids {
+                    let articles = graph_lock
+                        .get_articles_in_category(*qid, effective_depth)
+                        .map_err(|err| CoreServiceError::EngineError(err))?;
+                    total_article_count += articles.len();
+                }
+            }
+
+            results.push(ContentGapWikiResult {
+                wiki: wiki.clone(),
+                article_count: total_article_count,
+            });
+        }
+
+        Ok(ContentGapResult {
+            category: topic.to_string(),
+            category_qid: 0,
+            depth: effective_depth,
             wikis: results,
         })
     }
