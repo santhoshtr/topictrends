@@ -31,16 +31,31 @@ pub async fn resolve_source_categories(
                 ))
             })?;
 
-        // Find all direct categories that match the topic
-        let matched: Vec<u32> = direct_categories
-            .into_iter()
-            .filter(|cat_qid| topic_category_qid_set.contains(cat_qid))
-            .collect();
+        // Collect matching categories: direct hits + parent hits (1 hop)
+        let mut matched_set: HashSet<u32> = HashSet::new();
+
+        for cat_qid in direct_categories {
+            // Check if direct category is in topic set
+            if topic_category_qid_set.contains(&cat_qid) {
+                matched_set.insert(cat_qid);
+            } else {
+                // Check parent categories (1 hop) for matches
+                if let Ok(parents) = graph_lock.get_parent_categories(cat_qid) {
+                    for parent_qid in parents {
+                        if topic_category_qid_set.contains(&parent_qid) {
+                            matched_set.insert(parent_qid);
+                        }
+                    }
+                }
+            }
+        }
+
+        let matched: Vec<u32> = matched_set.into_iter().collect();
 
         if !matched.is_empty() {
             resolved.insert(*article_qid, matched);
         } else if let Some(fallback) = fallback_source_by_article.get(article_qid).copied() {
-            // If no direct match, use fallback
+            // If no direct or parent match, use fallback
             resolved.insert(*article_qid, vec![fallback]);
         }
     }
