@@ -245,6 +245,10 @@ pub fn app_router(state: Arc<AppState>) -> Router {
             "/api/content_gap/categories",
             get(handlers::get_content_gap_handler),
         )
+        .route(
+            "/api/content_gap/topic",
+            get(handlers::get_content_gap_topic_handler),
+        )
         .with_state(state)
         .layer(cors)
         .layer(SetResponseHeaderLayer::if_not_present(
