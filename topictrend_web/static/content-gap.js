@@ -8,6 +8,8 @@ let allWikis = [];
 // wikis currently shown in results (base + added comparisons)
 let activeWikis = [];
 // current query state
+let currentType = "topic"; // "topic" or "category"
+let currentTopic = null;
 let currentCategory = null;
 let currentDepth = "2";
 // last fetched data (for chart rendering)
@@ -48,19 +50,38 @@ async function loadWikiList() {
 async function onSubmit(event) {
 	event.preventDefault();
 
-	const category = document
-		.getElementById("category")
-		.value.trim()
-		.replaceAll(" ", "_");
-	if (!category) {
-		showMessage("Please select a category.", "error");
-		return;
-	}
-
+	const type = document.querySelector('input[name="type"]:checked').value;
 	const baseWiki = document.getElementById("wiki").value;
 	const depth = document.getElementById("depth").value || "2";
 
-	currentCategory = category;
+	if (type === "topic") {
+		const topic = document
+			.getElementById("topic")
+			.value.trim()
+			.replaceAll(" ", "_");
+		if (!topic) {
+			showMessage("Please enter a topic.", "error");
+			return;
+		}
+
+		currentType = "topic";
+		currentTopic = topic;
+		currentCategory = null;
+	} else {
+		const category = document
+			.getElementById("category")
+			.value.trim()
+			.replaceAll(" ", "_");
+		if (!category) {
+			showMessage("Please select a category.", "error");
+			return;
+		}
+
+		currentType = "category";
+		currentCategory = category;
+		currentTopic = null;
+	}
+
 	currentDepth = depth;
 	// On a fresh submit keep only the base wiki; any previous compare wikis are discarded.
 	activeWikis = [baseWiki];
@@ -76,7 +97,18 @@ async function fetchAndRender() {
 	showProgress();
 	try {
 		const wikisParam = [...new Set(activeWikis)].join(",");
-		const url = `https://topictrends.wmcloud.org/api/content_gap/categories?category=${encodeURIComponent(currentCategory)}&wikis=${encodeURIComponent(wikisParam)}&depth=${currentDepth}`;
+		let url;
+
+		if (currentType === "topic") {
+			url = `https://topictrends.wmcloud.org/api/content_gap/topic?topic=${encodeURIComponent(
+				currentTopic,
+			)}&wikis=${encodeURIComponent(wikisParam)}&depth=${currentDepth}`;
+		} else {
+			url = `https://topictrends.wmcloud.org/api/content_gap/categories?category=${encodeURIComponent(
+				currentCategory,
+			)}&wikis=${encodeURIComponent(wikisParam)}&depth=${currentDepth}`;
+		}
+
 		const response = await fetch(url);
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);
 		const data = await response.json();
@@ -223,7 +255,7 @@ function renderChart(data) {
 			color: DEFAULT_CHART_COLORS,
 			title: {
 				text: data.category.replaceAll("_", " "),
-				subtext: "Topic",
+				subtext: currentType === "topic" ? "Topic" : "Category",
 				left: "center",
 				top: 0,
 				textStyle: { fontSize: 13 },
@@ -275,54 +307,99 @@ function syncUrlParams() {
 	const baseWiki = activeWikis[0];
 	const compareWikis = activeWikis.slice(1);
 	const params = new URLSearchParams({
-		category: currentCategory,
+		type: currentType,
 		wiki: baseWiki,
 		depth: currentDepth,
 	});
+
+	if (currentType === "topic") {
+		params.set("topic", currentTopic);
+	} else {
+		params.set("category", currentCategory);
+	}
+
 	if (compareWikis.length > 0) {
 		params.set("compare", compareWikis.join(","));
 	}
 	window.history.pushState({}, "", `${window.location.pathname}?${params}`);
 }
 
-function buildSearchUrl(wiki, category, depth) {
+function buildSearchUrl(wiki, query, depth) {
 	const params = new URLSearchParams({
 		wiki,
-		category,
+		category: query,
 		match_threshold: "0.6",
 		depth,
 	});
 	return `/search?${params}`;
 }
 
-function buildTrendsUrl(page, wiki, category, depth) {
+function buildTrendsUrl(page, wiki, query, depth) {
 	const params = new URLSearchParams({
-		type: "category",
+		type: currentType,
 		wiki,
-		category,
 		depth,
 	});
+
+	if (currentType === "topic") {
+		params.set("topic", query);
+	} else {
+		params.set("category", query);
+	}
+
 	return `/${page}/trends?${params}`;
 }
 
 function populateFormFromQueryParams() {
 	const p = new URLSearchParams(window.location.search);
-	const category = p.get("category");
+	const type = p.get("type") || "topic";
 	const wiki = p.get("wiki");
 	const depth = p.get("depth");
 	const compare = p.get("compare");
 
-	if (category) {
-		document.getElementById("category").value = category.replaceAll("_", " ");
+	// Set the type (topic or category)
+	const typeRadio = document.getElementById(`tab-${type}`);
+	if (typeRadio) {
+		typeRadio.checked = true;
 	}
+
 	if (wiki) {
 		document.getElementById("wiki").value = wiki;
 	}
 	if (depth) {
 		document.getElementById("depth").value = depth;
 	}
-	if (category) {
-		currentCategory = category;
+
+	if (type === "topic") {
+		const topic = p.get("topic");
+		if (topic) {
+			document.getElementById("topic").value = topic.replaceAll("_", " ");
+			currentType = "topic";
+			currentTopic = topic;
+			currentCategory = null;
+		}
+	} else {
+		const category = p.get("category");
+		if (category) {
+			document.getElementById("category").value = category.replaceAll("_", " ");
+			currentType = "category";
+			currentCategory = category;
+			currentTopic = null;
+		}
+	}
+
+	if (type === "topic" && currentTopic) {
+		currentDepth = depth || "2";
+		const baseWiki = wiki || document.getElementById("wiki").value;
+		const compareWikis = compare
+			? compare
+					.split(",")
+					.map((w) => w.trim())
+					.filter(Boolean)
+			: [];
+		activeWikis = [baseWiki, ...compareWikis];
+		fetchAndRender();
+	} else if (type === "category" && currentCategory) {
 		currentDepth = depth || "2";
 		const baseWiki = wiki || document.getElementById("wiki").value;
 		const compareWikis = compare
