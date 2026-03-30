@@ -3,80 +3,13 @@ use crate::services::core::{CoreServiceError, EngineService};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum AttributionOrigin {
-    Direct,
-    Fallback,
-}
-
-impl AttributionOrigin {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Direct => "direct",
-            Self::Fallback => "fallback",
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ResolvedSourceCategory {
-    pub category_qid: u32,
-    pub origin: AttributionOrigin,
-}
-
-fn pick_source_category(
-    direct_categories: &[u32],
-    topic_category_qid_set: &HashSet<u32>,
-    per_category_metrics: Option<&HashMap<u32, u64>>,
-    fallback_source_category_qid: Option<u32>,
-) -> Option<ResolvedSourceCategory> {
-    let mut best_direct: Option<(u64, u32)> = None;
-
-    if let Some(metrics_map) = per_category_metrics {
-        for category_qid in direct_categories {
-            if !topic_category_qid_set.contains(category_qid) {
-                continue;
-            }
-
-            let metric = metrics_map.get(category_qid).copied().unwrap_or(0);
-            if metric == 0 {
-                continue;
-            }
-
-            match best_direct {
-                None => best_direct = Some((metric, *category_qid)),
-                Some((best_metric, best_category_qid)) => {
-                    if metric > best_metric
-                        || (metric == best_metric && *category_qid < best_category_qid)
-                    {
-                        best_direct = Some((metric, *category_qid));
-                    }
-                }
-            }
-        }
-    }
-
-    if let Some((_, category_qid)) = best_direct {
-        return Some(ResolvedSourceCategory {
-            category_qid,
-            origin: AttributionOrigin::Direct,
-        });
-    }
-
-    fallback_source_category_qid.map(|category_qid| ResolvedSourceCategory {
-        category_qid,
-        origin: AttributionOrigin::Fallback,
-    })
-}
-
 pub async fn resolve_source_categories(
     state: Arc<AppState>,
     wiki: &str,
     article_qids: &[u32],
     topic_category_qid_set: &HashSet<u32>,
-    article_category_metrics: &HashMap<u32, HashMap<u32, u64>>,
     fallback_source_by_article: &HashMap<u32, u32>,
-) -> Result<HashMap<u32, ResolvedSourceCategory>, CoreServiceError> {
+) -> Result<HashMap<u32, Vec<u32>>, CoreServiceError> {
     if article_qids.is_empty() {
         return Ok(HashMap::new());
     }
@@ -98,15 +31,17 @@ pub async fn resolve_source_categories(
                 ))
             })?;
 
-        let source = pick_source_category(
-            &direct_categories,
-            topic_category_qid_set,
-            article_category_metrics.get(article_qid),
-            fallback_source_by_article.get(article_qid).copied(),
-        );
+        // Find all direct categories that match the topic
+        let matched: Vec<u32> = direct_categories
+            .into_iter()
+            .filter(|cat_qid| topic_category_qid_set.contains(cat_qid))
+            .collect();
 
-        if let Some(source) = source {
-            resolved.insert(*article_qid, source);
+        if !matched.is_empty() {
+            resolved.insert(*article_qid, matched);
+        } else if let Some(fallback) = fallback_source_by_article.get(article_qid).copied() {
+            // If no direct match, use fallback
+            resolved.insert(*article_qid, vec![fallback]);
         }
     }
 
@@ -115,63 +50,55 @@ pub async fn resolve_source_categories(
 
 #[cfg(test)]
 mod tests {
-    use super::{AttributionOrigin, pick_source_category};
     use std::collections::{HashMap, HashSet};
 
     #[test]
-    fn picks_direct_category_with_positive_metric() {
+    fn filters_direct_categories_by_topic_set() {
         let topic_set = HashSet::from([10, 11, 12]);
-        let direct_categories = vec![11, 12];
-        let metrics = HashMap::from([(11, 50_u64), (12, 75_u64)]);
+        let direct_categories = vec![11, 12, 20, 21];
 
-        let resolved =
-            pick_source_category(&direct_categories, &topic_set, Some(&metrics), Some(10));
+        let matched: Vec<u32> = direct_categories
+            .into_iter()
+            .filter(|cat_qid| topic_set.contains(cat_qid))
+            .collect();
 
-        assert_eq!(resolved.expect("source").category_qid, 12);
-        assert_eq!(resolved.expect("source").origin, AttributionOrigin::Direct);
+        assert_eq!(matched.len(), 2);
+        assert!(matched.contains(&11));
+        assert!(matched.contains(&12));
+        assert!(!matched.contains(&20));
     }
 
     #[test]
-    fn ignores_zero_metric_direct_and_uses_fallback() {
-        let topic_set = HashSet::from([10, 11]);
-        let direct_categories = vec![11];
-        let metrics = HashMap::from([(11, 0_u64)]);
-
-        let resolved =
-            pick_source_category(&direct_categories, &topic_set, Some(&metrics), Some(10));
-
-        assert_eq!(resolved.expect("source").category_qid, 10);
-        assert_eq!(
-            resolved.expect("source").origin,
-            AttributionOrigin::Fallback
-        );
-    }
-
-    #[test]
-    fn no_direct_intersection_uses_fallback() {
+    fn uses_fallback_when_no_direct_match() {
         let topic_set = HashSet::from([10]);
         let direct_categories = vec![11, 12];
-        let metrics = HashMap::from([(11, 42_u64), (12, 99_u64)]);
 
-        let resolved =
-            pick_source_category(&direct_categories, &topic_set, Some(&metrics), Some(10));
+        let matched: Vec<u32> = direct_categories
+            .into_iter()
+            .filter(|cat_qid| topic_set.contains(cat_qid))
+            .collect();
 
-        assert_eq!(resolved.expect("source").category_qid, 10);
-        assert_eq!(
-            resolved.expect("source").origin,
-            AttributionOrigin::Fallback
-        );
+        assert!(matched.is_empty());
+
+        let fallback = HashMap::from([(100_u32, 10_u32)]);
+        if let Some(fallback_cat) = fallback.get(&100_u32).copied() {
+            assert_eq!(fallback_cat, 10);
+        }
     }
 
     #[test]
-    fn tie_breaks_by_lower_category_qid() {
-        let topic_set = HashSet::from([10, 11]);
-        let direct_categories = vec![11, 10];
-        let metrics = HashMap::from([(10, 20_u64), (11, 20_u64)]);
+    fn returns_all_matching_categories() {
+        let topic_set = HashSet::from([10, 11, 12, 13]);
+        let direct_categories = vec![11, 12, 13];
 
-        let resolved = pick_source_category(&direct_categories, &topic_set, Some(&metrics), None);
+        let matched: Vec<u32> = direct_categories
+            .into_iter()
+            .filter(|cat_qid| topic_set.contains(cat_qid))
+            .collect();
 
-        assert_eq!(resolved.expect("source").category_qid, 10);
-        assert_eq!(resolved.expect("source").origin, AttributionOrigin::Direct);
+        assert_eq!(matched.len(), 3);
+        assert!(matched.contains(&11));
+        assert!(matched.contains(&12));
+        assert!(matched.contains(&13));
     }
 }

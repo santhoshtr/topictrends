@@ -37,9 +37,7 @@ pub struct ArticleGoogleSearchRank {
     pub clicks: u64,
     pub impressions: u64,
     pub ctr: f64,
-    pub source_category_qid: Option<u32>,
-    pub source_category_title: Option<String>,
-    pub source_category_origin: Option<String>,
+    pub source_categories: Vec<(u32, String)>,
 }
 
 pub struct ArticleSearchRankResult {
@@ -205,9 +203,7 @@ impl GoogleSearchTrendsService {
                     clicks: article.total_clicks,
                     impressions: article.total_impressions,
                     ctr: article.ctr,
-                    source_category_qid: Some(category_qid),
-                    source_category_title: Some(category.to_string()),
-                    source_category_origin: None,
+                    source_categories: vec![(category_qid, category.to_string())],
                 }
             })
             .collect();
@@ -445,37 +441,6 @@ impl GoogleSearchTrendsService {
         article_totals.truncate(10);
 
         let article_qids: Vec<u32> = article_totals.iter().map(|(qid, _)| *qid).collect();
-        let top_article_qid_set: HashSet<u32> = article_qids.iter().copied().collect();
-
-        let mut article_category_clicks: HashMap<u32, HashMap<u32, u64>> = HashMap::new();
-        if !top_article_qid_set.is_empty() {
-            let engine =
-                EngineService::get_or_build_google_search_engine(Arc::clone(&state), wiki).await?;
-            let engine_lock = engine.read().map_err(|e| {
-                CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
-            })?;
-
-            let effective_depth = depth.unwrap_or(1);
-            for qid in &category_qids {
-                let top_articles = engine_lock
-                    .get_top_articles_in_category(*qid, start, end, effective_depth, 50)
-                    .map_err(|e| {
-                        CoreServiceError::EngineError(format!("Failed to get top articles: {}", e))
-                    })?
-                    .top_articles;
-
-                for article in top_articles {
-                    if !top_article_qid_set.contains(&article.article_qid) {
-                        continue;
-                    }
-
-                    let per_article_category_clicks = article_category_clicks
-                        .entry(article.article_qid)
-                        .or_default();
-                    *per_article_category_clicks.entry(*qid).or_insert(0) += article.total_clicks;
-                }
-            }
-        }
 
         let fallback_source_by_article: HashMap<u32, u32> = article_totals
             .iter()
@@ -490,50 +455,54 @@ impl GoogleSearchTrendsService {
             QidService::get_titles_by_qids(Arc::clone(&state), wiki, &article_qids).await?
         };
 
-        let source_by_article = resolve_source_categories(
+        let source_categories_by_article = resolve_source_categories(
             Arc::clone(&state),
             wiki,
             &article_qids,
             &category_qid_set,
-            &article_category_clicks,
             &fallback_source_by_article,
         )
         .await?;
 
         let top_articles = article_totals
             .into_iter()
-            .map(
-                |(qid, (clicks, impressions, _, fallback_source_category_qid))| {
-                    let resolved_source = source_by_article.get(&qid).copied();
-                    let source_category_qid = resolved_source
-                        .map(|source| source.category_qid)
-                        .unwrap_or(fallback_source_category_qid);
-                    let title = titles_map
-                        .get(&qid)
-                        .cloned()
-                        .unwrap_or_else(|| format!("Q{}", qid));
-                    let source_category_title = category_titles
-                        .get(&source_category_qid)
-                        .cloned()
-                        .unwrap_or_else(|| format!("Q{}", source_category_qid));
-                    let ctr = if impressions == 0 {
-                        0.0
-                    } else {
-                        clicks as f64 / impressions as f64
-                    };
-                    ArticleGoogleSearchRank {
-                        qid,
-                        title,
-                        clicks,
-                        impressions,
-                        ctr,
-                        source_category_qid: Some(source_category_qid),
-                        source_category_title: Some(source_category_title),
-                        source_category_origin: resolved_source
-                            .map(|source| source.origin.as_str().to_string()),
-                    }
-                },
-            )
+            .map(|(qid, (clicks, impressions, _, _))| {
+                let source_category_qids = source_categories_by_article
+                    .get(&qid)
+                    .cloned()
+                    .unwrap_or_default();
+
+                let source_categories: Vec<(u32, String)> = source_category_qids
+                    .into_iter()
+                    .map(|cat_qid| {
+                        let title = category_titles
+                            .get(&cat_qid)
+                            .cloned()
+                            .unwrap_or_else(|| format!("Q{}", cat_qid));
+                        (cat_qid, title)
+                    })
+                    .collect();
+
+                let title = titles_map
+                    .get(&qid)
+                    .cloned()
+                    .unwrap_or_else(|| format!("Q{}", qid));
+
+                let ctr = if impressions == 0 {
+                    0.0
+                } else {
+                    clicks as f64 / impressions as f64
+                };
+
+                ArticleGoogleSearchRank {
+                    qid,
+                    title,
+                    clicks,
+                    impressions,
+                    ctr,
+                    source_categories,
+                }
+            })
             .collect();
 
         Ok(CategoryGoogleSearchTrendResult {

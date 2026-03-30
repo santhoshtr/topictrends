@@ -50,9 +50,9 @@ pub async fn get_category_google_search_trend_handler(
             clicks: article.clicks,
             impressions: article.impressions,
             ctr: article.ctr,
-            source_category_qid: article.source_category_qid,
-            source_category_title: article.source_category_title,
-            source_category_origin: article.source_category_origin,
+            source_categories: article.source_categories.into_iter()
+                .map(|(qid, title)| TopArticleCategory { qid, title })
+                .collect(),
         })
         .collect();
 
@@ -132,9 +132,9 @@ pub async fn get_topic_google_search_trend_handler(
             clicks: article.clicks,
             impressions: article.impressions,
             ctr: article.ctr,
-            source_category_qid: article.source_category_qid,
-            source_category_title: article.source_category_title,
-            source_category_origin: article.source_category_origin,
+            source_categories: article.source_categories.into_iter()
+                .map(|(qid, title)| TopArticleCategory { qid, title })
+                .collect(),
         })
         .collect();
 

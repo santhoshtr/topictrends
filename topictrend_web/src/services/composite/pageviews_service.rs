@@ -38,9 +38,7 @@ pub struct ArticleRank {
     pub qid: u32,
     pub title: String,
     pub views: u32,
-    pub source_category_qid: Option<u32>,
-    pub source_category_title: Option<String>,
-    pub source_category_origin: Option<String>,
+    pub source_categories: Vec<(u32, String)>,
 }
 
 pub struct CategoryRank {
@@ -130,9 +128,7 @@ impl PageViewsService {
                     qid: art.article_qid,
                     title: article_title,
                     views: art.total_views as u32,
-                    source_category_qid: Some(category_qid),
-                    source_category_title: Some(category.to_string()),
-                    source_category_origin: None,
+                    source_categories: vec![(category_qid, category.to_string())],
                 }
             })
             .collect();
@@ -220,35 +216,6 @@ impl PageViewsService {
         article_vec.truncate(10);
 
         let article_qids: Vec<u32> = article_vec.iter().map(|(qid, _)| *qid).collect();
-        let top_article_qid_set: HashSet<u32> = article_qids.iter().copied().collect();
-
-        let mut article_category_views: HashMap<u32, HashMap<u32, u64>> = HashMap::new();
-        if !top_article_qid_set.is_empty() {
-            for category_qid in &category_qids {
-                let top_articles = PageViewService::get_top_articles(
-                    Arc::clone(&state),
-                    wiki,
-                    *category_qid,
-                    start,
-                    end,
-                    depth,
-                    50,
-                )
-                .await?;
-
-                for article in top_articles {
-                    if !top_article_qid_set.contains(&article.article_qid) {
-                        continue;
-                    }
-
-                    let per_article_category_views = article_category_views
-                        .entry(article.article_qid)
-                        .or_default();
-                    *per_article_category_views.entry(*category_qid).or_insert(0) +=
-                        article.total_views;
-                }
-            }
-        }
 
         let fallback_source_by_article: HashMap<u32, u32> = article_vec
             .iter()
@@ -260,40 +227,44 @@ impl PageViewsService {
         let article_titles =
             QidService::get_titles_by_qids(Arc::clone(&state), wiki, &article_qids).await?;
 
-        let source_by_article = resolve_source_categories(
+        let source_categories_by_article = resolve_source_categories(
             Arc::clone(&state),
             wiki,
             &article_qids,
             &category_qid_set,
-            &article_category_views,
             &fallback_source_by_article,
         )
         .await?;
 
         let top_articles: Vec<ArticleRank> = article_vec
             .into_iter()
-            .map(|(qid, (total_views, _, fallback_source_category_qid))| {
-                let resolved_source = source_by_article.get(&qid).copied();
-                let source_category_qid = resolved_source
-                    .map(|source| source.category_qid)
-                    .unwrap_or(fallback_source_category_qid);
+            .map(|(qid, (total_views, _, _))| {
+                let source_category_qids = source_categories_by_article
+                    .get(&qid)
+                    .cloned()
+                    .unwrap_or_default();
+
+                let source_categories: Vec<(u32, String)> = source_category_qids
+                    .into_iter()
+                    .map(|cat_qid| {
+                        let title = category_titles
+                            .get(&cat_qid)
+                            .cloned()
+                            .unwrap_or_else(|| format!("Q{}", cat_qid));
+                        (cat_qid, title)
+                    })
+                    .collect();
+
                 let title = article_titles
                     .get(&qid)
                     .cloned()
                     .unwrap_or_else(|| format!("Q{}", qid));
-                let source_category_title = category_titles
-                    .get(&source_category_qid)
-                    .cloned()
-                    .unwrap_or_else(|| format!("Q{}", source_category_qid));
 
                 ArticleRank {
                     qid,
                     title,
                     views: total_views as u32,
-                    source_category_qid: Some(source_category_qid),
-                    source_category_title: Some(source_category_title),
-                    source_category_origin: resolved_source
-                        .map(|source| source.origin.as_str().to_string()),
+                    source_categories,
                 }
             })
             .collect();
@@ -421,13 +392,11 @@ impl PageViewsService {
                             .unwrap_or_else(|| format!("Q{}", art.article_qid));
 
                         ArticleRank {
-                            qid: art.article_qid,
-                            title: article_title,
-                            views: art.total_views as u32,
-                            source_category_qid: Some(cat.category_qid),
-                            source_category_title: Some(category_title.clone()),
-                            source_category_origin: None,
-                        }
+                             qid: art.article_qid,
+                             title: article_title,
+                             views: art.total_views as u32,
+                             source_categories: vec![(cat.category_qid, category_title.clone())],
+                         }
                     })
                     .collect();
 

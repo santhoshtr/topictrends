@@ -42,9 +42,9 @@ pub async fn get_category_edit_trend_handler(
             qid: art.qid,
             title: art.title,
             edits: art.edits,
-            source_category_qid: art.source_category_qid,
-            source_category_title: art.source_category_title,
-            source_category_origin: art.source_category_origin,
+            source_categories: art.source_categories.into_iter()
+                .map(|(qid, title)| TopArticleCategory { qid, title })
+                .collect(),
         })
         .collect();
 
@@ -110,9 +110,9 @@ pub async fn get_topic_edit_trend_handler(
             qid: art.qid,
             title: art.title,
             edits: art.edits,
-            source_category_qid: art.source_category_qid,
-            source_category_title: art.source_category_title,
-            source_category_origin: art.source_category_origin,
+            source_categories: art.source_categories.into_iter()
+                .map(|(qid, title)| TopArticleCategory { qid, title })
+                .collect(),
         })
         .collect();
 

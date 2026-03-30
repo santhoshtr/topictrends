@@ -119,9 +119,9 @@ pub async fn get_categories_trend_by_search_handler(
             qid: art.qid,
             title: art.title,
             views: art.views,
-            source_category_qid: art.source_category_qid,
-            source_category_title: art.source_category_title,
-            source_category_origin: art.source_category_origin,
+            source_categories: art.source_categories.into_iter()
+                .map(|(qid, title)| crate::models::TopArticleCategory { qid, title })
+                .collect(),
         })
         .collect();
 
