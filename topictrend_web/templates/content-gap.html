@@ -10,20 +10,37 @@
 <div class="app-container">
   <div class="form-container">
     <h2>Content Gap</h2>
-    <form id="content-gap-form">      <div class="header-wiki-selector">
-    {% include "wiki-selector.html" %}
-  </div>
-      <div class="form-item">
-        <label for="category">Category</label>
-        <wiki-category-selector id="category" name="category"
-          placeholder="Search category"></wiki-category-selector>
-        <input name="category_qid" id="category_qid" type="hidden">
+    <form id="content-gap-form">
+      <div class="header-wiki-selector">
+        {% include "wiki-selector.html" %}
       </div>
+
+      <div class="form-item">
+        <input type="radio" id="tab-topic" name="type" value="topic" checked />
+        <input type="radio" id="tab-category" name="type" value="category" />
+        <div class="tab">
+          <label for="tab-topic" class="cdx-label">Topic</label>
+          <label for="tab-category" class="cdx-label">Category</label>
+        </div>
+        <div class="tab-content">
+          <div class="tab-content-topic">
+            <input type="text" id="topic" name="topic" pattern="[\x00-\x7F]+"  class="cdx-text-input__input"
+              placeholder="Enter any topic" />
+          </div>
+          <div class="tab-content-category">
+            <wiki-category-selector id="category" name="category"
+              placeholder="Search category"></wiki-category-selector>
+            <input name="category_qid" id="category_qid" type="hidden">
+          </div>
+        </div>
+      </div>
+
       <div class="form-item">
         <label for="depth">Depth</label>
         <input type="number" id="depth" name="depth" value="2" min="1" max="5"
           class="cdx-text-input__input depth-input">
       </div>
+
       <div class="form-item">
         <button type="submit"
           class="cdx-button cdx-button--action-progressive cdx-button--weight-primary">Analyse</button>
