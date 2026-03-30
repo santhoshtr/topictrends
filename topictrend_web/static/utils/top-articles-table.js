@@ -45,27 +45,15 @@ function buildCategoryParams(category, wiki, startDate, endDate) {
 
 function normalizeArticleCategories(article) {
 	// source_categories from topic/category trends
-	if (Array.isArray(article.source_categories) && article.source_categories.length > 0) {
+	if (
+		Array.isArray(article.source_categories) &&
+		article.source_categories.length > 0
+	) {
 		return article.source_categories;
 	}
 	// categories from global top articles
 	if (Array.isArray(article.categories)) {
 		return article.categories;
-	}
-	return [];
-}
-	// Fall back to categories (from global top articles)
-	if (Array.isArray(article.categories)) {
-		return article.categories;
-	}
-	// Legacy fallback for backward compatibility
-	if (article.source_category_title || article.source_category_qid) {
-		return [
-			{
-				title: article.source_category_title,
-				qid: article.source_category_qid,
-			},
-		];
 	}
 	return [];
 }
