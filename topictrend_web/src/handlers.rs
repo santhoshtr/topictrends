@@ -14,7 +14,7 @@ use crate::{
         ArticlesInCategoryResponse, CategoryEditRankResponse, CategoryEditTrendResponse,
         CategoryRankResponse, CategorySearchItemResponse, CategorySearchParams,
         CategorySearchRankResponse, CategorySearchResponse, CategoryTrendParams,
-        CategoryTrendResponse, ContentGapParams, ContentGapResult, DailyEdits, DailyGoogleSearch,
+        CategoryTrendResponse, ContentGapParams, ContentGapResult, ContentGapTopicParams, DailyEdits, DailyGoogleSearch,
         DailyViews, GoogleSearchArticleDeltaParams, GoogleSearchArticleDeltaResponse,
         GoogleSearchArticleTrendResponse, GoogleSearchCategoryDeltaParams,
         GoogleSearchCategoryDeltaResponse, GoogleSearchCategoryTrendResponse,
@@ -1200,13 +1200,7 @@ pub async fn get_content_gap_handler(
                 "Either category or category_qid must be provided".to_string(),
             )
         })?;
-        match QidService::get_qid_by_title(Arc::clone(&state), "enwiki", category, 14).await {
-            Ok(qid) => qid,
-            Err(_) => {
-                let qids = taxonomy_search_category_qids(category).await?;
-                *qids.first().ok_or(CoreServiceError::NotFound)?
-            }
-        }
+        QidService::get_qid_by_title(Arc::clone(&state), "enwiki", category, 14).await?
     };
 
     let category_label = params
@@ -1216,6 +1210,25 @@ pub async fn get_content_gap_handler(
 
     let result =
         ContentGapService::get_content_gap(state, category_qid, &category_label, wikis, depth)
+            .await?;
+
+    Ok(Json(result))
+}
+
+pub async fn get_content_gap_topic_handler(
+    Query(params): Query<ContentGapTopicParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<ContentGapResult>, ApiError> {
+    let wikis: Vec<String> = params
+        .wikis
+        .split(',')
+        .map(|wiki| wiki.trim())
+        .filter(|wiki| !wiki.is_empty())
+        .map(|wiki| wiki.to_string())
+        .collect();
+
+    let result =
+        ContentGapService::get_topic_content_gap(state, &params.topic, wikis, params.depth)
             .await?;
 
     Ok(Json(result))
