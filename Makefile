@@ -18,7 +18,7 @@ GSC_DIR ?= $(DATA_DIR)/gsc_page_date
 WIKIS := $(shell cat $(DATA_DIR)/wikipedia.list 2>/dev/null)
 QUERIES_DIR := queries
 PAGEVIEWS_DIR := $(DATA_DIR)/pageviews
-EDIT_SNAPSHOT ?= 2026-01
+EDIT_SNAPSHOT ?= 2026-02
 MIN_EDIT_YEAR ?= 2020
 
 .DEFAULT_GOAL := run
@@ -275,7 +275,7 @@ index-clean:
 	@echo "Done"
 
 # Ensure categories parquet exists before indexing
-$(DATA_DIR)/%/categories.parquet: 
+$(DATA_DIR)/%/categories.parquet:
 	@$(MAKE) $(DATA_DIR)/$*/categories.parquet
 
 # Monthly processing target
