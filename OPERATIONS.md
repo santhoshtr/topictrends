@@ -125,9 +125,6 @@ ZVEC_DIR=data/embedding_store/zvec
 # Web server port (optional, defaults to 8765)
 PORT=8765
 
-# gRPC server port (optional, defaults to 50051)
-GRPC_PORT=50051
-
 # Data directory path (optional, defaults to "data")
 DATA_DIR=data
 ```
@@ -138,7 +135,7 @@ DATA_DIR=data
 
 **Optional Variables:**
 - `EMBEDDING_SERVER` is only needed if using semantic search endpoints
-- `PORT` and `GRPC_PORT` override defaults if needed
+- `PORT` overrides default if needed
 
 ### Database Replica Access
 
@@ -352,8 +349,7 @@ The server:
 1. Loads topology from Parquet files into memory (CSR structure)
 2. Mmaps daily pageview binaries
 3. Starts HTTP server on `0.0.0.0:8765` (or custom `PORT`)
-4. Starts gRPC server on `0.0.0.0:50051` (or custom `GRPC_PORT`)
-5. Establishes connection pool to MariaDB replica for title translation
+4. Establishes connection pool to MariaDB replica for title translation
 
 ### Dependencies
 
