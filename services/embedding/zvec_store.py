@@ -53,7 +53,7 @@ class ZvecStore:
         """Get the path for a wiki's collection."""
         return self.zvec_dir / f"{wiki}-categories"
 
-    def _get_collection(self, wiki: str) -> zvec.Collection:
+    def _get_collection(self, wiki: str, read_only=True) -> zvec.Collection:
         """Get or open a collection for a wiki."""
         if wiki in self._collections:
             return self._collections[wiki]
@@ -61,7 +61,10 @@ class ZvecStore:
         col_path = self._collection_path(wiki)
 
         if col_path.exists():
-            col = zvec.open(str(col_path))
+            col = zvec.open(
+                    path=str(col_path), 
+                    option=zvec.CollectionOption(read_only=read_only, enable_mmap=True),
+            )
         else:
             col = self._create_collection(wiki)
 
