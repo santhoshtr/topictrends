@@ -1,4 +1,5 @@
 use crate::handlers;
+use crate::mcp::TopicTrendMcpServer;
 use crate::models::AppState;
 use crate::templates::{PageContext, render_template};
 use axum::http::header::{CACHE_CONTROL, HeaderValue};
@@ -8,6 +9,8 @@ use axum::{
     response::{Html, Redirect},
     routing::{get, get_service},
 };
+use rmcp::transport::streamable_http_server::{StreamableHttpService, StreamableHttpServerConfig};
+use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
 use std::sync::Arc;
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::{cors::CorsLayer, services::ServeDir};
@@ -248,6 +251,17 @@ pub fn app_router(state: Arc<AppState>) -> Router {
         .route(
             "/api/content_gap/topic",
             get(handlers::get_content_gap_topic_handler),
+        )
+        .nest_service(
+            "/mcp",
+            StreamableHttpService::new(
+                {
+                    let state = Arc::clone(&state);
+                    move || Ok(TopicTrendMcpServer::new(Arc::clone(&state)))
+                },
+                Arc::new(LocalSessionManager::default()),
+                StreamableHttpServerConfig::default(),
+            ),
         )
         .with_state(state)
         .layer(cors)

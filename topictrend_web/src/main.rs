@@ -1,5 +1,6 @@
 mod grpc_service;
 mod handlers;
+mod mcp;
 mod models;
 mod routes;
 mod services;

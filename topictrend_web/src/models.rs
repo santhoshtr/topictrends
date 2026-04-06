@@ -4,6 +4,7 @@ use std::{
 };
 
 use chrono::NaiveDate;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::{MySql, Pool};
 use topictrend::google_search_engine::GoogleSearchEngine;
@@ -207,19 +208,19 @@ pub struct GoogleSearchArticleDeltaParams {
 }
 
 // --- Response DTO ---
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct DailyViews {
     pub date: NaiveDate,
     pub views: u64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct DailyEdits {
     pub date: NaiveDate,
     pub edits: u64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct DailyGoogleSearch {
     pub date: NaiveDate,
     pub clicks: u64,
@@ -228,14 +229,14 @@ pub struct DailyGoogleSearch {
     pub position: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct ArticleTrendResponse {
     pub qid: u32,
     pub title: String,
     pub views: Vec<DailyViews>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct CategoryTrendResponse {
     pub qid: u32,
     pub title: String,
@@ -243,21 +244,21 @@ pub struct CategoryTrendResponse {
     pub top_articles: Vec<TopArticle>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct CategoriesTrendResponse {
     pub categories: Vec<CategoryInfo>,
     pub cumulative_views: Vec<DailyViews>,
     pub top_articles: Vec<TopArticle>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct ArticleEditTrendResponse {
     pub qid: u32,
     pub title: String,
     pub edits: Vec<DailyEdits>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct CategoryEditTrendResponse {
     pub qid: u32,
     pub title: String,
@@ -265,13 +266,13 @@ pub struct CategoryEditTrendResponse {
     pub top_articles: Vec<TopArticleEdits>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct CategoryInfo {
     pub qid: u32,
     pub title: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct TopArticle {
     pub qid: u32,
     pub title: String,
@@ -279,7 +280,7 @@ pub struct TopArticle {
     pub source_categories: Vec<TopArticleCategory>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct TopArticleEdits {
     pub qid: u32,
     pub title: String,
@@ -287,7 +288,7 @@ pub struct TopArticleEdits {
     pub source_categories: Vec<TopArticleCategory>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct TopCategory {
     pub qid: u32,
     pub title: String,
@@ -295,18 +296,18 @@ pub struct TopCategory {
     pub top_articles: Vec<TopArticle>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct CategoryRankResponse {
     pub categories: Vec<TopCategory>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct TopArticleCategory {
     pub qid: u32,
     pub title: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct PageViewTopArticle {
     pub qid: u32,
     pub title: String,
@@ -314,12 +315,12 @@ pub struct PageViewTopArticle {
     pub categories: Vec<TopArticleCategory>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct PageViewTopArticlesResponse {
     pub articles: Vec<PageViewTopArticle>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct PageEditTopArticle {
     pub qid: u32,
     pub title: String,
@@ -327,19 +328,19 @@ pub struct PageEditTopArticle {
     pub categories: Vec<TopArticleCategory>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct PageEditTopArticlesResponse {
     pub articles: Vec<PageEditTopArticle>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct TopArticleByEdits {
     pub qid: u32,
     pub title: String,
     pub edits: u64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct TopCategoryByEdits {
     pub qid: u32,
     pub title: String,
@@ -347,12 +348,12 @@ pub struct TopCategoryByEdits {
     pub top_articles: Vec<TopArticleByEdits>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct CategoryEditRankResponse {
     pub categories: Vec<TopCategoryByEdits>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct TopArticleBySearch {
     pub qid: u32,
     pub title: String,
@@ -361,7 +362,7 @@ pub struct TopArticleBySearch {
     pub ctr: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct TopCategoryBySearch {
     pub qid: u32,
     pub title: String,
@@ -371,12 +372,12 @@ pub struct TopCategoryBySearch {
     pub top_articles: Vec<TopArticleBySearch>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct CategorySearchRankResponse {
     pub categories: Vec<TopCategoryBySearch>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct GoogleSearchTopArticle {
     pub qid: u32,
     pub title: String,
@@ -386,12 +387,12 @@ pub struct GoogleSearchTopArticle {
     pub categories: Vec<TopArticleCategory>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct GoogleSearchTopArticlesResponse {
     pub articles: Vec<GoogleSearchTopArticle>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct PageViewCategoryDeltaItemResponse {
     pub category_qid: u32,
     pub category_title: String,
@@ -401,14 +402,14 @@ pub struct PageViewCategoryDeltaItemResponse {
     pub absolute_delta: i64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct PageViewCategoryDeltaResponse {
     pub categories: Vec<PageViewCategoryDeltaItemResponse>,
     pub baseline_period: String,
     pub impact_period: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct PageViewArticleDeltaItemResponse {
     pub article_qid: u32,
     pub article_title: String,
@@ -418,7 +419,7 @@ pub struct PageViewArticleDeltaItemResponse {
     pub absolute_delta: i64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct PageViewArticleDeltaResponse {
     pub articles: Vec<PageViewArticleDeltaItemResponse>,
     pub category_qid: u32,
@@ -427,7 +428,7 @@ pub struct PageViewArticleDeltaResponse {
     pub impact_period: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct PageEditCategoryDeltaItemResponse {
     pub category_qid: u32,
     pub category_title: String,
@@ -437,14 +438,14 @@ pub struct PageEditCategoryDeltaItemResponse {
     pub absolute_delta: i64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct PageEditCategoryDeltaResponse {
     pub categories: Vec<PageEditCategoryDeltaItemResponse>,
     pub baseline_period: String,
     pub impact_period: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct PageEditArticleDeltaItemResponse {
     pub article_qid: u32,
     pub article_title: String,
@@ -454,7 +455,7 @@ pub struct PageEditArticleDeltaItemResponse {
     pub absolute_delta: i64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct PageEditArticleDeltaResponse {
     pub articles: Vec<PageEditArticleDeltaItemResponse>,
     pub category_qid: u32,
@@ -463,7 +464,7 @@ pub struct PageEditArticleDeltaResponse {
     pub impact_period: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct TopArticleGoogleSearch {
     pub qid: u32,
     pub title: String,
@@ -473,7 +474,7 @@ pub struct TopArticleGoogleSearch {
     pub source_categories: Vec<TopArticleCategory>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct GoogleSearchCategoryTrendResponse {
     pub qid: u32,
     pub title: String,
@@ -481,14 +482,14 @@ pub struct GoogleSearchCategoryTrendResponse {
     pub top_articles: Vec<TopArticleGoogleSearch>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct GoogleSearchArticleTrendResponse {
     pub qid: u32,
     pub title: String,
     pub search: Vec<DailyGoogleSearch>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct GoogleSearchCategoryDeltaItemResponse {
     pub category_qid: u32,
     pub category_title: String,
@@ -500,14 +501,14 @@ pub struct GoogleSearchCategoryDeltaItemResponse {
     pub absolute_delta: i64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct GoogleSearchCategoryDeltaResponse {
     pub categories: Vec<GoogleSearchCategoryDeltaItemResponse>,
     pub baseline_period: String,
     pub impact_period: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct GoogleSearchArticleDeltaItemResponse {
     pub article_qid: u32,
     pub article_title: String,
@@ -519,7 +520,7 @@ pub struct GoogleSearchArticleDeltaItemResponse {
     pub absolute_delta: i64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct GoogleSearchArticleDeltaResponse {
     pub articles: Vec<GoogleSearchArticleDeltaItemResponse>,
     pub category_qid: u32,
@@ -536,7 +537,7 @@ pub struct CategorySearchParams {
     pub limit: Option<u64>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct CategorySearchItemResponse {
     pub category_qid: u32,
     pub category_title_en: String,
@@ -544,7 +545,7 @@ pub struct CategorySearchItemResponse {
     pub match_score: f32,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct CategorySearchResponse {
     pub categories: Vec<CategorySearchItemResponse>,
 }
@@ -571,24 +572,24 @@ pub struct ContentGapTopicParams {
     pub depth: Option<u32>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct ArticlesInCategoryResponse {
     pub articles: Vec<ArticleItem>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct ArticleItem {
     pub qid: u32,
     pub title: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct ContentGapWikiResult {
     pub wiki: String,
     pub article_count: usize,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct ContentGapResult {
     pub category: String,
     pub category_qid: u32,
