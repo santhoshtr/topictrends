@@ -11,7 +11,7 @@ dependencies = [
     "transformers>=5.5.0",
     "torch>=2.0.0",
     "numpy>=2.4.0",
-    "zvec>=0.3.0",
+    "zvec>=0.2.0",
     "polars[pyarrow]>=1.39.0",
     "tqdm>=4.66.0",
 ]
