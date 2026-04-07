@@ -179,6 +179,17 @@ pub struct ContentGapTopicInput {
     pub depth: Option<u32>,
 }
 
+/// Input for listing categories an article belongs to.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ListArticleCategoriesInput {
+    /// Wikipedia edition database name (e.g. "enwiki").
+    pub wiki: String,
+    /// Article title. At least one of article or article_qid required.
+    pub article: Option<String>,
+    /// Wikidata QID as a plain integer. At least one of article or article_qid required.
+    pub article_qid: Option<u32>,
+}
+
 // ---------------------------------------------------------------------------
 // Date parsing
 // ---------------------------------------------------------------------------

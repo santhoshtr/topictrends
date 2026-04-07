@@ -5,10 +5,10 @@ use rmcp::{ErrorData, tool};
 use rmcp::handler::server::wrapper::Parameters;
 
 use crate::mcp::TopicTrendMcpServer;
-use crate::mcp::tools::{ContentGapTopicInput, ListArticlesInput, SubCategoriesInput, core_err};
-use crate::models::{ArticleItem, ArticlesInCategoryResponse, ContentGapResult};
+use crate::mcp::tools::{ContentGapTopicInput, ListArticlesInput, SubCategoriesInput, core_err, ListArticleCategoriesInput};
+use crate::models::{ArticleItem, ArticlesInCategoryResponse, ContentGapResult, ArticleCategoriesResponse};
 use crate::services::{ContentGapService, PageViewsService};
-use crate::services::core::{CategoryService, QidService};
+use crate::services::core::{CategoryService, QidService, ArticleService};
 
 impl TopicTrendMcpServer {
     /// List direct subcategories of a Wikipedia category.
@@ -100,5 +100,46 @@ impl TopicTrendMcpServer {
         ).await.map_err(core_err)?;
 
         Ok(rmcp::handler::server::wrapper::Json(result))
+    }
+
+    /// List all categories that an article belongs to.
+    ///
+    /// Returns QID and title for each category. At least one of `article` or `article_qid` must be provided.
+    #[tool(
+        name = "topictrends_list_article_categories",
+        description = "List all Wikipedia categories that an article belongs to (QID and title for each).",
+        annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = true)
+    )]
+    pub async fn list_article_categories(
+        &self,
+        Parameters(p): Parameters<ListArticleCategoriesInput>,
+    ) -> Result<rmcp::handler::server::wrapper::Json<ArticleCategoriesResponse>, ErrorData> {
+        let article_qid = if let Some(qid) = p.article_qid {
+            qid
+        } else {
+            let article = p.article.ok_or_else(|| {
+                ErrorData::invalid_params(
+                    "Either article or article_qid must be provided".to_string(),
+                    None,
+                )
+            })?;
+            QidService::get_qid_by_title(Arc::clone(&self.state), &p.wiki, &article, 0)
+                .await.map_err(core_err)?
+        };
+
+        let category_qids = ArticleService::get_article_categories(
+            Arc::clone(&self.state), &p.wiki, article_qid,
+        ).await.map_err(core_err)?;
+
+        let titles = QidService::get_titles_by_qids(
+            Arc::clone(&self.state), &p.wiki, &category_qids,
+        ).await.map_err(core_err)?;
+
+        let categories = category_qids.into_iter().map(|qid| {
+            let title = titles.get(&qid).cloned().unwrap_or_else(|| format!("Q{}", qid));
+            crate::models::CategoryInfo { qid, title }
+        }).collect();
+
+        Ok(rmcp::handler::server::wrapper::Json(ArticleCategoriesResponse { categories }))
     }
 }

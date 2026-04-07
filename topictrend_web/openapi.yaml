@@ -631,6 +631,31 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/list/article_categories:
+    get:
+      operationId: listArticleCategories
+      tags: [Lists]
+      summary: List categories for an article
+      description: |
+        Returns all categories that an article belongs to.
+
+        Note: at least one of `article` or `article_qid` must be provided.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/ArticleOptional"
+        - $ref: "#/components/parameters/ArticleQidOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArticleCategoriesResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/pageviews/categories:
     get:
       operationId: getCategoriesPageviewTrendBySearch
@@ -740,6 +765,15 @@ components:
       name: article
       in: query
       required: true
+      description: Article title in the given wiki.
+      schema:
+        type: string
+        minLength: 1
+
+    ArticleOptional:
+      name: article
+      in: query
+      required: false
       description: Article title in the given wiki.
       schema:
         type: string
@@ -1700,6 +1734,15 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ArticleItem"
+
+    ArticleCategoriesResponse:
+      type: object
+      required: [categories]
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryInfo"
 
     ContentGapWikiResult:
       type: object

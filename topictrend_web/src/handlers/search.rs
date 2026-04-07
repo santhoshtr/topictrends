@@ -6,13 +6,14 @@ use std::sync::Arc;
 
 use crate::services::{
     ContentGapService, PageViewsService,
-    core::{QidService, CategoryService, CoreServiceError},
+    core::{QidService, CategoryService, CoreServiceError, ArticleService},
 };
 use crate::models::{
     AppState, CategorySearchParams, CategorySearchResponse, CategorySearchItemResponse,
     CategoriesTrendParams, CategoriesTrendResponse, ListArticlesInCategoryParams,
     ArticlesInCategoryResponse, ArticleItem, ContentGapParams, ContentGapResult,
-    ContentGapTopicParams, DailyViews, TopArticle,
+    ContentGapTopicParams, DailyViews, TopArticle, ListArticleCategoriesParams,
+    ArticleCategoriesResponse,
 };
 
 use super::ApiError;
@@ -244,4 +245,45 @@ pub async fn get_content_gap_topic_handler(
             .await?;
 
     Ok(Json(result))
+}
+
+pub async fn get_article_categories(
+    Query(params): Query<ListArticleCategoriesParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<ArticleCategoriesResponse>, ApiError> {
+    let article_qid = if let Some(qid) = params.article_qid {
+        qid
+    } else {
+        let article = params.article.ok_or_else(|| {
+            CoreServiceError::InternalError(
+                "Either article or article_qid must be provided".to_string(),
+            )
+        })?;
+        QidService::get_qid_by_title(Arc::clone(&state), params.wiki.as_str(), &article, 0)
+            .await?
+    };
+
+    let category_qids = ArticleService::get_article_categories(
+        Arc::clone(&state),
+        params.wiki.as_str(),
+        article_qid,
+    )
+    .await?;
+
+    let titles_map =
+        QidService::get_titles_by_qids(Arc::clone(&state), params.wiki.as_str(), &category_qids)
+            .await?;
+
+    let categories: Vec<crate::models::CategoryInfo> = category_qids
+        .into_iter()
+        .map(|qid| crate::models::CategoryInfo {
+            qid,
+            title: titles_map
+                .get(&qid)
+                .cloned()
+                .unwrap_or_else(|| format!("Q{}", qid)),
+        })
+        .collect();
+
+    Ok(Json(ArticleCategoriesResponse { categories }))
 }

@@ -50,11 +50,12 @@ impl TopicTrendMcpServer {
             .with_route((clean(Self::get_article_pageedit_delta_tool_attr()), Self::get_article_pageedit_delta))
             .with_route((clean(Self::get_category_googlesearch_delta_tool_attr()), Self::get_category_googlesearch_delta))
             .with_route((clean(Self::get_article_googlesearch_delta_tool_attr()), Self::get_article_googlesearch_delta))
-            // search (1)
+             // search (1)
             .with_route((clean(Self::search_categories_tool_attr()), Self::search_categories))
-            // lists (3)
+            // lists (4)
             .with_route((clean(Self::list_subcategories_tool_attr()), Self::list_subcategories))
             .with_route((clean(Self::list_articles_in_category_tool_attr()), Self::list_articles_in_category))
+            .with_route((clean(Self::list_article_categories_tool_attr()), Self::list_article_categories))
             .with_route((clean(Self::get_content_gap_topic_tool_attr()), Self::get_content_gap_topic))
     }
 }
