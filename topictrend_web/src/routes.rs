@@ -1,5 +1,5 @@
 use crate::handlers;
-use crate::mcp;
+use crate::mcp::TopicTrendMcpServer;
 use crate::models::AppState;
 use crate::templates::{PageContext, render_template};
 use axum::http::header::{CACHE_CONTROL, HeaderValue};
@@ -19,16 +19,6 @@ const OPENAPI_YAML: &str = include_str!("../openapi.yaml");
 const SWAGGER_UI_HTML: &str = include_str!("../static/swagger-ui.html");
 
 pub fn app_router(state: Arc<AppState>) -> Router {
-    let port = std::env::var("PORT")
-        .ok()
-        .and_then(|v| v.parse::<u16>().ok())
-        .unwrap_or(8765);
-    let mcp_base_url = std::env::var("MCP_BASE_URL")
-        .unwrap_or_else(|_| format!("http://127.0.0.1:{port}"));
-    let mcp_server = mcp::build_server(&mcp_base_url).unwrap_or_else(|e| {
-        panic!("failed to initialize MCP server: {e}");
-    });
-
     let static_files = get_service(ServeDir::new("topictrend_web/static"))
         .handle_error(|_| async { (StatusCode::INTERNAL_SERVER_ERROR, "Static file error") });
 
@@ -266,8 +256,8 @@ pub fn app_router(state: Arc<AppState>) -> Router {
             "/mcp",
             StreamableHttpService::new(
                 {
-                    let mcp_server = mcp_server.clone();
-                    move || Ok(mcp_server.clone())
+                    let state = Arc::clone(&state);
+                    move || Ok(TopicTrendMcpServer::new(Arc::clone(&state)))
                 },
                 Arc::new(LocalSessionManager::default()),
                 StreamableHttpServerConfig::default(),
