@@ -10,6 +10,7 @@
 <div class="app-container">
   <div class="form-container">
     <h2>Content Gap</h2>
+    <form-filler>
     <form id="content-gap-form">
       <div class="header-wiki-selector">
         {% include "wiki-selector.html" %}
@@ -46,6 +47,7 @@
           class="cdx-button cdx-button--action-progressive cdx-button--weight-primary">Analyse</button>
       </div>
     </form>
+    </form-filler>
   </div>
 
   <div class="main">
@@ -72,5 +74,6 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
 <script src="/static/wikicategoryselector.js" type="module"></script>
+<script src="/static/components/form-filler.js" type="module"></script>
 <script src="/static/content-gap.js" type="module"></script>
 {% endblock %}

@@ -33,7 +33,48 @@ document.addEventListener("DOMContentLoaded", async () => {
 		.addEventListener("click", (e) => {
 			if (e.target === e.currentTarget) e.currentTarget.close();
 		});
-	populateFormFromQueryParams();
+
+	document.getElementById("content-gap-form").addEventListener("form-fill-complete", () => {
+		const p = new URLSearchParams(window.location.search);
+		const type = p.get("type") || "topic";
+		const wiki = p.get("wiki");
+		const depth = p.get("depth");
+		const compare = p.get("compare");
+
+		// Set the type tab (param name differs from field id: tab-topic / tab-category)
+		const typeRadio = document.getElementById(`tab-${type}`);
+		if (typeRadio) typeRadio.checked = true;
+
+		if (type === "topic") {
+			const topic = p.get("topic");
+			if (topic) {
+				currentType = "topic";
+				currentTopic = topic;
+				currentCategory = null;
+			}
+		} else {
+			const category = p.get("category");
+			if (category) {
+				currentType = "category";
+				currentCategory = category;
+				currentTopic = null;
+			}
+		}
+
+		if ((type === "topic" && currentTopic) || (type === "category" && currentCategory)) {
+			currentDepth = depth || "2";
+			const baseWiki = wiki || document.getElementById("wiki").value;
+			const compareWikis = compare
+				? compare.split(",").map((w) => w.trim()).filter(Boolean)
+				: [];
+			activeWikis = [baseWiki, ...compareWikis];
+			fetchAndRender();
+		}
+	});
+
+	if (!window.location.search) {
+		document.querySelector(".examples").hidden = false;
+	}
 });
 
 async function loadWikiList() {
@@ -348,67 +389,4 @@ function buildTrendsUrl(page, wiki, query, depth) {
 	}
 
 	return `/${page}/trends?${params}`;
-}
-
-function populateFormFromQueryParams() {
-	const p = new URLSearchParams(window.location.search);
-	const type = p.get("type") || "topic";
-	const wiki = p.get("wiki");
-	const depth = p.get("depth");
-	const compare = p.get("compare");
-
-	// Set the type (topic or category)
-	const typeRadio = document.getElementById(`tab-${type}`);
-	if (typeRadio) {
-		typeRadio.checked = true;
-	}
-
-	if (wiki) {
-		document.getElementById("wiki").value = wiki;
-	}
-	if (depth) {
-		document.getElementById("depth").value = depth;
-	}
-
-	if (type === "topic") {
-		const topic = p.get("topic");
-		if (topic) {
-			document.getElementById("topic").value = topic.replaceAll("_", " ");
-			currentType = "topic";
-			currentTopic = topic;
-			currentCategory = null;
-		}
-	} else {
-		const category = p.get("category");
-		if (category) {
-			document.getElementById("category").value = category.replaceAll("_", " ");
-			currentType = "category";
-			currentCategory = category;
-			currentTopic = null;
-		}
-	}
-
-	if (type === "topic" && currentTopic) {
-		currentDepth = depth || "2";
-		const baseWiki = wiki || document.getElementById("wiki").value;
-		const compareWikis = compare
-			? compare
-					.split(",")
-					.map((w) => w.trim())
-					.filter(Boolean)
-			: [];
-		activeWikis = [baseWiki, ...compareWikis];
-		fetchAndRender();
-	} else if (type === "category" && currentCategory) {
-		currentDepth = depth || "2";
-		const baseWiki = wiki || document.getElementById("wiki").value;
-		const compareWikis = compare
-			? compare
-					.split(",")
-					.map((w) => w.trim())
-					.filter(Boolean)
-			: [];
-		activeWikis = [baseWiki, ...compareWikis];
-		fetchAndRender();
-	}
 }

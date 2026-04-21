@@ -10,6 +10,7 @@
 <div class="app-container">
   <div class="form-container">
     <h2>Google Search Trends</h2>
+    <form-filler>
     <form id="trend-form">
       <div class="header-wiki-selector">
         {% include "wiki-selector.html" %}
@@ -53,6 +54,7 @@
       <input name="category_qid" id="category_qid" type="hidden">
       <input name="article_qid" id="article_qid" type="hidden">
     </form>
+    </form-filler>
     <a href="/googlesearch/delta">Google search trends by topic for this wiki</a>
     <section id="category-list"></section>
   </div>
@@ -76,6 +78,7 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+<script src="/static/components/form-filler.js" type="module"></script>
 <script src="/static/google-search-trends.js" type="module"></script>
 <script src="/static/wikiarticleselector.js" type="module"></script>
 <script src="/static/wikicategoryselector.js" type="module"></script>

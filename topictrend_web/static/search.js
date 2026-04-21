@@ -16,7 +16,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 	);
 
 	await populateWikiDropdown();
-	populateFormFromQueryParams();
+
+	document.getElementById("search-form").addEventListener("form-fill-complete", () => {
+		updateTrendLinks();
+		onSubmit(new Event("submit"));
+	});
 
 	wikiSelector.addEventListener("change", updateTrendLinks);
 	categoryElement.addEventListener("input", updateTrendLinks);
@@ -162,23 +166,5 @@ async function listArticles(wiki, category_qid) {
 		throw error;
 	} finally {
 		hideProgress();
-	}
-}
-
-function populateFormFromQueryParams() {
-	const urlParams = new URLSearchParams(window.location.search);
-	const wiki = urlParams.get("wiki");
-	const category = urlParams.get("category");
-	const match_threshold = urlParams.get("match_threshold");
-
-	if (wiki) document.getElementById("wiki").value = wiki;
-	if (category)
-		document.getElementById("category").value = category.replaceAll("_", " ");
-	if (match_threshold)
-		document.getElementById("match_threshold").value = match_threshold;
-
-	if (wiki && category) {
-		updateTrendLinks();
-		onSubmit(new Event("submit"));
 	}
 }

@@ -19,7 +19,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 	document.getElementById("delta-form").addEventListener("submit", onSubmit);
 
 	await populateWikiDropdown();
-	populateFormFromQueryParams();
+
+	document.getElementById("delta-form").addEventListener("form-fill-complete", () => {
+		onSubmit(new Event("submit"));
+	});
+
+	if (!window.location.search) {
+		document.querySelector(".examples").hidden = false;
+	}
 });
 
 async function onSubmit(event) {
@@ -589,43 +596,3 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // Using imported showMessage from ui-utils.js
-
-function populateFormFromQueryParams() {
-	const urlParams = new URLSearchParams(window.location.search);
-
-	const wiki = urlParams.get("wiki");
-	const baselineStartDate = urlParams.get("baseline_start_date");
-	const baselineEndDate = urlParams.get("baseline_end_date");
-	const impactStartDate = urlParams.get("impact_start_date");
-	const impactEndDate = urlParams.get("impact_end_date");
-
-	const depth = urlParams.get("depth");
-	const limit = urlParams.get("limit");
-	if (depth) {
-		document.getElementById("depth").value = depth;
-	}
-	if (limit) {
-		document.getElementById("limit").value = limit;
-	}
-	if (baselineStartDate) {
-		document.getElementById("baseline_start_date").value = baselineStartDate;
-	}
-	if (baselineEndDate) {
-		document.getElementById("baseline_end_date").value = baselineEndDate;
-	}
-	if (impactStartDate) {
-		document.getElementById("impact_start_date").value = impactStartDate;
-	}
-	if (impactEndDate) {
-		document.getElementById("impact_end_date").value = impactEndDate;
-	}
-
-	if (wiki) {
-		document.getElementById("wiki").value = wiki;
-		onSubmit(new Event("submit"));
-	} else {
-		document.querySelector(".examples").hidden = false;
-	}
-}
-
-// Using imported populateWikiDropdown from wiki-utils.js

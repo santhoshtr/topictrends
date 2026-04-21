@@ -10,6 +10,7 @@
 <div class="app-container">
   <div class="form-container">
      <h2>Page Views Delta Analysis</h2>
+    <form-filler>
     <form id="delta-form">
       <div class="header-wiki-selector">
         {% include "wiki-selector.html" %}
@@ -48,6 +49,7 @@
           class="cdx-button cdx-button--action-progressive cdx-button--weight-primary">Submit</button>
       </div>
     </form>
+    </form-filler>
   </div>
   <div class="main">
     <section class="examples" hidden>
@@ -95,5 +97,6 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="/static/components/form-filler.js" type="module"></script>
 <script src="/static/pageview-delta.js" type="module"></script>
 {% endblock %}

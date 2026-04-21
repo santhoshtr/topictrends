@@ -11,6 +11,7 @@
   <div class="form-container">
     <h2>Semantic Topic Search</h2>
     <p class="help-text">Enter a Wikipedia category name or plain English text for semantic search.</p>
+    <form-filler>
     <form id="search-form">
       {% include "wiki-selector.html" %}
       <div class="form-item">
@@ -33,6 +34,7 @@
         <a id="googlesearch-trends-link" href="#">Google search trends</a>
     </div>
     </form>
+    </form-filler>
     <footer>
       <p id="status" class="status"></p>
     </footer>
@@ -46,5 +48,6 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="/static/components/form-filler.js" type="module"></script>
 <script src="/static/search.js" type="module"></script>
 {% endblock %}

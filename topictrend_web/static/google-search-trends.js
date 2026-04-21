@@ -23,7 +23,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 	articleElement?.setAttribute("wiki", wikiValue);
 	categoryElement?.setAttribute("wiki", wikiValue);
 
-	populateFormFromQueryParams();
+	document.getElementById("trend-form").addEventListener("form-fill-complete", () => {
+		onSubmit(new Event("submit"));
+	});
+
+	if (!window.location.search) {
+		document.querySelector(".examples").hidden = false;
+		const now = new Date();
+		const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+		document.getElementById("end_date").value = now.toISOString().slice(0, 10);
+		document.getElementById("start_date").value = monthAgo.toISOString().slice(0, 10);
+	}
 });
 
 let chartInstance = null;
@@ -256,59 +266,5 @@ async function fetchArticleSearchData(wiki, article, startDate, endDate) {
 		showMessage(`Fetched ${label} in ${elapsed} seconds.`, "success");
 	} finally {
 		hideProgress();
-	}
-}
-
-function populateFormFromQueryParams() {
-	const urlParams = new URLSearchParams(window.location.search);
-	const type = urlParams.get("type");
-	const wiki = urlParams.get("wiki");
-	const startDate = urlParams.get("start_date");
-	const endDate = urlParams.get("end_date");
-	const topic = urlParams.get("topic");
-	const category = urlParams.get("category");
-	const article = urlParams.get("article");
-	const depth = urlParams.get("depth");
-
-	if (type) {
-		document.querySelector(`input[name="type"][value="${type}"]`).checked =
-			true;
-	}
-	if (wiki) {
-		document.getElementById("wiki").value = wiki;
-	}
-	if (startDate) {
-		document.getElementById("start_date").value = startDate;
-	}
-	if (endDate) {
-		document.getElementById("end_date").value = endDate;
-	}
-	if (depth) {
-		document.getElementById("depth").value = depth;
-	}
-	if (type === "topic" && topic) {
-		document.getElementById("topic").value = topic.replaceAll("_", " ");
-	}
-	if (type === "category" && category) {
-		document.getElementById("category").value = category.replaceAll("_", " ");
-	}
-	if (type === "article" && article) {
-		document.getElementById("article").value = article.replaceAll("_", " ");
-	}
-
-	if (type && wiki && startDate && endDate) {
-		onSubmit(new Event("submit"));
-	} else {
-		document.querySelector(".examples").hidden = false;
-		const endDateInput = document.getElementById("end_date");
-		const startDateInput = document.getElementById("start_date");
-		const now = new Date();
-		const monthAgo = new Date(
-			now.getFullYear(),
-			now.getMonth() - 1,
-			now.getDate(),
-		);
-		endDateInput.value = now.toISOString().slice(0, 10);
-		startDateInput.value = monthAgo.toISOString().slice(0, 10);
 	}
 }

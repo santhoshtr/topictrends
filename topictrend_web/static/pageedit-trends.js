@@ -26,7 +26,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 	categoryElement.setAttribute("wiki", wikiValue);
 
 	await populateWikiDropdown();
-	populateFormFromQueryParams();
+
+	document.getElementById("trend-form").addEventListener("form-fill-complete", () => {
+		onSubmit(new Event("submit"));
+	});
+
+	if (!window.location.search) {
+		document.querySelector(".examples").hidden = false;
+	}
 });
 
 function showSection(section) {
@@ -315,59 +322,6 @@ async function fetchArticlePageEdits(wiki, article, startDate, endDate) {
 		showMessage("Failed to fetch article data. Please try again.", "error");
 	} finally {
 		hideProgress();
-	}
-}
-
-function populateFormFromQueryParams() {
-	const urlParams = new URLSearchParams(window.location.search);
-
-	const type = urlParams.get("type");
-	const wiki = urlParams.get("wiki");
-	const startDate = urlParams.get("start_date");
-	const endDate = urlParams.get("end_date");
-	const topic = urlParams.get("topic");
-	const category = urlParams.get("category");
-	const category_qid = urlParams.get("category_qid");
-	const article = urlParams.get("article");
-	const article_qid = urlParams.get("article_qid");
-	const depth = urlParams.get("depth");
-
-	if (type) {
-		document.querySelector(`input[name="type"][value="${type}"]`).checked =
-			true;
-	}
-	if (depth) {
-		document.getElementById("depth").value = depth;
-	}
-	if (wiki) {
-		document.getElementById("wiki").value = wiki;
-	}
-	if (startDate) {
-		document.getElementById("start_date").value = startDate;
-	}
-	if (endDate) {
-		document.getElementById("end_date").value = endDate;
-	}
-	if (type === "topic" && topic) {
-		document.getElementById("topic").value = topic.replaceAll("_", " ");
-	}
-	if (type === "category" && category) {
-		document.getElementById("category").value = category.replaceAll("_", " ");
-		if (category_qid) {
-			document.getElementById("category_qid").value = category_qid;
-		}
-	}
-	if (type === "article" && article) {
-		document.getElementById("article").value = article.replaceAll("_", " ");
-		if (article_qid) {
-			document.getElementById("article_qid").value = article_qid;
-		}
-	}
-
-	if (type && wiki && startDate && endDate) {
-		onSubmit(new Event("submit"));
-	} else {
-		document.querySelector(".examples").hidden = false;
 	}
 }
 
