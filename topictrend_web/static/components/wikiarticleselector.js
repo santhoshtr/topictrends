@@ -1,5 +1,5 @@
-import { autocomp } from "./autocomp.js";
-import { hideProgress, showProgress } from "./utils/progress-bar.js";
+import { autocomp } from "../autocomp.js";
+import { hideProgress, showProgress } from "../utils/progress-bar.js";
 
 class WikiArticleSelector extends HTMLElement {
 	constructor() {
