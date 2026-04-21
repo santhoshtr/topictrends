@@ -1,6 +1,7 @@
 import { formatDateToISO, getDaysAgo } from "./utils/date-utils.js";
 import { hideProgress, showProgress } from "./utils/progress-bar.js";
-import { buildWikipediaUrl, populateWikiDropdown } from "./utils/wiki-utils.js";
+import { buildWikipediaUrl } from "./utils/wiki-utils.js";
+import "./components/wiki-selector.js";
 
 const CONFIG = {
 	pageviews: {
@@ -29,9 +30,7 @@ const CONFIG = {
 	},
 };
 
-document.addEventListener("DOMContentLoaded", async () => {
-	await populateWikiDropdown();
-
+document.addEventListener("DOMContentLoaded", () => {
 	const form = document.getElementById("top-form");
 	const startDateInput = document.getElementById("start_date");
 	const endDateInput = document.getElementById("end_date");

@@ -1,10 +1,10 @@
 import { hideProgress, showProgress } from "./utils/progress-bar.js";
 import { showMessage } from "./utils/ui-utils.js";
-import { populateWikiDropdown } from "./utils/wiki-utils.js";
+import "./components/wiki-selector.js";
 
 const BASE_URL = "https://topictrends.wmcloud.org";
 
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
 	document.getElementById("search-form").addEventListener("submit", onSubmit);
 
 	const wikiSelector = document.getElementById("wiki");
@@ -14,8 +14,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 		"wiki",
 		wikiSelector.value.replaceAll("wiki", ""),
 	);
-
-	await populateWikiDropdown();
 
 	document.getElementById("search-form").addEventListener("form-fill-complete", () => {
 		updateTrendLinks();

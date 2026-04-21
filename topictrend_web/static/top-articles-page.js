@@ -5,7 +5,7 @@ import {
 	renderPageeditsTopArticles,
 	renderPageviewsTopArticles,
 } from "./utils/top-articles-table.js";
-import { populateWikiDropdown } from "./utils/wiki-utils.js";
+import "./components/wiki-selector.js";
 
 const CONFIG = {
 	pageviews: {
@@ -25,9 +25,7 @@ const CONFIG = {
 	},
 };
 
-document.addEventListener("DOMContentLoaded", async () => {
-	await populateWikiDropdown();
-
+document.addEventListener("DOMContentLoaded", () => {
 	const form = document.getElementById("top-form");
 	const startDateInput = document.getElementById("start_date");
 	const endDateInput = document.getElementById("end_date");

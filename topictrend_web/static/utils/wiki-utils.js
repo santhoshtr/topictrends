@@ -2,45 +2,6 @@
  * Wikipedia and wiki-related utilities
  */
 
-import { hideProgress, showProgress } from "./progress-bar.js";
-
-/**
- * Populate the wiki dropdown with available wikis from wikis.json
- * @returns {Promise<void>}
- */
-export async function populateWikiDropdown() {
-	try {
-		showProgress();
-		const response = await fetch("/static/wikis.json");
-		if (!response.ok) {
-			throw new Error(`HTTP error! status: ${response.status}`);
-		}
-
-		const wikis = await response.json();
-		const wikiSelect = document.getElementById("wiki");
-
-		wikiSelect.innerHTML = "";
-
-		wikis.forEach((wiki) => {
-			const option = document.createElement("option");
-			option.value = wiki.code;
-			if (wiki.code === "enwiki") {
-				option.selected = true;
-			}
-			const displayName = `${wiki.langcode} - ${wiki.name}`;
-			option.textContent = displayName;
-			wikiSelect.appendChild(option);
-		});
-
-		console.log(`Loaded ${wikis.length} wikis to dropdown`);
-	} catch (error) {
-		console.error("Failed to load wiki list:", error);
-		console.log("📋 Using fallback wiki list");
-	} finally {
-		hideProgress();
-	}
-}
-
 /**
  * Build a Wikipedia article URL from wiki code and title
  * @param {string} wiki - Wiki code (e.g., 'enwiki', 'mlwiki')

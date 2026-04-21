@@ -1,7 +1,7 @@
 import { DEFAULT_CHART_COLORS } from "./utils/chart-utils.js";
 import { hideProgress, showProgress } from "./utils/progress-bar.js";
 import { showMessage } from "./utils/ui-utils.js";
-import { populateWikiDropdown } from "./utils/wiki-utils.js";
+import "./components/wiki-selector.js";
 
 // wikis already fetched (reused for compare-with picker)
 let allWikis = [];
@@ -18,7 +18,6 @@ let lastData = null;
 let chartInstance = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
-	await populateWikiDropdown();
 	allWikis = await loadWikiList();
 	document
 		.getElementById("content-gap-form")

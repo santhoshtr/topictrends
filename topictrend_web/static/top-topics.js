@@ -1,9 +1,7 @@
 import { formatDateToISO, getDaysAgo } from "./utils/date-utils.js";
-import { populateWikiDropdown } from "./utils/wiki-utils.js";
+import "./components/wiki-selector.js";
 
-document.addEventListener("DOMContentLoaded", async () => {
-	await populateWikiDropdown();
-
+document.addEventListener("DOMContentLoaded", () => {
 	const mainEl = document.querySelector(".main");
 	const metric = mainEl?.dataset.metric || "pageviews";
 

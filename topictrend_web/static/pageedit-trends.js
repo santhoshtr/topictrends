@@ -3,7 +3,7 @@ import { initializeChart, updateChart } from "./utils/chart-utils.js";
 import { hideProgress, showProgress } from "./utils/progress-bar.js";
 import { renderPageeditsTopArticles } from "./utils/top-articles-table.js";
 import { showMessage } from "./utils/ui-utils.js";
-import { populateWikiDropdown } from "./utils/wiki-utils.js";
+import "./components/wiki-selector.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
 	document.getElementById("trend-form").addEventListener("submit", onSubmit);
@@ -24,8 +24,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 	articleElement.setAttribute("wiki", wikiValue);
 	categoryElement.setAttribute("wiki", wikiValue);
-
-	await populateWikiDropdown();
 
 	document.getElementById("trend-form").addEventListener("form-fill-complete", () => {
 		onSubmit(new Event("submit"));

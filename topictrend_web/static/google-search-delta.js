@@ -1,10 +1,9 @@
 import { hideProgress, showProgress } from "./utils/progress-bar.js";
 import { showMessage } from "./utils/ui-utils.js";
-import { populateWikiDropdown } from "./utils/wiki-utils.js";
+import "./components/wiki-selector.js";
 
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
 	document.getElementById("delta-form").addEventListener("submit", onSubmit);
-	await populateWikiDropdown();
 
 	document.getElementById("delta-form").addEventListener("form-fill-complete", () => {
 		onSubmit(new Event("submit"));

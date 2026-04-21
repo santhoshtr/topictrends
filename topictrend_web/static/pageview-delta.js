@@ -5,7 +5,8 @@ import {
 import { formatDateToISO } from "./utils/date-utils.js";
 import { hideProgress, showProgress } from "./utils/progress-bar.js";
 import { showMessage } from "./utils/ui-utils.js";
-import { buildWikipediaUrl, populateWikiDropdown } from "./utils/wiki-utils.js";
+import { buildWikipediaUrl } from "./utils/wiki-utils.js";
+import "./components/wiki-selector.js";
 
 // Configuration for pageview delta accordions
 const ACCORDION_CONFIG = {
@@ -15,10 +16,8 @@ const ACCORDION_CONFIG = {
 	trendsUrl: "/pageviews/trends",
 };
 
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
 	document.getElementById("delta-form").addEventListener("submit", onSubmit);
-
-	await populateWikiDropdown();
 
 	document.getElementById("delta-form").addEventListener("form-fill-complete", () => {
 		onSubmit(new Event("submit"));
