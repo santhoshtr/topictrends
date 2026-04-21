@@ -1,7 +1,7 @@
 import { autocomp } from "./autocomp.js";
 import { hideProgress, showProgress } from "./utils/progress-bar.js";
 
-class WikiCategorySelector extends HTMLElement {
+class WikiArticleSelector extends HTMLElement {
 	constructor() {
 		super();
 		this.languageSelector = null;
@@ -38,7 +38,10 @@ class WikiCategorySelector extends HTMLElement {
         }
 
  
-        wiki-category-selector {
+        wiki-article-selector {
+          input {
+      border: 0;
+      }
           .autocomp {
               background: var(--background-color-base);
               border-radius: 0 0 5px 5px;
@@ -64,13 +67,15 @@ class WikiCategorySelector extends HTMLElement {
       <input 
         type="text" 
         class="title-input cdx-text-input__input"
-        placeholder="${this.getAttribute("placeholder") || "Enter category title"}"
+        placeholder="${this.getAttribute("placeholder") || "Enter article title"}"
         value="${this.getAttribute("value") || ""}"
         ${this.getAttribute("required") !== null ? "required" : ""}
       />
     `;
 
 		this.input = this.querySelector(".title-input");
+		// Sync any value set before render (e.g. via setAttribute before connectedCallback)
+		this.input.value = this.value;
 	}
 
 	setupAutocomplete() {
@@ -82,7 +87,7 @@ class WikiCategorySelector extends HTMLElement {
 				if (query.length < 2) return [];
 
 				const language = this.wiki || "en";
-				return await this.searchWikipediaCategories(language, query);
+				return await this.searchWikipediaTitles(language, query);
 			},
 			onSelect: (result_item) => {
 				return result_item;
@@ -90,11 +95,11 @@ class WikiCategorySelector extends HTMLElement {
 		});
 	}
 
-	async searchWikipediaCategories(language, query) {
+	async searchWikipediaTitles(language, query) {
 		try {
 			showProgress();
 			const response = await fetch(
-				`https://${language}.wikipedia.org/w/api.php?action=query&list=prefixsearch&psnamespace=14&psprofile=fuzzy&pssearch=${encodeURIComponent(query)}&limit=10&origin=*&format=json`,
+				`https://${language}.wikipedia.org/w/api.php?action=query&list=prefixsearch&psprofile=fuzzy&pssearch=${encodeURIComponent(query)}&limit=10&origin=*&format=json`,
 			);
 
 			if (!response.ok) {
@@ -102,11 +107,9 @@ class WikiCategorySelector extends HTMLElement {
 			}
 
 			const data = await response.json();
-			return data.query.prefixsearch.map((page) =>
-				page.title.replace(/^.*:\s*/, ""),
-			);
+			return data.query.prefixsearch.map((page) => page.title);
 		} catch (error) {
-			console.error("Error searching Wikipedia categories:", error);
+			console.error("Error searching Wikipedia titles:", error);
 			return [];
 		} finally {
 			hideProgress();
@@ -138,6 +141,6 @@ class WikiCategorySelector extends HTMLElement {
 	}
 }
 
-customElements.define("wiki-category-selector", WikiCategorySelector);
+customElements.define("wiki-article-selector", WikiArticleSelector);
 
-export { WikiCategorySelector };
+export { WikiArticleSelector };
