@@ -74,6 +74,9 @@ class WikiArticleSelector extends HTMLElement {
     `;
 
 		this.input = this.querySelector(".title-input");
+		// Sync any value set before render (e.g. via setAttribute before connectedCallback)
+		const v = this.getAttribute("value");
+		if (v) this.input.value = v;
 	}
 
 	setupAutocomplete() {
