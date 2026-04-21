@@ -25,9 +25,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 	articleElement.setAttribute("wiki", wikiValue);
 	categoryElement.setAttribute("wiki", wikiValue);
 
-	document.getElementById("trend-form").addEventListener("form-fill-complete", () => {
-		onSubmit(new Event("submit"));
-	});
+	document
+		.getElementById("trend-form")
+		.addEventListener("form-fill-complete", () => {
+			onSubmit(new Event("submit"));
+		});
 
 	if (!window.location.search) {
 		document.querySelector(".examples").hidden = false;
@@ -322,31 +324,3 @@ async function fetchArticlePageEdits(wiki, article, startDate, endDate) {
 		hideProgress();
 	}
 }
-
-document.addEventListener("DOMContentLoaded", () => {
-	const loadButton = document.getElementById("wikitrends-btn");
-
-	loadButton.addEventListener("click", () => {
-		showSection("wiki-trends");
-
-		let topicTrends = document.querySelector("wiki-trends");
-		const selectedWiki = document.getElementById("wiki").value;
-		const startDate = document.getElementById("start_date").value;
-		const endDate = document.getElementById("end_date").value;
-
-		if (!topicTrends) {
-			const topicTrendsEl = document.createElement("wiki-trends");
-			document.querySelector(".main").appendChild(topicTrendsEl);
-			topicTrends = document.querySelector("wiki-trends");
-		}
-
-		topicTrends.setAttribute("wiki", selectedWiki);
-		topicTrends.setAttribute("start_date", startDate);
-		topicTrends.setAttribute("end_date", endDate);
-		loadButton.disabled = true;
-
-		setTimeout(() => {
-			loadButton.disabled = false;
-		}, 1000);
-	});
-});

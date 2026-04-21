@@ -126,10 +126,6 @@
 				padding: 0.25em 0;
 			}
 
-			& #wikitrends-btn {
-				align-self: bottom;
-			}
-
 			& #tab-topic:checked ~ .tab label:nth-child(1),
 			& #tab-category:checked ~ .tab label:nth-child(2),
 			& #tab-article:checked ~ .tab label:nth-child(3) {
