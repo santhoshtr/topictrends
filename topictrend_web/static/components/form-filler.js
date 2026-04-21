@@ -46,7 +46,7 @@ class FormFiller extends HTMLElement {
 			// have a chance to register their form-fill-complete listeners first.
 			setTimeout(
 				() => form.dispatchEvent(new CustomEvent("form-fill-complete")),
-				0,
+				10,
 			);
 		}
 	}
