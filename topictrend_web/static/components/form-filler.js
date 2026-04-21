@@ -36,14 +36,18 @@ class FormFiller extends HTMLElement {
 			}
 
 			// Plain text inputs: decode underscores
-			const decoded =
-				el.type === "text" ? value.replaceAll("_", " ") : value;
+			const decoded = el.type === "text" ? value.replaceAll("_", " ") : value;
 			el.value = decoded;
 			filled = true;
 		}
 
 		if (filled) {
-			form.dispatchEvent(new CustomEvent("form-fill-complete"));
+			// Defer dispatch so synchronous DOMContentLoaded handlers in page JS
+			// have a chance to register their form-fill-complete listeners first.
+			setTimeout(
+				() => form.dispatchEvent(new CustomEvent("form-fill-complete")),
+				0,
+			);
 		}
 	}
 }
