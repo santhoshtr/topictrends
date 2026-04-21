@@ -108,7 +108,7 @@ function createArticleCell(article, wiki, trendPath, startDate, endDate) {
 	image.className = "tt-article-image";
 	image.loading = "lazy";
 	image.alt = formatTitle(article.title);
-	image.src = `https://wiki-display-image.toolforge.org/webp/${wikiCode}/${encodeURIComponent(article.title)}?width=200`;
+	image.src = `https://wiki-display-image.toolforge.org/webp/${wikiCode}/${encodeURIComponent(article.title)}?width=250`;
 	imageLink.appendChild(image);
 
 	const details = document.createElement("div");
