@@ -44,8 +44,10 @@ class FormFiller extends HTMLElement {
 		if (filled) {
 			// Defer dispatch so synchronous DOMContentLoaded handlers in page JS
 			// have a chance to register their form-fill-complete listeners first.
-			document.addEventListener("DOMContentLoaded", (event) => {
-				form.dispatchEvent(new CustomEvent("form-fill-complete"));
+			document.addEventListener("DOMContentLoaded", (_event) => {
+				setTimeout(() => {
+					form.dispatchEvent(new CustomEvent("form-fill-complete"));
+				}, 100);
 			});
 		}
 	}
