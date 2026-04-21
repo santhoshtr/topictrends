@@ -20,7 +20,7 @@ class FormFiller extends HTMLElement {
 		let filled = false;
 
 		for (const [name, value] of params) {
-			const el = form.elements[name];
+			const el = form.elements[name] ?? form.querySelector(`[name="${name}"]`);
 			if (!el) continue;
 
 			// Radio group: form.elements[name] is a RadioNodeList
