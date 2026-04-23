@@ -14,7 +14,11 @@ class FormFiller extends HTMLElement {
 		const form = this.querySelector("form");
 		if (!form) return;
 
-		const fill = () => this.fillFormFromParams(form);
+		const fill = () =>
+			setTimeout(() => {
+				this.fillFormFromParams(form);
+			}, 1000);
+
 		if (document.readyState === "loading") {
 			document.addEventListener("DOMContentLoaded", fill, { once: true });
 			return;
@@ -52,9 +56,7 @@ class FormFiller extends HTMLElement {
 		}
 
 		if (filled) {
-			setTimeout(() => {
-				form.dispatchEvent(new CustomEvent("form-fill-complete"));
-			}, 100);
+			form.dispatchEvent(new CustomEvent("form-fill-complete"));
 		}
 	}
 }
