@@ -14,6 +14,16 @@ class FormFiller extends HTMLElement {
 		const form = this.querySelector("form");
 		if (!form) return;
 
+		const fill = () => this.fillFormFromParams(form);
+		if (document.readyState === "loading") {
+			document.addEventListener("DOMContentLoaded", fill, { once: true });
+			return;
+		}
+
+		fill();
+	}
+
+	fillFormFromParams(form) {
 		const params = new URLSearchParams(window.location.search);
 		if (!params.size) return;
 
@@ -42,13 +52,9 @@ class FormFiller extends HTMLElement {
 		}
 
 		if (filled) {
-			// Defer dispatch so synchronous DOMContentLoaded handlers in page JS
-			// have a chance to register their form-fill-complete listeners first.
-			document.addEventListener("DOMContentLoaded", (_event) => {
-				setTimeout(() => {
-					form.dispatchEvent(new CustomEvent("form-fill-complete"));
-				}, 100);
-			});
+			setTimeout(() => {
+				form.dispatchEvent(new CustomEvent("form-fill-complete"));
+			}, 100);
 		}
 	}
 }
