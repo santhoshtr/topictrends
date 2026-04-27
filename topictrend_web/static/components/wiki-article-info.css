@@ -1,0 +1,215 @@
+wiki-article-info {
+	display: inline-flex;
+	align-items: center;
+}
+
+.tt-info-btn {
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: var(--color-subtle);
+	padding: var(--spacing-25);
+	border-radius: var(--border-radius-base);
+	display: inline-flex;
+	align-items: center;
+	line-height: 0;
+}
+
+.tt-info-btn:hover {
+	color: var(--color-base);
+	background-color: var(--background-color-interactive);
+}
+
+.tt-info-btn:focus-visible {
+	outline: 2px solid var(--color-progressive);
+	outline-offset: 2px;
+}
+
+/* ── Popover panel ─────────────────────────────────────────── */
+
+#wiki-article-info-popover {
+	position: fixed;
+	inset: 0 0 0 auto;
+	width: clamp(600px, 50vw, 50vw);
+	height: 100%;
+	margin: 0;
+	padding: var(--spacing-150) var(--spacing-200);
+	border: none;
+	border-left: 1px solid var(--border-color-subtle);
+	background-color: var(--background-color-base);
+	box-shadow: var(--box-shadow-outset-large-around) var(--box-shadow-color-base);
+	overflow-y: auto;
+	translate: 100% 0;
+	transition:
+		translate 0.25s ease,
+		display 0.25s ease allow-discrete,
+		overlay 0.25s ease allow-discrete;
+
+	&:popover-open {
+		translate: 0 0;
+
+		@starting-style {
+			translate: 100% 0;
+		}
+	}
+}
+
+/* ── Popover inner layout ─────────────────────────────────── */
+
+.tt-info-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: var(--spacing-100);
+	margin-bottom: var(--spacing-150);
+}
+
+.tt-info-title {
+	font-weight: var(--font-weight-semi-bold);
+	font-size: var(--font-size-medium);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	min-width: 0;
+}
+
+.tt-info-close-btn {
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: var(--color-subtle);
+	padding: var(--spacing-25);
+	border-radius: var(--border-radius-base);
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+	line-height: 0;
+}
+
+.tt-info-close-btn:hover {
+	color: var(--color-base);
+	background-color: var(--background-color-interactive);
+}
+
+.tt-info-close-btn:focus-visible {
+	outline: 2px solid var(--color-progressive);
+	outline-offset: 2px;
+}
+
+.tt-info-section {
+	margin-bottom: var(--spacing-150);
+}
+
+.tt-info-section-heading {
+	font-size: var(--font-size-small);
+	font-weight: var(--font-weight-semi-bold);
+	color: var(--color-subtle);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin-bottom: var(--spacing-75);
+	padding-bottom: var(--spacing-25);
+	border-bottom: 1px solid var(--border-color-subtle);
+}
+
+/* Metadata key/value pairs */
+
+.tt-info-dl {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: var(--spacing-25) var(--spacing-100);
+	align-items: baseline;
+}
+
+.tt-info-dt {
+	color: var(--color-subtle);
+	font-size: var(--font-size-small);
+}
+
+.tt-info-dd {
+	font-weight: var(--font-weight-semi-bold);
+	font-size: var(--font-size-small);
+}
+
+/* Assessment table */
+
+.tt-info-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.tt-info-table th {
+	text-align: left;
+	font-size: var(--font-size-small);
+	font-weight: var(--font-weight-semi-bold);
+	color: var(--color-subtle);
+	padding: var(--spacing-25) var(--spacing-50) var(--spacing-25) 0;
+	border-bottom: 1px solid var(--border-color-subtle);
+}
+
+.tt-info-table td {
+	padding: var(--spacing-25) var(--spacing-50) var(--spacing-25) 0;
+	border-bottom: 1px solid var(--border-color-subtle);
+	font-size: var(--font-size-small);
+	vertical-align: middle;
+}
+
+/* Article class badges */
+
+.tt-class-badge {
+	display: inline-block;
+	padding: 1px var(--spacing-50);
+	border-radius: var(--border-radius-base);
+	font-size: var(--font-size-small);
+	font-weight: var(--font-weight-semi-bold);
+}
+
+.tt-class-fa {
+	background: #ffd700;
+	color: #202122;
+}
+
+.tt-class-ga {
+	background: #99bbcc;
+	color: #202122;
+}
+
+.tt-class-a {
+	background: var(--background-color-progressive-subtle);
+	color: var(--color-progressive);
+}
+
+.tt-class-b {
+	background: var(--background-color-progressive-subtle);
+	color: var(--color-progressive);
+}
+
+.tt-class-c {
+	background: var(--background-color-neutral-subtle);
+	color: var(--color-base);
+}
+
+.tt-class-start {
+	background: var(--background-color-neutral-subtle);
+	color: var(--color-base);
+}
+
+.tt-class-stub {
+	background: var(--background-color-interactive);
+	color: var(--color-subtle);
+}
+
+/* Loading / error states inside popover */
+
+.tt-info-loading,
+.tt-info-error {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-50);
+	color: var(--color-subtle);
+	font-size: var(--font-size-small);
+	padding: var(--spacing-100) 0;
+}
+
+.tt-info-error {
+	color: var(--color-destructive, #d73333);
+}

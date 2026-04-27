@@ -11,6 +11,13 @@
 	width: 56px;
 }
 
+.tt-info-cell {
+	width: 36px;
+	text-align: center;
+	vertical-align: middle;
+	padding-inline: var(--spacing-25);
+}
+
 .tt-top-articles-table th,
 .tt-top-articles-table td {
 	padding: var(--spacing-50) var(--spacing-75);

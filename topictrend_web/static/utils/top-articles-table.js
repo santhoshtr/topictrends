@@ -1,16 +1,16 @@
 const TABLE_CONFIG = {
 	pageviews: {
-		headers: ["Article", "Views", "Plot"],
+		headers: ["Article", "", "Views", "Plot"],
 		trendPath: "pageviews/trends",
 		metricColumns: [{ field: "views" }],
 	},
 	pageedits: {
-		headers: ["Article", "Edits", "Plot"],
+		headers: ["Article", "", "Edits", "Plot"],
 		trendPath: "pageedits/trends",
 		metricColumns: [{ field: "edits" }],
 	},
 	googlesearch: {
-		headers: ["Article", "Clicks", "Impressions", "CTR", "Plot"],
+		headers: ["Article", "", "Clicks", "Impressions", "CTR", "Plot"],
 		trendPath: "googlesearch/trends",
 		metricColumns: [
 			{ field: "clicks" },
@@ -153,6 +153,16 @@ function createNumberCell(value, formatter = (v) => v.toLocaleString()) {
 	return cell;
 }
 
+function createInfoCell(article, wiki) {
+	const cell = document.createElement("td");
+	cell.className = "tt-info-cell";
+	const el = document.createElement("wiki-article-info");
+	el.setAttribute("title", article.title);
+	el.setAttribute("wiki", wiki);
+	cell.appendChild(el);
+	return cell;
+}
+
 function createPlotCell(article, wiki, trendPath, startDate, endDate) {
 	const cell = document.createElement("td");
 	cell.className = "tt-plot-cell";
@@ -222,6 +232,7 @@ function renderTopArticlesTable(
 		row.appendChild(
 			createArticleCell(article, wiki, config.trendPath, startDate, endDate),
 		);
+		row.appendChild(createInfoCell(article, wiki));
 		for (const column of config.metricColumns) {
 			row.appendChild(
 				createNumberCell(article[column.field], column.formatter),
