@@ -34,10 +34,6 @@ path = "src/per_day_wiki_stats.rs"
 
 
 [[bin]]
-name = "simulation"
-path = "src/simulation.rs"
-
-[[bin]]
 name = "get-pageedits"
 path = "src/pageedits.rs"
 
