@@ -35,8 +35,5 @@ opt-level = 0
 debug = 1  # line tables only (not full debug)
 incremental = true
 
-[profile.dev.package."*"]
-# Optimize dependencies in dev mode (they don't change often)
-opt-level = 1
 
 
