@@ -10,7 +10,6 @@
 <div class="app-container">
   <div class="form-container">
     <h2>Semantic Topic Search</h2>
-    <p class="help-text">Enter a Wikipedia category name or plain English text for semantic search.</p>
     <form-filler>
     <form id="search-form">
       {% include "wiki-selector.html" %}
@@ -18,6 +17,7 @@
         <label for="category" class="cdx-label">Topic</label>
         <input class="cdx-text-input__input" type="search" id="category" name="category" pattern="[\x00-\x7F]+"
           placeholder="Search topics"/>
+        <p class="field-description">Describe a concept in plain English. We'll find Wikipedia articles that semantically match your description.</p>
       </div>
       <div class="form-item">
         <label for="match_threshold" class="cdx-label">Match threshold</label>

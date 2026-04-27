@@ -158,6 +158,13 @@
 			}
 		}
 
+		& .field-description {
+			font-size: var(--font-size-sm);
+			color: var(--color-subtle);
+			margin-top: 0.35em;
+			line-height: 1.4;
+		}
+
 		& .error-message,
 		& .success-message,
 		& .info-message {

@@ -30,14 +30,16 @@
           <div class="tab-content-topic">
             <input type="text" id="topic" name="topic" pattern="[\x00-\x7F]+"  class="cdx-text-input__input"
               placeholder="Enter any topic" />
+            <p class="field-description">Describe a concept in plain English. We'll find Wikipedia articles that semantically match your description.</p>
           </div>
           <div class="tab-content-category">
             <wiki-category-selector id="category" name="category"
               placeholder="Search category"></wiki-category-selector>
-
+            <p class="field-description">A Wikipedia category name. Use autocomplete to find the exact category.</p>
           </div>
           <div class="tab-content-article">
             <wiki-article-selector id="article" name="article" placeholder="Search article"></wiki-article-selector>
+            <p class="field-description">A Wikipedia article title. Use autocomplete to find the exact article.</p>
           </div>
         </div>
       </div>
