@@ -41,11 +41,6 @@ path = "src/simulation.rs"
 name = "catanalysis"
 path = "src/catanalysis.rs"
 
-
-[[bin]]
-name = "top-categories"
-path = "src/top_categories.rs"
-
 [[bin]]
 name = "get-pageedits"
 path = "src/pageedits.rs"
