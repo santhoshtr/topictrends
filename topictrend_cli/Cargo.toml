@@ -38,10 +38,6 @@ name = "simulation"
 path = "src/simulation.rs"
 
 [[bin]]
-name = "catanalysis"
-path = "src/catanalysis.rs"
-
-[[bin]]
 name = "get-pageedits"
 path = "src/pageedits.rs"
 
