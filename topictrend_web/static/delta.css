@@ -347,7 +347,7 @@
 	   ============================================ */
 	.article-item {
 		display: grid;
-		grid-template-columns: 1fr auto auto auto;
+		grid-template-columns: 1fr auto auto auto auto;
 		gap: var(--spacing-100);
 		align-items: center;
 		padding: var(--spacing-100) var(--spacing-125);

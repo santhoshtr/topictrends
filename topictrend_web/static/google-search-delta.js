@@ -306,7 +306,7 @@ function renderArticles(container, articles, wiki, summaryMetrics) {
 
 	const thead = document.createElement("thead");
 	const headerRow = document.createElement("tr");
-	for (const label of ["Article", "Clicks", "Impressions", "Delta", "Plot"]) {
+	for (const label of ["Article", "Info", "Clicks", "Impressions", "Delta", "Plot"]) {
 		const th = document.createElement("th");
 		th.textContent = label;
 		headerRow.appendChild(th);
@@ -352,6 +352,14 @@ function renderArticles(container, articles, wiki, summaryMetrics) {
 		plotCell.appendChild(plotLink);
 
 		row.appendChild(titleCell);
+
+		const infoCell = document.createElement("td");
+		const infoEl = document.createElement("wiki-article-info");
+		infoEl.setAttribute("title", article.article_title);
+		infoEl.setAttribute("wiki", wiki);
+		infoCell.appendChild(infoEl);
+		row.appendChild(infoCell);
+
 		row.appendChild(clicksCell);
 		row.appendChild(impressionsCell);
 		row.appendChild(deltaCell);

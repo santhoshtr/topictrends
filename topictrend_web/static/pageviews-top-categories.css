@@ -67,7 +67,7 @@
 
 	.article-row {
 		display: grid;
-		grid-template-columns: 1fr auto auto;
+		grid-template-columns: 1fr auto auto auto;
 		gap: var(--spacing-75);
 		align-items: center;
 		padding: var(--spacing-50) 0;
@@ -95,11 +95,11 @@
 
 	@media (max-width: 800px) {
 		.article-row {
-			grid-template-columns: 1fr auto;
+			grid-template-columns: 1fr auto auto;
 		}
 
 		.article-plot-link {
-			justify-self: start;
+			display: none;
 		}
 	}
 }

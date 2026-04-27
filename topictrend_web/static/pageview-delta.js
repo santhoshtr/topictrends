@@ -541,6 +541,12 @@ function createArticleElement(article, wiki) {
 
 	// Assemble article item
 	div.appendChild(titleLink);
+
+	const infoEl = document.createElement("wiki-article-info");
+	infoEl.setAttribute("title", article.article_title);
+	infoEl.setAttribute("wiki", wiki);
+	div.appendChild(infoEl);
+
 	div.appendChild(deltaSpan);
 	div.appendChild(viewsDiv);
 	div.appendChild(plotLink);

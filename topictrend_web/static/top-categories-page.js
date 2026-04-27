@@ -165,9 +165,14 @@ document.addEventListener("DOMContentLoaded", () => {
 				articlePlot.innerHTML =
 					'<svg xmlns="http://www.w3.org/2000/svg" height="14px" viewBox="0 -960 960 960" width="14px" fill="currentColor" aria-hidden="true"><path d="m140-220-60-60 300-300 160 160 284-320 56 56-340 384-160-160-240 240Z"/></svg>';
 
-				row.appendChild(articleLink);
-				row.appendChild(articleMetric);
-				row.appendChild(articlePlot);
+			const articleInfo = document.createElement("wiki-article-info");
+			articleInfo.setAttribute("title", article.title);
+			articleInfo.setAttribute("wiki", wiki);
+
+			row.appendChild(articleLink);
+			row.appendChild(articleInfo);
+			row.appendChild(articleMetric);
+			row.appendChild(articlePlot);
 				articleList.appendChild(row);
 			}
 

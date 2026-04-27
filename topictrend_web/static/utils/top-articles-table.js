@@ -1,16 +1,16 @@
 const TABLE_CONFIG = {
 	pageviews: {
-		headers: ["Article", "", "Views", "Plot"],
+		headers: ["Article", "Info", "Views", "Plot"],
 		trendPath: "pageviews/trends",
 		metricColumns: [{ field: "views" }],
 	},
 	pageedits: {
-		headers: ["Article", "", "Edits", "Plot"],
+		headers: ["Article", "Info", "Edits", "Plot"],
 		trendPath: "pageedits/trends",
 		metricColumns: [{ field: "edits" }],
 	},
 	googlesearch: {
-		headers: ["Article", "", "Clicks", "Impressions", "CTR", "Plot"],
+		headers: ["Article", "Info", "Clicks", "Impressions", "CTR", "Plot"],
 		trendPath: "googlesearch/trends",
 		metricColumns: [
 			{ field: "clicks" },
