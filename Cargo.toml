@@ -14,9 +14,7 @@ dotenv = "0.15"
 polars = { version = "0.53", features = [
   "lazy",
   "parquet",
-  "dtype-full",
   "strings",
-  "timezones",
 ] }
 roaring = { version = "0.11", features = [] }
 anyhow = "1.0"
