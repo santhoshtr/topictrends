@@ -154,7 +154,7 @@ class TopicTrends extends HTMLElement {
 		try {
 			showProgress();
 			const basePath = API_PATHS[this.metric] || API_PATHS.pageviews;
-			let url = `${basePath}?wiki=${this.wiki}&top_n=50`;
+			let url = `${basePath}?wiki=${this.wiki}&top_n=100`;
 
 			if (this.start_date) {
 				url += `&start_date=${this.start_date}`;

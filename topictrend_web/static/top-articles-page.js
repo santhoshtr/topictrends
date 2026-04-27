@@ -54,7 +54,7 @@ document.addEventListener("DOMContentLoaded", () => {
 		const startDate = startDateInput.value;
 		const endDate = endDateInput.value;
 
-		const params = new URLSearchParams({ wiki, top_n: "50" });
+		const params = new URLSearchParams({ wiki, top_n: "100" });
 		if (startDate) params.set("start_date", startDate);
 		if (endDate) params.set("end_date", endDate);
 
