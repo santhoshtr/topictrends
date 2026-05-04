@@ -79,8 +79,8 @@ fn url_decode(s: &str) -> String {
     let mut buf: Vec<u8> = Vec::with_capacity(s.len());
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let (Some(h), Some(l)) = (
+        if bytes[i] == b'%' && i + 2 < bytes.len()
+            && let (Some(h), Some(l)) = (
                 (bytes[i + 1] as char).to_digit(16),
                 (bytes[i + 2] as char).to_digit(16),
             ) {
@@ -88,7 +88,6 @@ fn url_decode(s: &str) -> String {
                 i += 3;
                 continue;
             }
-        }
         buf.push(bytes[i]);
         i += 1;
     }

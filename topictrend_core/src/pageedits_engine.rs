@@ -251,7 +251,7 @@ impl PageEditsEngine {
                     if let Ok(date) = NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
                         date_groups
                             .entry(date)
-                            .or_insert_with(Vec::new)
+                            .or_default()
                             .push((dense_id, edit_count));
                         loaded += 1;
                     }
@@ -452,7 +452,7 @@ impl PageEditsEngine {
             .map(|cat_dense_id| {
                 // Sort articles for this category by edits
                 let mut articles = cat_articles[cat_dense_id].clone();
-                articles.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+                articles.sort_unstable_by_key(|b| std::cmp::Reverse(b.1));
 
                 let top_articles: Vec<ArticleRank> = articles
                     .into_iter()
@@ -500,7 +500,7 @@ impl PageEditsEngine {
         }
 
         let mut ranked: Vec<(usize, u64)> = article_edits.into_iter().enumerate().collect();
-        ranked.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+        ranked.sort_unstable_by_key(|b| std::cmp::Reverse(b.1));
 
         let results = ranked
             .into_iter()
@@ -558,7 +558,7 @@ impl PageEditsEngine {
         }
 
         // Sort by edits descending
-        article_edits.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+        article_edits.sort_unstable_by_key(|b| std::cmp::Reverse(b.1));
 
         // Take top N and convert to ArticleRank
         let top_articles: Vec<ArticleRank> = article_edits
@@ -657,7 +657,7 @@ mod tests {
         // Check basic stats
         println!("Loaded {} dates", engine.daily_edits.len());
         assert!(
-            engine.daily_edits.len() > 0,
+            !engine.daily_edits.is_empty(),
             "Should have loaded some dates"
         );
 

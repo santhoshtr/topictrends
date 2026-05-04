@@ -76,7 +76,7 @@ impl TopCategoriesCache {
         }
     }
 
-    fn get_ttl(start_date: NaiveDate, end_date: NaiveDate) -> Duration {
+    fn get_ttl(_start_date: NaiveDate, end_date: NaiveDate) -> Duration {
         let today = chrono::Local::now().date_naive();
         let days_ago = (today - end_date).num_days();
 
@@ -482,7 +482,7 @@ impl PageViewEngine {
             .map(|cat_dense_id| {
                 // Sort articles for this category by views
                 let mut articles = cat_articles[cat_dense_id].clone();
-                articles.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+                articles.sort_unstable_by_key(|b| std::cmp::Reverse(b.1));
 
                 let top_articles: Vec<ArticleRank> = articles
                     .into_iter()
@@ -535,7 +535,7 @@ impl PageViewEngine {
         drop(cache);
 
         let mut ranked: Vec<(usize, u64)> = article_views.into_iter().enumerate().collect();
-        ranked.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+        ranked.sort_unstable_by_key(|b| std::cmp::Reverse(b.1));
 
         let results = ranked
             .into_iter()
@@ -599,7 +599,7 @@ impl PageViewEngine {
         drop(cache);
 
         // Sort by views descending
-        article_views.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+        article_views.sort_unstable_by_key(|b| std::cmp::Reverse(b.1));
 
         // Take top N and convert to ArticleRank
         let top_articles: Vec<ArticleRank> = article_views

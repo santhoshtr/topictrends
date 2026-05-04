@@ -437,7 +437,7 @@ impl GoogleSearchTrendsService {
 
         let mut article_totals: Vec<(u32, (u64, u64, u64, u32))> =
             all_articles.into_iter().collect();
-        article_totals.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+        article_totals.sort_by_key(|b| std::cmp::Reverse(b.1.0));
         article_totals.truncate(10);
 
         let article_qids: Vec<u32> = article_totals.iter().map(|(qid, _)| *qid).collect();

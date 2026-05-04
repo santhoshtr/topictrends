@@ -57,7 +57,7 @@ impl GraphBuilder {
         let mut backward_edges: Vec<(u32, u32)> = Vec::with_capacity(p_col.len());
         // Iterate and populate adjacency lists
         // We use the HashMaps to convert Raw ID -> Dense ID on the fly
-        for (opt_p, opt_c) in p_col.into_iter().zip(c_col.into_iter()) {
+        for (opt_p, opt_c) in p_col.into_iter().zip(c_col) {
             if let (Some(p_raw), Some(c_raw)) = (opt_p, opt_c)
                 && let (Some(p_dense), Some(c_dense)) = (
                     cat_original_to_dense.get(p_raw),
@@ -91,7 +91,7 @@ impl GraphBuilder {
         let a_col = df_art_cat.column("article_qid")?.u32()?;
         let c_col_ac = df_art_cat.column("category_qid")?.u32()?;
 
-        for (opt_a, opt_c) in a_col.into_iter().zip(c_col_ac.into_iter()) {
+        for (opt_a, opt_c) in a_col.into_iter().zip(c_col_ac) {
             if let (Some(a_raw), Some(c_raw)) = (opt_a, opt_c)
                 && let (Some(a_dense), Some(c_dense)) = (
                     art_original_to_dense.get(a_raw),

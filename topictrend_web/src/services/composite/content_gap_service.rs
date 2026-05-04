@@ -23,7 +23,7 @@ impl ContentGapService {
                 })?;
                 graph_lock
                     .get_articles_in_category(category_qid, depth)
-                    .map_err(|err| CoreServiceError::EngineError(err))?
+                    .map_err(CoreServiceError::EngineError)?
                     .len()
             };
 
@@ -64,7 +64,7 @@ impl ContentGapService {
                 for qid in &category_qids {
                     let articles = graph_lock
                         .get_articles_in_category(*qid, effective_depth)
-                        .map_err(|err| CoreServiceError::EngineError(err))?;
+                        .map_err(CoreServiceError::EngineError)?;
                     total_article_count += articles.len();
                 }
             }

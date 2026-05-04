@@ -25,7 +25,7 @@ impl TopicTrendMcpServer {
     ) -> Result<rmcp::handler::server::wrapper::Json<HashMap<String, String>>, ErrorData> {
         let map = PageViewsService::get_sub_categories(
             Arc::clone(&self.state), &p.wiki, &p.category, p.category_qid,
-        ).await.map_err(|e| crate::mcp::tools::service_err(e))?;
+        ).await.map_err(crate::mcp::tools::service_err)?;
 
         // Convert u32 keys to strings as the OpenAPI spec uses string keys
         let string_map: HashMap<String, String> = map.into_iter()

@@ -157,7 +157,7 @@ impl PageEditDeltaService {
 
         // STEP 6: Sort by absolute delta descending (biggest absolute changes first)
         // This captures both big increases and big decreases
-        delta_items.sort_by(|a, b| b.absolute_delta.abs().cmp(&a.absolute_delta.abs()));
+        delta_items.sort_by_key(|b| std::cmp::Reverse(b.absolute_delta.abs()));
 
         Ok(delta_items)
     }
@@ -294,7 +294,7 @@ impl PageEditDeltaService {
 
         // STEP 6: Sort by absolute delta descending (biggest absolute changes first)
         // This captures both big increases and big decreases
-        delta_items.sort_by(|a, b| b.absolute_delta.abs().cmp(&a.absolute_delta.abs()));
+        delta_items.sort_by_key(|b| std::cmp::Reverse(b.absolute_delta.abs()));
 
         Ok(delta_items)
     }

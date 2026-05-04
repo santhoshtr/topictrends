@@ -566,7 +566,7 @@ impl GoogleSearchEngine {
             .filter(|&idx| cat_clicks[idx] > 0)
             .map(|cat_dense_id| {
                 let mut articles = cat_articles[cat_dense_id].clone();
-                articles.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+                articles.sort_unstable_by_key(|b| std::cmp::Reverse(b.1));
 
                 let top_articles: Vec<ArticleRank> = articles
                     .into_iter()
@@ -646,7 +646,7 @@ impl GoogleSearchEngine {
             })
             .collect();
 
-        ranked.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+        ranked.sort_unstable_by_key(|b| std::cmp::Reverse(b.1));
 
         let results = ranked
             .into_iter()
@@ -715,7 +715,7 @@ impl GoogleSearchEngine {
             }
         }
 
-        article_totals.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+        article_totals.sort_unstable_by_key(|b| std::cmp::Reverse(b.1));
 
         let top_articles: Vec<ArticleRank> = article_totals
             .into_iter()

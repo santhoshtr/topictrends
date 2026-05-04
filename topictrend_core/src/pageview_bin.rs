@@ -83,14 +83,12 @@ pub fn get_daily_pageviews(wiki: &str, year: i16, month: i8, day: i8) -> Vec<u32
 
     let mut dense_vector = vec![0u32; graph.art_dense_to_original.len()];
 
-    for (opt_page_id, opt_views) in page_ids.into_iter().zip(daily_views.into_iter()) {
-        if let (Some(page_id), Some(views)) = (opt_page_id, opt_views) {
-            if let Some(qid) = article_id_to_qid.get(page_id) {
-                if let Some(dense_id) = graph.art_original_to_dense.get(qid) {
+    for (opt_page_id, opt_views) in page_ids.into_iter().zip(daily_views) {
+        if let (Some(page_id), Some(views)) = (opt_page_id, opt_views)
+            && let Some(qid) = article_id_to_qid.get(page_id)
+                && let Some(dense_id) = graph.art_original_to_dense.get(qid) {
                     dense_vector[dense_id as usize] = views;
                 }
-            }
-        }
     }
 
     dense_vector

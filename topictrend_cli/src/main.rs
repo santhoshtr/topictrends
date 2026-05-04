@@ -327,7 +327,7 @@ fn load_qid_title_map(path: &str) -> Result<HashMap<u32, String>, Box<dyn Error>
     let titles = df.column("page_title")?.str()?;
     Ok(qids
         .into_iter()
-        .zip(titles.into_iter())
+        .zip(titles)
         .filter_map(|(q, t)| Some((q?, t?.to_string())))
         .collect())
 }

@@ -212,7 +212,7 @@ impl PageViewsService {
 
         // Get top 10 articles overall
         let mut article_vec: Vec<(u32, (u64, u64, u32))> = all_articles.into_iter().collect();
-        article_vec.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+        article_vec.sort_by_key(|b| std::cmp::Reverse(b.1.0));
         article_vec.truncate(10);
 
         let article_qids: Vec<u32> = article_vec.iter().map(|(qid, _)| *qid).collect();
@@ -392,11 +392,11 @@ impl PageViewsService {
                             .unwrap_or_else(|| format!("Q{}", art.article_qid));
 
                         ArticleRank {
-                             qid: art.article_qid,
-                             title: article_title,
-                             views: art.total_views as u32,
-                             source_categories: vec![(cat.category_qid, category_title.clone())],
-                         }
+                            qid: art.article_qid,
+                            title: article_title,
+                            views: art.total_views as u32,
+                            source_categories: vec![(cat.category_qid, category_title.clone())],
+                        }
                     })
                     .collect();
 
