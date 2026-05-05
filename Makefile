@@ -121,8 +121,12 @@ $(DATA_DIR)/pageviews/%.parquet:
 	DAY=$$(basename $@ .parquet); \
 	mkdir -p $$(dirname $@); \
 	URL="https://dumps.wikimedia.org/other/pageview_complete/$$YEAR/$$YEAR-$$MONTH/pageviews-$$YEAR$$MONTH$$DAY-user.bz2"; \
+	HTTP_STATUS=$$(curl -o /dev/null -w "%{http_code}" -sSL "$$URL"); \
+	if [ "$$HTTP_STATUS" = "404" ]; then \
+		echo "WARNING: pageviews not found (404) for $$YEAR-$$MONTH-$$DAY: $$URL" >&2; exit 0; \
+	fi; \
 	curl -fsSL "$$URL" | bzip2 -dc \
-		| $(CARGO_RELEASE)/get-pageviews $@ || { echo "Error downloading pageviews"; exit 1; }
+		| $(CARGO_RELEASE)/get-pageviews $@ || { echo "Error downloading pageviews from $$URL"; exit 1; }
 
 # Page edits from MediaWiki history dumps
 # Supports both single all-time file and multi-part dumps
@@ -137,6 +141,11 @@ $(DATA_DIR)/%/pageedits/pageedits.parquet:
 	echo "Fetching file list from $$BASE_URL"; \
 	FILELIST="$$TEMP_DIR/filelist.txt"; \
 	wget -q -O - "$$BASE_URL" | grep -oP 'href="\K[^"]*\.bz2(?=")' > "$$FILELIST" || { \
+		HTTP_STATUS=$$(curl -o /dev/null -w "%{http_code}" -sSL "$$BASE_URL"); \
+		if [ "$$HTTP_STATUS" = "404" ]; then \
+			echo "WARNING: pageedits not found (404) for $$WIKI: $$BASE_URL" >&2; \
+			rm -rf "$$TEMP_DIR"; exit 0; \
+		fi; \
 		echo "Error fetching file list from $$BASE_URL" >&2; \
 		rm -rf "$$TEMP_DIR"; \
 		exit 1; \
@@ -291,7 +300,7 @@ monthly: init
 	for DAY in $$(seq 1 $$LAST_DAY); do \
 		PROCESS_DATE=$$(printf "%s-%02d-%02d" $$YEAR $$((10#$$MONTH)) $$DAY); \
 		echo "Processing date: $$PROCESS_DATE"; \
-		$(MAKE) run DATE="$$PROCESS_DATE" || true; \
+		$(MAKE) -k run DATE="$$PROCESS_DATE" || true; \
 	done; \
 	rm -rf $(DATA_DIR)/pageviews; \
 	echo "Monthly processing complete for $$YEAR-$$MONTH!"
