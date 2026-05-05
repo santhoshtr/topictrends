@@ -19,7 +19,7 @@ WIKIS := $(shell cat $(DATA_DIR)/wikipedia.list 2>/dev/null)
 QUERIES_DIR := queries
 PAGEVIEWS_DIR := $(DATA_DIR)/pageviews
 EDIT_SNAPSHOT ?= $(shell date -d "today -31 days" +%Y-%m)
-MIN_EDIT_YEAR ?= 2025
+MIN_EDIT_YEAR ?= $(shell date -d "last year" +%Y)
 
 .DEFAULT_GOAL := run
 
