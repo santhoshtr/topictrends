@@ -282,7 +282,7 @@ $(DATA_DIR)/%/categories.parquet:
 # make monthly END_DATE=2025-08-30  # Processes all dates from 2025-08-01 to 2025-08-31
 # make monthly END_DATE=2025-02-15  # Processes all dates from 2025-02-01 to 2025-02-28
 monthly: init
-	@END_DATE_VAR=$${END_DATE:-$$(date +%Y-%m-%d)}; \
+	@END_DATE_VAR=$${END_DATE:-$$(date -d "yesterday" +%Y-%m-%d)}; \
 	echo "Processing month containing END_DATE=$$END_DATE_VAR..."; \
 	YEAR=$$(echo $$END_DATE_VAR | cut -d'-' -f1); \
 	MONTH=$$(echo $$END_DATE_VAR | cut -d'-' -f2); \
