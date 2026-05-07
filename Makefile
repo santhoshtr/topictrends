@@ -55,10 +55,6 @@ help:
 # Main run target
 run: init $(WIKIS)
 
-.PHONY: wikigraph
-wikigraph:
-	$(CARGO_RELEASE)/wikigraph
-
 $(DATA_DIR):
 	@mkdir -p $@
 
