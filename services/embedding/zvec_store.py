@@ -41,6 +41,7 @@ class ZvecStore:
 
         self._model = None
         self._collections: dict[str, zvec.Collection] = {}
+        self._collection_mode: dict[str, bool] = {}
 
     @property
     def model(self) -> SentenceTransformer:
@@ -56,7 +57,9 @@ class ZvecStore:
     def _get_collection(self, wiki: str, read_only=True) -> zvec.Collection:
         """Get or open a collection for a wiki."""
         if wiki in self._collections:
-            return self._collections[wiki]
+            is_cached_ro = self._collection_mode.get(wiki, True)
+            if not (not read_only and is_cached_ro):
+                return self._collections[wiki]
 
         col_path = self._collection_path(wiki)
 
@@ -65,10 +68,13 @@ class ZvecStore:
                     path=str(col_path), 
                     option=zvec.CollectionOption(read_only=read_only, enable_mmap=True),
             )
+            is_ro = read_only
         else:
             col = self._create_collection(wiki)
+            is_ro = False
 
         self._collections[wiki] = col
+        self._collection_mode[wiki] = is_ro
         return col
 
     def _create_collection(self, wiki: str) -> zvec.Collection:
@@ -119,7 +125,7 @@ class ZvecStore:
         total_records = len(df)
         print(f"Found {total_records} records to process for {wiki}")
 
-        col = self._get_collection(wiki)
+        col = self._get_collection(wiki, read_only=False)
 
         records = []
         processed = 0
