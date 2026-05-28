@@ -53,9 +53,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let output_path = matches.get_one::<String>("output-file").unwrap();
 
     println!(
-        "Processing stats for wiki: {}, date: {}-{}-{}",
+        "Processing stats for wiki: {}, date: {}-{:02}-{:02}",
         wiki, year, month, day
     );
     let pairs = get_daily_pageviews(wiki, year, month, day);
-    write_pageview_parquet(&pairs, output_path)
+    write_pageview_parquet(&pairs, output_path)?;
+    println!("Wrote {} entries to {}", pairs.len(), output_path);
+    Ok(())
 }

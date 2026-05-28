@@ -100,13 +100,14 @@ $(DATA_DIR)/%/article_category.parquet: $(QUERIES_DIR)/article-category.sql $(DA
 	@cat $< | $(call dbquery) | \
 		$(CARGO_RELEASE)/get-article_category $(DATA_DIR)/$*/articles.parquet $(DATA_DIR)/$*/categories.parquet  $@
 
-# Daily pageviews for a specific wiki/date
+# Daily pageviews for a specific wiki/date.
 # Expands to data/enwiki/pageviews/2025/12/30.parquet (example).
 # Bound to the current $(DATE); to build a different date, pass DATE=YYYY-MM-DD.
-$(DATA_DIR)/%/pageviews/$(YEAR)/$(MONTH)/$(DAY).parquet:
+# The raw dump is a direct prerequisite (built once, shared by all wikis on a
+# given date) — avoids a recursive sub-make per wiki.
+$(DATA_DIR)/%/pageviews/$(YEAR)/$(MONTH)/$(DAY).parquet: $(DATA_DIR)/pageviews/$(YEAR)/$(MONTH)/$(DAY).parquet
 	@mkdir -p $(dir $@)
-	@echo "Processing pageviews for $* on $(DATE)..."
-	$(MAKE) $(DATA_DIR)/pageviews/$(YEAR)/$(MONTH)/$(DAY).parquet
+	@echo "Processing pageviews for $* on $(DATE) -> $@"
 	$(CARGO_RELEASE)/get-per_day_wiki_stats --wiki $* --year $(YEAR) --month $(MONTH) --day $(DAY) -o $@
 
 # Raw pageview data from Wikimedia
