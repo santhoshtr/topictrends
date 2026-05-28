@@ -1,8 +1,10 @@
 use crate::{direct_map::DirectMap, graphbuilder::GraphBuilder, wikigraph::WikiGraph};
 use chrono::{Datelike, NaiveDate};
-use polars::prelude::*;
+use parquet::file::reader::{FileReader, SerializedFileReader};
+use parquet::record::RowAccessor;
 use roaring::RoaringBitmap;
 use std::fmt;
+use std::fs::File;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
@@ -144,21 +146,26 @@ pub struct PageViewEngine {
 /// the current dense article ID. Entries for QIDs not in `dense_map`
 /// (articles deleted since the file was written) are silently dropped —
 /// the correct behavior for analytics on the active article set.
+///
+/// Uses the raw `parquet` crate (purely synchronous) rather than Polars so
+/// this is safe to call from inside an async runtime — handler code reaches
+/// this path without `spawn_blocking`, and Polars' lazy reader internally
+/// starts a Tokio runtime which panics when one is already active.
 fn load_pageview_parquet(
     path: &str,
     dense_map: &DirectMap,
     num_articles: usize,
 ) -> Result<Vec<u32>, Box<dyn Error>> {
-    let pl_path = PlRefPath::try_from_path(Path::new(path))?;
-    let df = LazyFrame::scan_parquet(pl_path, Default::default())?.collect()?;
-
-    let qids = df.column("qid")?.u32()?;
-    let views = df.column("views")?.u32()?;
+    let file = File::open(path)?;
+    let reader = SerializedFileReader::new(file)?;
+    let row_iter = reader.get_row_iter(None)?;
 
     let mut dense_vec = vec![0u32; num_articles];
-    for (opt_qid, opt_views) in qids.into_iter().zip(views) {
-        if let (Some(qid), Some(views)) = (opt_qid, opt_views)
-            && let Some(dense_id) = dense_map.get(qid)
+    for row_result in row_iter {
+        let row = row_result?;
+        let qid = row.get_uint(0)?;
+        let views = row.get_uint(1)?;
+        if let Some(dense_id) = dense_map.get(qid)
             && (dense_id as usize) < dense_vec.len()
         {
             dense_vec[dense_id as usize] = views;
