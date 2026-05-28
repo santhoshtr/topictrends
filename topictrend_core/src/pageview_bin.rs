@@ -1,36 +1,47 @@
-use byteorder::{LittleEndian, WriteBytesExt};
+use parquet::file::writer::SerializedFileWriter;
+use parquet::{file::properties::WriterProperties, record::RecordWriter as _};
+use parquet_derive::ParquetRecordWriter;
 use polars::prelude::*;
-use std::{
-    error::Error,
-    fs::File,
-    io::{BufWriter, Write},
-    path::Path,
-};
+use std::{error::Error, fs::File, path::Path, sync::Arc};
 
-use crate::{direct_map::DirectMap, graphbuilder::GraphBuilder, wikigraph::WikiGraph};
+use crate::direct_map::DirectMap;
 
-pub fn generate_bin_dump(views: Vec<u32>, output_path: &str) -> Result<(), Box<dyn Error>> {
-    let out_file = File::create(output_path)?;
-    let mut writer = BufWriter::new(out_file);
+#[derive(Debug, ParquetRecordWriter)]
+struct PageviewRecord {
+    qid: u32,
+    views: u32,
+}
 
-    // Header: Magic (4) + Version (4) + Size (8)
-    writer.write_all(b"VIEW")?;
-    writer.write_u32::<LittleEndian>(1)?;
-    writer.write_u64::<LittleEndian>(views.len() as u64)?;
+/// Write a sorted (qid, views) list to a Parquet file.
+pub fn write_pageview_parquet(
+    pairs: &[(u32, u32)],
+    output_path: &str,
+) -> Result<(), Box<dyn Error>> {
+    let records: Vec<PageviewRecord> = pairs
+        .iter()
+        .map(|&(qid, views)| PageviewRecord { qid, views })
+        .collect();
 
-    for count in views {
-        writer.write_u32::<LittleEndian>(count)?;
-    }
+    let schema = records.as_slice().schema()?;
+    let props = Arc::new(
+        WriterProperties::builder()
+            .set_compression(parquet::basic::Compression::SNAPPY)
+            .build(),
+    );
+    let file = File::create(output_path)?;
+    let mut writer = SerializedFileWriter::new(file, schema, props)?;
+    let mut row_group = writer.next_row_group()?;
+    records.as_slice().write_to_row_group(&mut row_group)?;
+    row_group.close()?;
+    writer.close()?;
 
-    writer.flush()?;
     Ok(())
 }
 
-pub fn get_daily_pageviews(wiki: &str, year: i16, month: i8, day: i8) -> Vec<u32> {
-    let graph: WikiGraph = GraphBuilder::new(wiki)
-        .build()
-        .expect("Error while building graph");
-
+/// Read the daily raw pageview parquet for the given date, filter to `wiki`,
+/// map page_id → qid via `articles.parquet`, drop unknown / zero-view rows,
+/// and return a `(qid, views)` list sorted by qid.
+pub fn get_daily_pageviews(wiki: &str, year: i16, month: i8, day: i8) -> Vec<(u32, u32)> {
     let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "data".to_string());
 
     let pageviews_path = format!(
@@ -81,15 +92,16 @@ pub fn get_daily_pageviews(wiki: &str, year: i16, month: i8, day: i8) -> Vec<u32
         .filter_map(|(id, qid)| Some((id?, qid?)))
         .collect();
 
-    let mut dense_vector = vec![0u32; graph.art_dense_to_original.len()];
-
+    let mut pairs: Vec<(u32, u32)> = Vec::new();
     for (opt_page_id, opt_views) in page_ids.into_iter().zip(daily_views) {
         if let (Some(page_id), Some(views)) = (opt_page_id, opt_views)
+            && views > 0
             && let Some(qid) = article_id_to_qid.get(page_id)
-                && let Some(dense_id) = graph.art_original_to_dense.get(qid) {
-                    dense_vector[dense_id as usize] = views;
-                }
+        {
+            pairs.push((qid, views));
+        }
     }
 
-    dense_vector
+    pairs.sort_unstable_by_key(|&(qid, _)| qid);
+    pairs
 }

@@ -57,7 +57,7 @@ graph TD
         PQ_ART["Parquet: Articles"]
         PQ_CAT["Parquet: Categories"]
         PQ_GRAPH["Parquet: Topology"]
-        BIN_PV["Binary: Pageview Time Series\n(per-day files)"]
+        PQ_PV["Parquet: Pageview Time Series\n(per-day files)"]
         PQ_PE["Parquet: Pageedits\n(single file per wiki)"]
         PQ_GSC["Parquet: GSC\n(per-wiki, per-day files)"]
     end
@@ -65,7 +65,7 @@ graph TD
     subgraph "Core Engine (Rust, In-Memory)"
         CSR_LINK["CSR: Article-Category Links"]
         CSR_TOPO["CSR: Category Topology"]
-        MMAP_PV["Mmap: Pageview Vectors"]
+        DENSE_PV["Dense Pageview Vectors\n(per-date Vec<u32>, lazy-loaded)"]
         SPARSE_PE["Sparse Edit Map\n(HashMap Date → DailyEditData)"]
     end
 
@@ -82,13 +82,13 @@ graph TD
     META --> PQ_ART
     META --> PQ_CAT
     META --> PQ_GRAPH
-    PV_PROC --> BIN_PV
+    PV_PROC --> PQ_PV
     PE_PROC --> PQ_PE
     GSC_PROC --> PQ_GSC
 
     PQ_ART -->|Load at startup| CSR_LINK
     PQ_GRAPH -->|Load at startup| CSR_TOPO
-    BIN_PV -->|Mmap at runtime| MMAP_PV
+    PQ_PV -->|Lazy load per date| DENSE_PV
     PQ_PE -->|Load at startup| SPARSE_PE
 
     API -->|Title → QID| DB_REP
@@ -99,7 +99,7 @@ graph TD
 
 The system divides into four layers: ETL (data ingestion), batch processing (parsing and storage), core engine (in-memory numeric computation), and web layer (title translation and HTTP routing).
 
-Pageviews and pageedits use different storage strategies. Pageviews are written as per-day binary files and memory-mapped at runtime for O(1) access. Pageedits are stored in a single Parquet file per wiki and loaded at startup into a sparse in-memory structure (`HashMap<Date, DailyEditData>`) using sorted arrays with binary search — appropriate since edit data is sparser than pageview data.
+Pageviews and pageedits use different storage strategies. Pageviews are written as per-day Parquet files keyed by Wikidata QID — sparse, sorted, and refresh-stable across topology rebuilds. On first access for a given date the engine decompresses the file, translates QIDs to current dense article IDs, and caches a dense `Vec<u32>` for SIMD-friendly aggregation. Pageedits are stored in a single Parquet file per wiki and loaded at startup into a sparse in-memory structure (`HashMap<Date, DailyEditData>`) using sorted arrays with binary search — appropriate since edit data is sparser than pageview data.
 
 Google Search Console data is an external source deposited as Hive-partitioned parquets (`data/gsc_page_date/date=YYYY-MM-DD/data.parquet`). The `get-gsc-qid-date` ETL binary maps article page URLs to QIDs via `articles.parquet` and writes per-wiki, per-day parquets to `data/<wiki>/gsc/<YEAR>/<MONTH>/<DAY>.parquet`. The output schema is `(qid, clicks, impressions, ctr, position)` — no URLs or titles retained.
 

@@ -1,5 +1,5 @@
 use clap::{Arg, Command};
-use topictrend::pageview_bin::{generate_bin_dump, get_daily_pageviews};
+use topictrend::pageview_bin::{get_daily_pageviews, write_pageview_parquet};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = Command::new("Per Day Wiki Stats")
@@ -56,6 +56,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Processing stats for wiki: {}, date: {}-{}-{}",
         wiki, year, month, day
     );
-    let views = get_daily_pageviews(wiki, year, month, day);
-    generate_bin_dump(views, output_path)
+    let pairs = get_daily_pageviews(wiki, year, month, day);
+    write_pageview_parquet(&pairs, output_path)
 }

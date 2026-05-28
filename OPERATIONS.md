@@ -51,7 +51,7 @@ make init
 # - data/{wiki}/categories.parquet (for each wiki)
 # - data/{wiki}/article_category.parquet (for each wiki)
 # - data/{wiki}/category_graph.parquet (for each wiki)
-# - data/pageviews/{YEAR}/{MONTH}/{DAY}.bin (daily pageviews)
+# - data/{wiki}/pageviews/{YEAR}/{MONTH}/{DAY}.parquet (daily pageviews, per wiki)
 ```
 
 ### Running the Web Server
@@ -228,9 +228,9 @@ make monthly END_DATE=2025-01-31
 3. Parse TSV format: `domain_code page_title count_views bytes_sent`
 4. Map titles to QIDs using articles.parquet
 5. Aggregate views by QID
-6. Write binary vectors: `data/{wiki}/pageviews/{YEAR}/{MONTH}/{DAY}.bin`
+6. Write per-day Parquet: `data/{wiki}/pageviews/{YEAR}/{MONTH}/{DAY}.parquet`
 
-**Binary format:** Per-day files containing a vector where index is QID, value is pageview count. This enables O(1) lookup and mmap access.
+**File format:** Per-day Parquet with schema `(qid: u32, views: u32)`, sorted by `qid`, sparse (only articles with non-zero views appear). On load the engine translates each QID to the current dense article ID via `articles.parquet` and produces an in-memory `Vec<u32>` indexed by dense ID for SIMD-friendly aggregation. The QID-keyed on-disk format is refresh-stable: a topology refresh (`articles.parquet` rebuild) does not invalidate historical pageview files; deleted articles' QIDs simply drop out of analytics, and added articles default to zero in pre-existing files.
 
 ### Page Edit Ingestion (Monthly / On-demand)
 
@@ -585,7 +585,7 @@ curl -I https://dumps.wikimedia.org/other/pageview_complete/2025/2025-01/pagevie
 cat data/wikipedia.list
 
 # Manual test with single wiki
-make data/enwiki/pageviews/2025/01/14.bin
+make data/enwiki/pageviews/2025/01/14.parquet DATE=2025-01-14
 ```
 
 **Solution**:

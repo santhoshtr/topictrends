@@ -1,11 +1,12 @@
-use crate::{graphbuilder::GraphBuilder, wikigraph::WikiGraph};
+use crate::{direct_map::DirectMap, graphbuilder::GraphBuilder, wikigraph::WikiGraph};
 use chrono::{Datelike, NaiveDate};
+use polars::prelude::*;
 use roaring::RoaringBitmap;
 use std::fmt;
-use std::io::Read;
+use std::path::Path;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
-use std::{collections::HashMap, error::Error, fs::File};
+use std::{collections::HashMap, error::Error};
 
 #[derive(Debug, Clone)]
 pub struct ArticleRank {
@@ -139,34 +140,32 @@ pub struct PageViewEngine {
     top_categories_cache: RwLock<TopCategoriesCache>,
 }
 
-fn load_bin_file(path: &str, expected_size: usize) -> Result<Vec<u32>, Box<dyn Error>> {
-    let mut file = File::open(path)?;
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer)?;
+/// Load a per-day pageview Parquet and produce a dense `Vec<u32>` indexed by
+/// the current dense article ID. Entries for QIDs not in `dense_map`
+/// (articles deleted since the file was written) are silently dropped —
+/// the correct behavior for analytics on the active article set.
+fn load_pageview_parquet(
+    path: &str,
+    dense_map: &DirectMap,
+    num_articles: usize,
+) -> Result<Vec<u32>, Box<dyn Error>> {
+    let pl_path = PlRefPath::try_from_path(Path::new(path))?;
+    let df = LazyFrame::scan_parquet(pl_path, Default::default())?.collect()?;
 
-    // Simple Header Check
-    if &buffer[0..4] != b"VIEW" {
-        panic!("Invalid magic bytes in pageview bin file: {}", path);
+    let qids = df.column("qid")?.u32()?;
+    let views = df.column("views")?.u32()?;
+
+    let mut dense_vec = vec![0u32; num_articles];
+    for (opt_qid, opt_views) in qids.into_iter().zip(views) {
+        if let (Some(qid), Some(views)) = (opt_qid, opt_views)
+            && let Some(dense_id) = dense_map.get(qid)
+            && (dense_id as usize) < dense_vec.len()
+        {
+            dense_vec[dense_id as usize] = views;
+        }
     }
 
-    // Cast raw bytes to u32 slice (unsafe/fast or using bytemuck)
-    // This skips parsing entirely.
-    let (_head, body, _tail) = unsafe { buffer[16..].align_to::<u32>() };
-
-    if body.len() != expected_size {
-        return Err(format!(
-            "Pageview bin {} is misaligned with the current article set \
-             (expected {} entries, got {}). \
-             Regenerate this file via `make data/<wiki>/pageviews/...bin` \
-             after a topology refresh.",
-            path,
-            expected_size,
-            body.len(),
-        )
-        .into());
-    }
-
-    Ok(body.to_vec())
+    Ok(dense_vec)
 }
 
 impl PageViewEngine {
@@ -359,8 +358,8 @@ impl PageViewEngine {
         let num_articles = self.wikigraph.art_dense_to_original.len();
 
         let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "data".to_string());
-        let bin_filename = format!(
-            "{}/{}/pageviews/{}/{:02}/{:02}.bin",
+        let parquet_filename = format!(
+            "{}/{}/pageviews/{}/{:02}/{:02}.parquet",
             data_dir,
             self.wiki,
             date.year(),
@@ -368,16 +367,15 @@ impl PageViewEngine {
             date.day()
         );
 
-        if !std::path::Path::new(&bin_filename).exists() {
-            // eprintln!(
-            //     "Could not find page view data for {} at {}",
-            //     date, bin_filename
-            // );
+        if !Path::new(&parquet_filename).exists() {
             return Ok(None);
         }
 
-        let day_vec = load_bin_file(&bin_filename, num_articles)
-            .expect("Error reading the pageview bin file");
+        let day_vec = load_pageview_parquet(
+            &parquet_filename,
+            &self.wikigraph.art_original_to_dense,
+            num_articles,
+        )?;
         println!(
             "Loaded page views for {} on {}, found {} articles",
             self.wiki,

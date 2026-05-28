@@ -35,13 +35,11 @@ TopicTrends uses Compressed Sparse Row (CSR) representation — a classical spar
 
 CSR representations are immutable once constructed; dynamic insertion requires reconstruction. This constraint maps perfectly to TopicTrends' batch-oriented update model — topology is refreshed monthly as a complete operation, not incrementally.
 
-### Memory-Mapped Pageview Time Series
+### Per-Day Pageview Parquet, Densified On Load
 
-Pageview data arrives daily for 345 wikis. Rather than loading this into memory, TopicTrends writes per-day binary files to disk and memory-maps them into the process address space at runtime.
+Pageview data arrives daily for 345 wikis. Each `(wiki, date)` is stored as a small Parquet file with schema `(qid: u32, views: u32)`, sorted by `qid` and sparse — only articles with non-zero views for the date appear. This is refresh-stable: the on-disk key is the stable Wikidata QID, not a positional dense index, so rebuilding `articles.parquet` (additions, deletions) leaves historical files valid.
 
-This exploits the OS virtual memory system. For a year of daily data, the resulting files span several gigabytes. The OS automatically pages hot data (recent days) into RAM while keeping cold data on disk. The application accesses data through a uniform `mmap` interface without explicitly managing which pages reside in memory — more efficient than application-level caching.
-
-**Binary format:** Each file is a dense vector where the index is the QID and the value is the pageview count. This gives O(1) lookup per article per day.
+At load time the engine translates each QID to the current dense article ID via `art_original_to_dense` and materializes a `Vec<u32>` indexed by dense ID, cached per date in process memory. Subsequent reads — per-article lookup in `get_article_trend`, RoaringBitmap-driven traversal in `get_category_trend`, full-vector SIMD aggregation in `get_top_categories` / `get_top_articles` — all operate on the dense in-memory layout exactly as before. The Parquet decompression is paid once per cold date load; the warm path is unchanged from the prior format.
 
 ### Sparse In-Memory Pageedit Data
 

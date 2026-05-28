@@ -69,7 +69,7 @@ $(WIKIS): %: \
 	$(DATA_DIR)/%/categories.parquet \
 	$(DATA_DIR)/%/article_category.parquet \
 	$(DATA_DIR)/%/category_graph.parquet \
-	$(DATA_DIR)/%/pageviews/$(YEAR)/$(MONTH)/$(DAY).bin \
+	$(DATA_DIR)/%/pageviews/$(YEAR)/$(MONTH)/$(DAY).parquet \
 	$(DATA_DIR)/%/pageedits/pageedits.parquet
 
 # Helper function for database queries
@@ -100,17 +100,14 @@ $(DATA_DIR)/%/article_category.parquet: $(QUERIES_DIR)/article-category.sql $(DA
 	@cat $< | $(call dbquery) | \
 		$(CARGO_RELEASE)/get-article_category $(DATA_DIR)/$*/articles.parquet $(DATA_DIR)/$*/categories.parquet  $@
 
-# Daily pageviews for specific wiki
-# Expands to data/enwiki/pageviews/2025/12/30.bin (example)
-$(DATA_DIR)/%.bin:
-	@WIKI=$$(echo $* | cut -d'/' -f1); \
-	YEAR=$$(echo $* | cut -d'/' -f3); \
-	MONTH=$$(echo $* | cut -d'/' -f4); \
-	DAY=$$(basename $@ .bin); \
-	echo "Processing pageviews for $$WIKI on $$YEAR-$$MONTH-$$DAY..."; \
-	mkdir -p $$(dirname $@); \
-	$(MAKE) $(DATA_DIR)/pageviews/$$YEAR/$$MONTH/$$DAY.parquet; \
-	$(CARGO_RELEASE)/get-per_day_wiki_stats --wiki $$WIKI --year $$YEAR --month $$MONTH --day $$DAY -o $@
+# Daily pageviews for a specific wiki/date
+# Expands to data/enwiki/pageviews/2025/12/30.parquet (example).
+# Bound to the current $(DATE); to build a different date, pass DATE=YYYY-MM-DD.
+$(DATA_DIR)/%/pageviews/$(YEAR)/$(MONTH)/$(DAY).parquet:
+	@mkdir -p $(dir $@)
+	@echo "Processing pageviews for $* on $(DATE)..."
+	$(MAKE) $(DATA_DIR)/pageviews/$(YEAR)/$(MONTH)/$(DAY).parquet
+	$(CARGO_RELEASE)/get-per_day_wiki_stats --wiki $* --year $(YEAR) --month $(MONTH) --day $(DAY) -o $@
 
 # Raw pageview data from Wikimedia
 # Expands to data/pageviews/2025/12/30.parquet (example)
