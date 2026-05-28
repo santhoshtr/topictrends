@@ -1,5 +1,5 @@
 use clap::{Arg, Command};
-use topictrend::pageview_bin::{get_daily_pageviews, write_pageview_parquet};
+use topictrend::pageview_parquet::{get_daily_pageviews, write_pageview_parquet};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = Command::new("Per Day Wiki Stats")

@@ -1,7 +1,7 @@
 use polars::prelude::*;
 use std::fs::{self, File};
 use std::sync::Mutex;
-use topictrend::{pageview_bin, pageview_engine::PageViewEngine};
+use topictrend::{pageview_parquet, pageview_engine::PageViewEngine};
 
 // Tests share process-wide state (DATA_DIR env var) and must run serially.
 static TEST_LOCK: Mutex<()> = Mutex::new(());
@@ -86,8 +86,8 @@ fn test_graph_traversal_and_category_trends() {
 
     setup_test_data(base);
 
-    let pairs = pageview_bin::get_daily_pageviews("testwiki", 2032, 10, 12);
-    pageview_bin::write_pageview_parquet(
+    let pairs = pageview_parquet::get_daily_pageviews("testwiki", 2032, 10, 12);
+    pageview_parquet::write_pageview_parquet(
         &pairs,
         &format!("{}/testwiki/pageviews/2032/10/12.parquet", base),
     )
@@ -187,7 +187,7 @@ fn test_pageview_parquet_round_trip() {
     );
 
     // Write a pageview Parquet directly via the public writer.
-    pageview_bin::write_pageview_parquet(
+    pageview_parquet::write_pageview_parquet(
         &[(10_u32, 5_u32), (20_u32, 7_u32), (30_u32, 9_u32)],
         &format!("{}/testwiki/pageviews/2030/01/15.parquet", base),
     )
@@ -250,7 +250,7 @@ fn test_pageview_parquet_survives_article_refresh() {
         &format!("{}/testwiki/category_graph.parquet", base),
     );
 
-    pageview_bin::write_pageview_parquet(
+    pageview_parquet::write_pageview_parquet(
         &[(10_u32, 5_u32), (20_u32, 7_u32), (30_u32, 9_u32)],
         &format!("{}/testwiki/pageviews/2030/01/15.parquet", base),
     )
