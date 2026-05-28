@@ -146,7 +146,7 @@ fn load_bin_file(path: &str, expected_size: usize) -> Result<Vec<u32>, Box<dyn E
 
     // Simple Header Check
     if &buffer[0..4] != b"VIEW" {
-        panic!("Invalid Magic");
+        panic!("Invalid magic bytes in pageview bin file: {}", path);
     }
 
     // Cast raw bytes to u32 slice (unsafe/fast or using bytemuck)
@@ -154,11 +154,16 @@ fn load_bin_file(path: &str, expected_size: usize) -> Result<Vec<u32>, Box<dyn E
     let (_head, body, _tail) = unsafe { buffer[16..].align_to::<u32>() };
 
     if body.len() != expected_size {
-        eprintln!(
-            "Graph/View Mismatch! Re-run the pipeline.Expected {} Got:{}",
+        return Err(format!(
+            "Pageview bin {} is misaligned with the current article set \
+             (expected {} entries, got {}). \
+             Regenerate this file via `make data/<wiki>/pageviews/...bin` \
+             after a topology refresh.",
+            path,
             expected_size,
-            body.len()
-        );
+            body.len(),
+        )
+        .into());
     }
 
     Ok(body.to_vec())
