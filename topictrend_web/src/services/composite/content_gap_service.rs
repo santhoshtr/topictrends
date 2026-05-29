@@ -17,15 +17,10 @@ impl ContentGapService {
 
         for wiki in &wikis {
             let graph = EngineService::get_or_build_graph_engine(Arc::clone(&state), wiki).await?;
-            let article_count = {
-                let graph_lock = graph.read().map_err(|_| {
-                    CoreServiceError::InternalError("Failed to acquire graph lock".to_string())
-                })?;
-                graph_lock
-                    .get_articles_in_category(category_qid, depth)
-                    .map_err(CoreServiceError::EngineError)?
-                    .len()
-            };
+            let article_count = graph
+                .get_articles_in_category(category_qid, depth)
+                .map_err(CoreServiceError::EngineError)?
+                .len();
 
             results.push(ContentGapWikiResult {
                 wiki: wiki.clone(),
@@ -56,17 +51,11 @@ impl ContentGapService {
             let graph = EngineService::get_or_build_graph_engine(Arc::clone(&state), wiki).await?;
             let mut total_article_count = 0;
 
-            {
-                let graph_lock = graph.read().map_err(|_| {
-                    CoreServiceError::InternalError("Failed to acquire graph lock".to_string())
-                })?;
-
-                for qid in &category_qids {
-                    let articles = graph_lock
-                        .get_articles_in_category(*qid, effective_depth)
-                        .map_err(CoreServiceError::EngineError)?;
-                    total_article_count += articles.len();
-                }
+            for qid in &category_qids {
+                let articles = graph
+                    .get_articles_in_category(*qid, effective_depth)
+                    .map_err(CoreServiceError::EngineError)?;
+                total_article_count += articles.len();
             }
 
             results.push(ContentGapWikiResult {

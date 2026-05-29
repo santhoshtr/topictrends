@@ -3,7 +3,7 @@ use chrono::NaiveDate;
 use polars::prelude::*;
 use std::fmt;
 use std::path::Path;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use std::{collections::HashMap, error::Error};
 
@@ -183,18 +183,30 @@ pub struct PageEditsEngine {
     // Map Date -> Sparse edit data (article_dense_id -> edit_count)
     daily_edits: HashMap<NaiveDate, DailyEditData>,
     wiki: String,
-    wikigraph: WikiGraph,
+    // `Arc<WikiGraph>` so the graph can be shared with PageViewEngine and
+    // GoogleSearchEngine for the same wiki — see EngineService.
+    wikigraph: Arc<WikiGraph>,
     top_categories_cache: RwLock<TopCategoriesCache>,
 }
 
 impl PageEditsEngine {
+    /// Build a `PageEditsEngine` that owns its own `WikiGraph`. Convenient
+    /// for CLI tools and tests; the web server should use
+    /// [`PageEditsEngine::with_graph`] so the graph is shared across the
+    /// metric engines for the same wiki.
     pub fn new(wiki: &str) -> Self {
-        let graph_builder = GraphBuilder::new(wiki);
-        let graph: WikiGraph = graph_builder.build().expect("Error while building graph");
+        let graph: WikiGraph = GraphBuilder::new(wiki)
+            .build()
+            .expect("Error while building graph");
+        Self::with_graph(wiki, Arc::new(graph))
+    }
 
+    /// Build a `PageEditsEngine` against a pre-built `WikiGraph` shared
+    /// with other metric engines for the same wiki.
+    pub fn with_graph(wiki: &str, wikigraph: Arc<WikiGraph>) -> Self {
         // Load pageedits data from parquet
-        let daily_edits =
-            Self::load_pageedits_from_parquet(wiki, &graph).expect("Error loading pageedits data");
+        let daily_edits = Self::load_pageedits_from_parquet(wiki, &wikigraph)
+            .expect("Error loading pageedits data");
 
         println!(
             "Loaded pageedits for {} with {} dates",
@@ -205,7 +217,7 @@ impl PageEditsEngine {
         Self {
             wiki: wiki.to_string(),
             daily_edits,
-            wikigraph: graph,
+            wikigraph,
             top_categories_cache: RwLock::new(TopCategoriesCache::new()),
         }
     }

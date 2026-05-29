@@ -35,6 +35,10 @@ TopicTrends uses Compressed Sparse Row (CSR) representation — a classical spar
 
 CSR representations are immutable once constructed; dynamic insertion requires reconstruction. This constraint maps perfectly to TopicTrends' batch-oriented update model — topology is refreshed monthly as a complete operation, not incrementally.
 
+### One WikiGraph Per Wiki, Shared Across Metric Engines
+
+The `WikiGraph` (CSR adjacency, dense ↔ QID `DirectMap`s sized by the global QID space, and per-category `RoaringBitmap`s) is the largest fixed structure in the engine — roughly 1-1.5 GB for enwiki. There is one `Arc<WikiGraph>` per wiki, built lazily on first request and shared by `PageViewEngine`, `PageEditsEngine`, and `GoogleSearchEngine` for that wiki. Because the graph is immutable once built, no lock is needed; the `Arc` is cloned cheaply into each metric engine via the `with_graph` constructor. `EngineService::get_or_build_graph_engine` is the single source of truth for graph construction; the per-engine getters call it before instantiating their engine and pass the shared handle in. Standalone callers (CLI tools, tests) use `Engine::new(wiki)` instead, which builds and owns its own graph — the convenience constructor delegates to `with_graph` internally.
+
 ### Per-Day Pageview Parquet, Densified On Load
 
 Pageview data arrives daily for 345 wikis. Each `(wiki, date)` is stored as a small Parquet file with schema `(qid: u32, views: u32)`, sorted by `qid` and sparse — only articles with non-zero views for the date appear. This is refresh-stable: the on-disk key is the stable Wikidata QID, not a positional dense index, so rebuilding `articles.parquet` (additions, deletions) leaves historical files valid.

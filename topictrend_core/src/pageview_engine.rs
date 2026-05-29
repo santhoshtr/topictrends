@@ -261,7 +261,10 @@ pub struct PageViewEngine {
     // Eviction (FIFO) happens under the write lock during inserts.
     daily_views: RwLock<BoundedDailyViews>,
     wiki: String,
-    wikigraph: WikiGraph,
+    // `Arc<WikiGraph>` so the graph can be shared with PageEditsEngine
+    // and GoogleSearchEngine for the same wiki — see EngineService.
+    // The graph is immutable once built, so no lock is needed.
+    wikigraph: Arc<WikiGraph>,
     top_categories_cache: RwLock<TopCategoriesCache>,
 }
 
@@ -316,14 +319,27 @@ fn load_pageview_parquet(
 }
 
 impl PageViewEngine {
+    /// Build a `PageViewEngine` that owns its own `WikiGraph`. Convenient
+    /// for CLI tools and tests; the web server should use
+    /// [`PageViewEngine::with_graph`] so the graph is shared across the
+    /// pageview / pageedit / google-search engines for the same wiki.
     pub fn new(wiki: &str) -> Self {
-        let graph_builder = GraphBuilder::new(wiki);
-        let graph: WikiGraph = graph_builder.build().expect("Error while building graph");
+        let graph: WikiGraph = GraphBuilder::new(wiki)
+            .build()
+            .expect("Error while building graph");
+        Self::with_graph(wiki, Arc::new(graph))
+    }
+
+    /// Build a `PageViewEngine` against a pre-built `WikiGraph`. The graph
+    /// is held as `Arc<WikiGraph>` and shared via `EngineService`, so a
+    /// single topology footprint is paid per wiki regardless of how many
+    /// metric engines are instantiated.
+    pub fn with_graph(wiki: &str, wikigraph: Arc<WikiGraph>) -> Self {
         let capacity = pageview_cache_capacity();
         Self {
             wiki: wiki.to_string(),
             daily_views: RwLock::new(BoundedDailyViews::new(capacity)),
-            wikigraph: graph,
+            wikigraph,
             top_categories_cache: RwLock::new(TopCategoriesCache::new()),
         }
     }

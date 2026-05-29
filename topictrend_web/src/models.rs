@@ -24,7 +24,9 @@ pub enum MetricEngine {
     PageView(Arc<RwLock<PageViewEngine>>),
     PageEdit(Arc<RwLock<PageEditsEngine>>),
     GoogleSearch(Arc<RwLock<GoogleSearchEngine>>),
-    Graph(Arc<RwLock<WikiGraph>>),
+    // `Arc<WikiGraph>` (no RwLock): the graph is immutable once built and
+    // is shared by all metric engines for the same wiki.
+    Graph(Arc<WikiGraph>),
 }
 
 impl MetricEngine {
@@ -53,7 +55,7 @@ impl MetricEngine {
         }
     }
 
-    pub fn as_graph(&self) -> Option<&Arc<RwLock<WikiGraph>>> {
+    pub fn as_graph(&self) -> Option<&Arc<WikiGraph>> {
         match self {
             MetricEngine::Graph(engine) => Some(engine),
             MetricEngine::PageView(_)

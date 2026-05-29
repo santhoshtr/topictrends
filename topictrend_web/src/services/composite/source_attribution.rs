@@ -15,14 +15,11 @@ pub async fn resolve_source_categories(
     }
 
     let graph = EngineService::get_or_build_graph_engine(state, wiki).await?;
-    let graph_lock = graph.read().map_err(|e| {
-        CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
-    })?;
 
     let mut resolved = HashMap::new();
 
     for article_qid in article_qids {
-        let direct_categories = graph_lock
+        let direct_categories = graph
             .get_categories_for_article(*article_qid)
             .map_err(|e| {
                 CoreServiceError::EngineError(format!(
@@ -40,7 +37,7 @@ pub async fn resolve_source_categories(
                 matched_set.insert(cat_qid);
             } else {
                 // Check parent categories (1 hop) for matches
-                if let Ok(parents) = graph_lock.get_parent_categories(cat_qid) {
+                if let Ok(parents) = graph.get_parent_categories(cat_qid) {
                     for parent_qid in parents {
                         if topic_category_qid_set.contains(&parent_qid) {
                             matched_set.insert(parent_qid);

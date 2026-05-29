@@ -4,7 +4,7 @@ use polars::prelude::*;
 use std::collections::HashMap;
 use std::fmt;
 use std::path::Path;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use std::{error::Error, fs};
 
@@ -238,16 +238,27 @@ impl DailySearchData {
 pub struct GoogleSearchEngine {
     daily_search: HashMap<NaiveDate, DailySearchData>,
     wiki: String,
-    wikigraph: WikiGraph,
+    // `Arc<WikiGraph>` so the graph can be shared with PageViewEngine and
+    // PageEditsEngine for the same wiki — see EngineService.
+    wikigraph: Arc<WikiGraph>,
     top_categories_cache: RwLock<TopCategoriesCache>,
 }
 
 impl GoogleSearchEngine {
+    /// Build a `GoogleSearchEngine` that owns its own `WikiGraph`.
+    /// Convenient for CLI tools and tests; the web server should use
+    /// [`GoogleSearchEngine::with_graph`].
     pub fn new(wiki: &str) -> Self {
-        let graph_builder = GraphBuilder::new(wiki);
-        let graph: WikiGraph = graph_builder.build().expect("Error while building graph");
+        let graph: WikiGraph = GraphBuilder::new(wiki)
+            .build()
+            .expect("Error while building graph");
+        Self::with_graph(wiki, Arc::new(graph))
+    }
 
-        let daily_search = Self::load_google_search_from_parquet(wiki, &graph)
+    /// Build a `GoogleSearchEngine` against a pre-built `WikiGraph` shared
+    /// with other metric engines for the same wiki.
+    pub fn with_graph(wiki: &str, wikigraph: Arc<WikiGraph>) -> Self {
+        let daily_search = Self::load_google_search_from_parquet(wiki, &wikigraph)
             .expect("Error loading Google Search data");
 
         println!(
@@ -259,7 +270,7 @@ impl GoogleSearchEngine {
         Self {
             daily_search,
             wiki: wiki.to_string(),
-            wikigraph: graph,
+            wikigraph,
             top_categories_cache: RwLock::new(TopCategoriesCache::new()),
         }
     }
