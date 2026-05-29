@@ -41,6 +41,8 @@ Pageview data arrives daily for 345 wikis. Each `(wiki, date)` is stored as a sm
 
 At load time the engine translates each QID to the current dense article ID via `art_original_to_dense` and materializes a `Vec<u32>` indexed by dense ID, cached per date in process memory. Subsequent reads — per-article lookup in `get_article_trend`, RoaringBitmap-driven traversal in `get_category_trend`, full-vector SIMD aggregation in `get_top_categories` / `get_top_articles` — all operate on the dense in-memory layout exactly as before. The Parquet decompression is paid once per cold date load; the warm path is unchanged from the prior format.
 
+The per-date cache is bounded (FIFO eviction by insertion order) to prevent unbounded RSS growth — at ~28 MB per cached day for enwiki, an unbounded cache would consume tens of gigabytes after a few long-range chart queries. The cap is configured via `TOPICTREND_PAGEVIEW_CACHE_DAYS` (default `120`, `0` disables the bound). To make eviction race-free under concurrent requests, `load_history_for_date_range` returns an `Arc`-snapshot of the requested range; the aggregation paths iterate that snapshot instead of re-acquiring the cache lock, so an entry evicted by another request mid-query is still alive for the caller that needed it.
+
 ### Sparse In-Memory Pageedit Data
 
 Pageedit data has a different profile from pageviews: article edit activity is significantly sparser (most articles have zero edits on any given day), and the full history is processed as a batch rather than daily increments.

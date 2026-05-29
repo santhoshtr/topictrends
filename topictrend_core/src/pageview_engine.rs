@@ -3,12 +3,19 @@ use chrono::{Datelike, NaiveDate};
 use parquet::file::reader::{FileReader, SerializedFileReader};
 use parquet::record::RowAccessor;
 use roaring::RoaringBitmap;
+use std::collections::VecDeque;
 use std::fmt;
 use std::fs::File;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use std::{collections::HashMap, error::Error};
+
+/// Environment variable controlling how many distinct dates `PageViewEngine`
+/// keeps in its in-memory pageview cache. A value of `0` disables the bound
+/// (preserves pre-bound behavior). Default: 120 days (~4 months).
+const PAGEVIEW_CACHE_DAYS_ENV: &str = "TOPICTREND_PAGEVIEW_CACHE_DAYS";
+const DEFAULT_PAGEVIEW_CACHE_DAYS: usize = 120;
 
 #[derive(Debug, Clone)]
 pub struct ArticleRank {
@@ -130,16 +137,86 @@ impl TopCategoriesCache {
     }
 }
 
+/// Bounded per-date pageview cache.
+///
+/// Each entry is a dense `Vec<u32>` indexed by dense article ID — ~28 MB
+/// for enwiki — so an unbounded `HashMap<NaiveDate, _>` grows to tens of
+/// gigabytes after a few long-range chart queries. This wrapper caps the
+/// number of cached dates and evicts in FIFO insertion order.
+///
+/// FIFO (rather than LRU) keeps the read path lock-free of bookkeeping —
+/// reads don't need to update access order, so multiple readers can run
+/// concurrently under `RwLock`. Callers protect themselves against
+/// mid-request eviction by holding an `Arc` snapshot of the range they
+/// need (see [`PageViewEngine::load_history_for_date_range`]).
+#[derive(Debug)]
+struct BoundedDailyViews {
+    map: HashMap<NaiveDate, Arc<Vec<u32>>>,
+    insert_order: VecDeque<NaiveDate>,
+    capacity: usize,
+}
+
+impl BoundedDailyViews {
+    fn new(capacity: usize) -> Self {
+        Self {
+            map: HashMap::new(),
+            insert_order: VecDeque::new(),
+            capacity,
+        }
+    }
+
+    fn get(&self, date: &NaiveDate) -> Option<Arc<Vec<u32>>> {
+        self.map.get(date).cloned()
+    }
+
+    /// Insert `data` for `date`. If the cache is at capacity, evict the
+    /// oldest-inserted entries to make room. A capacity of `0` means
+    /// "unlimited" — entries are never evicted.
+    fn insert(&mut self, date: NaiveDate, data: Arc<Vec<u32>>) {
+        if self.map.contains_key(&date) {
+            return;
+        }
+        if self.capacity > 0 {
+            while self.map.len() >= self.capacity {
+                match self.insert_order.pop_front() {
+                    Some(oldest) => {
+                        self.map.remove(&oldest);
+                    }
+                    None => break,
+                }
+            }
+        }
+        self.map.insert(date, data);
+        self.insert_order.push_back(date);
+    }
+
+    fn len(&self) -> usize {
+        self.map.len()
+    }
+
+    fn capacity(&self) -> usize {
+        self.capacity
+    }
+}
+
 #[derive(Debug)]
 pub struct PageViewEngine {
-    // Map Date -> Vector of pageviews (Index is Dense Article ID)
     // RwLock for interior mutability: concurrent reads hold read lock,
     // cache misses take write lock only for the missing dates.
-    // Arc<Vec<u32>> allows callers to clone the pointer cheaply without copying data.
-    daily_views: RwLock<HashMap<NaiveDate, Arc<Vec<u32>>>>,
+    // Eviction (FIFO) happens under the write lock during inserts.
+    daily_views: RwLock<BoundedDailyViews>,
     wiki: String,
     wikigraph: WikiGraph,
     top_categories_cache: RwLock<TopCategoriesCache>,
+}
+
+/// Read the cache-size cap from the environment, falling back to
+/// [`DEFAULT_PAGEVIEW_CACHE_DAYS`]. A value of `0` disables the bound.
+fn pageview_cache_capacity() -> usize {
+    match std::env::var(PAGEVIEW_CACHE_DAYS_ENV) {
+        Ok(s) => s.parse().unwrap_or(DEFAULT_PAGEVIEW_CACHE_DAYS),
+        Err(_) => DEFAULT_PAGEVIEW_CACHE_DAYS,
+    }
 }
 
 /// Load a per-day pageview Parquet and produce a dense `Vec<u32>` indexed by
@@ -179,12 +256,21 @@ impl PageViewEngine {
     pub fn new(wiki: &str) -> Self {
         let graph_builder = GraphBuilder::new(wiki);
         let graph: WikiGraph = graph_builder.build().expect("Error while building graph");
+        let capacity = pageview_cache_capacity();
         Self {
             wiki: wiki.to_string(),
-            daily_views: RwLock::new(HashMap::new()),
+            daily_views: RwLock::new(BoundedDailyViews::new(capacity)),
             wikigraph: graph,
             top_categories_cache: RwLock::new(TopCategoriesCache::new()),
         }
+    }
+
+    /// Returns the current and configured size of the pageview cache.
+    /// Returned as `(current_entries, capacity)`. A capacity of `0`
+    /// indicates the cache is unbounded.
+    pub fn cache_stats(&self) -> (usize, usize) {
+        let cache = self.daily_views.read().expect("daily_views lock poisoned");
+        (cache.len(), cache.capacity())
     }
 
     pub fn get_wikigraph(&self) -> &WikiGraph {
@@ -226,13 +312,13 @@ impl PageViewEngine {
             depth
         );
 
-        self.load_history_for_date_range(start_date, end_date)
+        let snapshot = self
+            .load_history_for_date_range(start_date, end_date)
             .expect("Error in loading pageview history");
 
-        let cache = self.daily_views.read().expect("daily_views lock poisoned");
         let mut curr = start_date;
         while curr <= end_date {
-            if let Some(day_data) = cache.get(&curr) {
+            if let Some(day_data) = snapshot.get(&curr) {
                 // High Performance Loop
                 // Summing values only for articles in the category
                 let mut daily_total: u64 = 0;
@@ -288,14 +374,14 @@ impl PageViewEngine {
             return vec![];
         }
 
-        self.load_history_for_date_range(start_date, end_date)
+        let snapshot = self
+            .load_history_for_date_range(start_date, end_date)
             .expect("Error in loading pageview history");
 
-        let cache = self.daily_views.read().expect("daily_views lock poisoned");
         let mut curr: NaiveDate = start_date;
 
         while curr <= end_date {
-            match cache.get(&curr) {
+            match snapshot.get(&curr) {
                 Some(day_data) => {
                     let mut daily_total: u64 = 0;
                     for article_dense_id in article_mask.iter() {
@@ -317,48 +403,67 @@ impl PageViewEngine {
         results
     }
 
+    /// Ensure every date in `[start_date, end_date]` that has pageview data
+    /// on disk is present in the in-memory cache, and return a snapshot of
+    /// the range as `Arc` clones.
+    ///
+    /// Returning a snapshot (rather than asking callers to re-acquire the
+    /// cache lock) is what makes the bounded-cache eviction safe under
+    /// concurrent requests: even if another thread inserts new dates and
+    /// evicts entries from this range immediately after we return, this
+    /// caller's `Arc` clones keep the data alive for the duration of the
+    /// aggregation. Missing dates (no file on disk) are simply absent from
+    /// the snapshot — callers treat absence as zero views.
     pub fn load_history_for_date_range(
         &self,
         start_date: NaiveDate,
         end_date: NaiveDate,
-    ) -> Result<(), Box<dyn Error>> {
-        // Phase 1: find which dates are missing under a read lock (dropped immediately).
-        let missing: Vec<NaiveDate> = {
+    ) -> Result<HashMap<NaiveDate, Arc<Vec<u32>>>, Box<dyn Error>> {
+        // Phase 1: snapshot cached entries in the requested range, identify
+        // missing dates. Read lock dropped immediately after.
+        let (mut snapshot, missing): (HashMap<NaiveDate, Arc<Vec<u32>>>, Vec<NaiveDate>) = {
             let cache = self.daily_views.read().expect("daily_views lock poisoned");
-            let mut dates = Vec::new();
+            let mut snap = HashMap::new();
+            let mut miss = Vec::new();
             let mut curr = start_date;
             while curr <= end_date {
-                if !cache.contains_key(&curr) {
-                    dates.push(curr);
+                match cache.get(&curr) {
+                    Some(v) => {
+                        snap.insert(curr, v);
+                    }
+                    None => miss.push(curr),
                 }
                 curr = curr.succ_opt().unwrap();
             }
-            dates
+            (snap, miss)
         };
 
         if missing.is_empty() {
-            return Ok(());
+            return Ok(snapshot);
         }
 
-        // Phase 2: load from disk with no lock held.
+        // Phase 2: load missing dates from disk with no lock held. Pair the
+        // loaded data with its date so we can both return it and cache it.
         let mut loaded: Vec<(NaiveDate, Arc<Vec<u32>>)> = Vec::with_capacity(missing.len());
         for date in missing {
             if let Some(day_vec) = self.load_daily_view(date)? {
-                loaded.push((date, Arc::new(day_vec)));
+                let arc = Arc::new(day_vec);
+                snapshot.insert(date, Arc::clone(&arc));
+                loaded.push((date, arc));
             }
         }
 
-        // Phase 3: insert under write lock.
-        // Use entry().or_insert() so a concurrent thread that loaded the same date first wins;
-        // the duplicate is simply dropped.
+        // Phase 3: publish loaded entries under the write lock. The bounded
+        // cache may evict older entries — but this caller has already taken
+        // `Arc` clones for its range, so eviction is safe.
         if !loaded.is_empty() {
             let mut cache = self.daily_views.write().expect("daily_views lock poisoned");
             for (date, data) in loaded {
-                cache.entry(date).or_insert(data);
+                cache.insert(date, data);
             }
         }
 
-        Ok(())
+        Ok(snapshot)
     }
 
     fn load_daily_view(&self, date: NaiveDate) -> Result<Option<Vec<u32>>, Box<dyn Error>> {
@@ -436,13 +541,13 @@ impl PageViewEngine {
         // We can parallelize this sum if the range is huge, but usually linear is fine.
         let mut article_views = vec![0u32; num_articles];
 
-        self.load_history_for_date_range(start_date, end_date)
+        let snapshot = self
+            .load_history_for_date_range(start_date, end_date)
             .expect("Error in loading pageview history");
 
-        let cache = self.daily_views.read().expect("daily_views lock poisoned");
         let mut curr = start_date;
         while curr <= end_date {
-            if let Some(day_vec) = cache.get(&curr) {
+            if let Some(day_vec) = snapshot.get(&curr) {
                 // Vectorized addition (compiler auto-vectorizes this loop)
                 for (article_dense_id, &views) in day_vec.iter().enumerate() {
                     article_views[article_dense_id] += views;
@@ -450,7 +555,7 @@ impl PageViewEngine {
             }
             curr = curr.succ_opt().unwrap();
         }
-        drop(cache);
+        drop(snapshot);
 
         // Phase 2: Scatter (Article -> Category)
         // We need an atomic accumulator or thread-local storage for parallel write.
@@ -530,19 +635,18 @@ impl PageViewEngine {
 
         let mut article_views = vec![0u64; num_articles];
 
-        self.load_history_for_date_range(start_date, end_date)?;
+        let snapshot = self.load_history_for_date_range(start_date, end_date)?;
 
-        let cache = self.daily_views.read().expect("daily_views lock poisoned");
         let mut curr = start_date;
         while curr <= end_date {
-            if let Some(day_vec) = cache.get(&curr) {
+            if let Some(day_vec) = snapshot.get(&curr) {
                 for (article_dense_id, &views) in day_vec.iter().enumerate() {
                     article_views[article_dense_id] += views as u64;
                 }
             }
             curr = curr.succ_opt().unwrap();
         }
-        drop(cache);
+        drop(snapshot);
 
         let mut ranked: Vec<(usize, u64)> = article_views.into_iter().enumerate().collect();
         ranked.sort_unstable_by_key(|b| std::cmp::Reverse(b.1));
@@ -582,18 +686,17 @@ impl PageViewEngine {
         }
 
         // Load pageview history for the date range
-        self.load_history_for_date_range(start_date, end_date)?;
+        let snapshot = self.load_history_for_date_range(start_date, end_date)?;
 
         // Aggregate views for each article
         let mut article_views: Vec<(u32, u64)> = Vec::new();
 
-        let cache = self.daily_views.read().expect("daily_views lock poisoned");
         for article_dense_id in article_mask.iter() {
             let mut total_views = 0u64;
 
             let mut curr = start_date;
             while curr <= end_date {
-                if let Some(day_data) = cache.get(&curr)
+                if let Some(day_data) = snapshot.get(&curr)
                     && let Some(&views) = day_data.get(article_dense_id as usize)
                 {
                     total_views += views as u64;
@@ -606,7 +709,7 @@ impl PageViewEngine {
                 article_views.push((article_qid, total_views));
             }
         }
-        drop(cache);
+        drop(snapshot);
 
         // Sort by views descending
         article_views.sort_unstable_by_key(|b| std::cmp::Reverse(b.1));
@@ -629,5 +732,48 @@ impl PageViewEngine {
             total_views,
             top_articles,
         })
+    }
+}
+
+#[cfg(test)]
+mod bounded_cache_tests {
+    use super::*;
+
+    fn d(y: i32, m: u32, day: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(y, m, day).unwrap()
+    }
+
+    #[test]
+    fn evicts_oldest_when_capacity_reached() {
+        let mut cache = BoundedDailyViews::new(2);
+        cache.insert(d(2025, 1, 1), Arc::new(vec![1]));
+        cache.insert(d(2025, 1, 2), Arc::new(vec![2]));
+        cache.insert(d(2025, 1, 3), Arc::new(vec![3]));
+
+        assert_eq!(cache.len(), 2);
+        assert!(cache.get(&d(2025, 1, 1)).is_none(), "oldest must be evicted");
+        assert!(cache.get(&d(2025, 1, 2)).is_some());
+        assert!(cache.get(&d(2025, 1, 3)).is_some());
+    }
+
+    #[test]
+    fn reinsert_is_noop() {
+        let mut cache = BoundedDailyViews::new(2);
+        let original = Arc::new(vec![1]);
+        cache.insert(d(2025, 1, 1), Arc::clone(&original));
+        cache.insert(d(2025, 1, 1), Arc::new(vec![999]));
+
+        let stored = cache.get(&d(2025, 1, 1)).unwrap();
+        assert!(Arc::ptr_eq(&stored, &original), "first insert wins");
+    }
+
+    #[test]
+    fn capacity_zero_is_unbounded() {
+        let mut cache = BoundedDailyViews::new(0);
+        for i in 1..=10 {
+            cache.insert(d(2025, 1, i), Arc::new(vec![i as u32]));
+        }
+        assert_eq!(cache.len(), 10);
+        assert!(cache.get(&d(2025, 1, 1)).is_some(), "no eviction at capacity 0");
     }
 }

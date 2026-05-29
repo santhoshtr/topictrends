@@ -127,6 +127,13 @@ PORT=8765
 
 # Data directory path (optional, defaults to "data")
 DATA_DIR=data
+
+# Maximum number of distinct dates the pageview engine keeps in its
+# in-memory cache, per wiki (optional, defaults to 120). Each cached
+# day for enwiki costs ~28 MB; 120 ≈ 3.3 GB worst case per wiki.
+# Lower this on memory-constrained hosts; raise it (or set 0 = unlimited)
+# only if you know your workload fits in RAM.
+TOPICTREND_PAGEVIEW_CACHE_DAYS=120
 ```
 
 **Required Variables:**
@@ -136,6 +143,7 @@ DATA_DIR=data
 **Optional Variables:**
 - `EMBEDDING_SERVER` is only needed if using semantic search endpoints
 - `PORT` overrides default if needed
+- `TOPICTREND_PAGEVIEW_CACHE_DAYS` bounds the pageview engine's per-date cache to control RSS. The cap is per wiki; the cache evicts in FIFO insertion order when full. Setting it below the largest expected single-query range is safe — concurrent requests get an `Arc`-snapshot of their range, so mid-query eviction does not corrupt results, but recent dates may need to be re-loaded from disk more often.
 
 ### Database Replica Access
 
