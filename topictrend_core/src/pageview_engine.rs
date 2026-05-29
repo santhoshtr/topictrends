@@ -52,6 +52,58 @@ impl fmt::Display for CategoryRank {
     }
 }
 
+/// Sparse storage for pageview counts on a single date.
+///
+/// A typical enwiki day contains pageviews for ~1.5 M of its ~7 M articles;
+/// the previous dense `Vec<u32>` representation indexed by dense article ID
+/// allocated 28 MB per cached day and held mostly zeros. This struct stores
+/// only the articles that actually have views as two parallel sorted arrays
+/// (`article_ids[i]`, `views[i]`), cutting the per-day footprint roughly
+/// 3-5× and skipping zeros during aggregation. Lookup is O(log n) via
+/// binary search; iteration yields `(dense_id, views)` pairs in dense-id
+/// order, which lets aggregation use two-pointer merges or `RoaringBitmap`
+/// intersections without first materializing a dense vector.
+#[derive(Debug, Clone)]
+pub struct DailyPageViewData {
+    article_ids: Vec<u32>, // sorted dense article IDs
+    views: Vec<u32>,       // corresponding view counts (same length, same order)
+}
+
+impl DailyPageViewData {
+    /// O(log n) lookup. Returns 0 if the article had no views on this date.
+    #[inline]
+    pub fn get(&self, article_dense_id: u32) -> u32 {
+        self.article_ids
+            .binary_search(&article_dense_id)
+            .map(|idx| self.views[idx])
+            .unwrap_or(0)
+    }
+
+    /// Yields `(dense_id, views)` pairs sorted by dense_id.
+    pub fn iter(&self) -> impl Iterator<Item = (u32, u32)> + '_ {
+        self.article_ids
+            .iter()
+            .copied()
+            .zip(self.views.iter().copied())
+    }
+
+    /// Build from unsorted `(dense_id, views)` pairs. Sorts by dense_id so
+    /// `get` and `iter` can rely on the ordering invariant.
+    pub fn from_pairs(mut pairs: Vec<(u32, u32)>) -> Self {
+        pairs.sort_unstable_by_key(|(id, _)| *id);
+        let (article_ids, views): (Vec<u32>, Vec<u32>) = pairs.into_iter().unzip();
+        Self { article_ids, views }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.article_ids.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.article_ids.len()
+    }
+}
+
 #[derive(Hash, Eq, PartialEq, Clone, Debug)]
 struct TopCategoriesCacheKey {
     start: NaiveDate,
@@ -139,10 +191,13 @@ impl TopCategoriesCache {
 
 /// Bounded per-date pageview cache.
 ///
-/// Each entry is a dense `Vec<u32>` indexed by dense article ID — ~28 MB
-/// for enwiki — so an unbounded `HashMap<NaiveDate, _>` grows to tens of
-/// gigabytes after a few long-range chart queries. This wrapper caps the
-/// number of cached dates and evicts in FIFO insertion order.
+/// Each entry is a `DailyPageViewData` — sparse parallel arrays of only the
+/// articles that had views on that date. For enwiki this is ~6-12 MB per
+/// cached day (vs ~28 MB for the previous dense representation). The cache
+/// still has to be bounded though: at 6-12 MB × N days × M wikis, an
+/// unbounded cache still reaches double-digit gigabytes after extended
+/// browsing. This wrapper caps the number of cached dates and evicts in
+/// FIFO insertion order.
 ///
 /// FIFO (rather than LRU) keeps the read path lock-free of bookkeeping —
 /// reads don't need to update access order, so multiple readers can run
@@ -151,7 +206,7 @@ impl TopCategoriesCache {
 /// need (see [`PageViewEngine::load_history_for_date_range`]).
 #[derive(Debug)]
 struct BoundedDailyViews {
-    map: HashMap<NaiveDate, Arc<Vec<u32>>>,
+    map: HashMap<NaiveDate, Arc<DailyPageViewData>>,
     insert_order: VecDeque<NaiveDate>,
     capacity: usize,
 }
@@ -165,14 +220,14 @@ impl BoundedDailyViews {
         }
     }
 
-    fn get(&self, date: &NaiveDate) -> Option<Arc<Vec<u32>>> {
+    fn get(&self, date: &NaiveDate) -> Option<Arc<DailyPageViewData>> {
         self.map.get(date).cloned()
     }
 
     /// Insert `data` for `date`. If the cache is at capacity, evict the
     /// oldest-inserted entries to make room. A capacity of `0` means
     /// "unlimited" — entries are never evicted.
-    fn insert(&mut self, date: NaiveDate, data: Arc<Vec<u32>>) {
+    fn insert(&mut self, date: NaiveDate, data: Arc<DailyPageViewData>) {
         if self.map.contains_key(&date) {
             return;
         }
@@ -219,10 +274,15 @@ fn pageview_cache_capacity() -> usize {
     }
 }
 
-/// Load a per-day pageview Parquet and produce a dense `Vec<u32>` indexed by
-/// the current dense article ID. Entries for QIDs not in `dense_map`
+/// Load a per-day pageview Parquet and produce a sparse `DailyPageViewData`
+/// keyed by current dense article ID. Entries for QIDs not in `dense_map`
 /// (articles deleted since the file was written) are silently dropped —
-/// the correct behavior for analytics on the active article set.
+/// the correct behavior for analytics on the active article set. Zero-view
+/// rows are also dropped: they carry no information and would only inflate
+/// the sparse arrays.
+///
+/// `num_articles` is the size of the current dense article space — used
+/// only as a defensive upper bound on returned dense IDs.
 ///
 /// Uses the raw `parquet` crate (purely synchronous) rather than Polars so
 /// this is safe to call from inside an async runtime — handler code reaches
@@ -232,24 +292,27 @@ fn load_pageview_parquet(
     path: &str,
     dense_map: &DirectMap,
     num_articles: usize,
-) -> Result<Vec<u32>, Box<dyn Error>> {
+) -> Result<DailyPageViewData, Box<dyn Error>> {
     let file = File::open(path)?;
     let reader = SerializedFileReader::new(file)?;
     let row_iter = reader.get_row_iter(None)?;
 
-    let mut dense_vec = vec![0u32; num_articles];
+    let mut pairs: Vec<(u32, u32)> = Vec::new();
     for row_result in row_iter {
         let row = row_result?;
         let qid = row.get_uint(0)?;
         let views = row.get_uint(1)?;
+        if views == 0 {
+            continue;
+        }
         if let Some(dense_id) = dense_map.get(qid)
-            && (dense_id as usize) < dense_vec.len()
+            && (dense_id as usize) < num_articles
         {
-            dense_vec[dense_id as usize] = views;
+            pairs.push((dense_id, views));
         }
     }
 
-    Ok(dense_vec)
+    Ok(DailyPageViewData::from_pairs(pairs))
 }
 
 impl PageViewEngine {
@@ -319,17 +382,15 @@ impl PageViewEngine {
         let mut curr = start_date;
         while curr <= end_date {
             if let Some(day_data) = snapshot.get(&curr) {
-                // High Performance Loop
-                // Summing values only for articles in the category
+                // Sum views only for articles in the category. `article_mask`
+                // and `day_data.article_ids` are both sorted by dense_id, so
+                // binary-search lookup is cache-friendly. For small masks
+                // this is much cheaper than iterating all non-zero articles
+                // in the day; for very large masks the cost converges to a
+                // linear scan, which is still fine.
                 let mut daily_total: u64 = 0;
-
-                // RoaringBitmap iter is sorted, which is cache-friendly
                 for article_dense_id in article_mask.iter() {
-                    // distinct get is O(1)
-                    // We use get unchecked for max speed if we are sure indices are valid
-                    if let Some(&views) = day_data.get(article_dense_id as usize) {
-                        daily_total += views as u64;
-                    }
+                    daily_total += day_data.get(article_dense_id) as u64;
                 }
                 results.push((curr, daily_total));
             } else {
@@ -385,11 +446,7 @@ impl PageViewEngine {
                 Some(day_data) => {
                     let mut daily_total: u64 = 0;
                     for article_dense_id in article_mask.iter() {
-                        // distinct get is O(1)
-                        // We use get unchecked for max speed if we are sure indices are valid
-                        if let Some(&views) = day_data.get(article_dense_id as usize) {
-                            daily_total += views as u64;
-                        }
+                        daily_total += day_data.get(article_dense_id) as u64;
                     }
                     results.push((curr, daily_total));
                 }
@@ -418,10 +475,13 @@ impl PageViewEngine {
         &self,
         start_date: NaiveDate,
         end_date: NaiveDate,
-    ) -> Result<HashMap<NaiveDate, Arc<Vec<u32>>>, Box<dyn Error>> {
+    ) -> Result<HashMap<NaiveDate, Arc<DailyPageViewData>>, Box<dyn Error>> {
         // Phase 1: snapshot cached entries in the requested range, identify
         // missing dates. Read lock dropped immediately after.
-        let (mut snapshot, missing): (HashMap<NaiveDate, Arc<Vec<u32>>>, Vec<NaiveDate>) = {
+        let (mut snapshot, missing): (
+            HashMap<NaiveDate, Arc<DailyPageViewData>>,
+            Vec<NaiveDate>,
+        ) = {
             let cache = self.daily_views.read().expect("daily_views lock poisoned");
             let mut snap = HashMap::new();
             let mut miss = Vec::new();
@@ -444,10 +504,11 @@ impl PageViewEngine {
 
         // Phase 2: load missing dates from disk with no lock held. Pair the
         // loaded data with its date so we can both return it and cache it.
-        let mut loaded: Vec<(NaiveDate, Arc<Vec<u32>>)> = Vec::with_capacity(missing.len());
+        let mut loaded: Vec<(NaiveDate, Arc<DailyPageViewData>)> =
+            Vec::with_capacity(missing.len());
         for date in missing {
-            if let Some(day_vec) = self.load_daily_view(date)? {
-                let arc = Arc::new(day_vec);
+            if let Some(day_data) = self.load_daily_view(date)? {
+                let arc = Arc::new(day_data);
                 snapshot.insert(date, Arc::clone(&arc));
                 loaded.push((date, arc));
             }
@@ -466,7 +527,10 @@ impl PageViewEngine {
         Ok(snapshot)
     }
 
-    fn load_daily_view(&self, date: NaiveDate) -> Result<Option<Vec<u32>>, Box<dyn Error>> {
+    fn load_daily_view(
+        &self,
+        date: NaiveDate,
+    ) -> Result<Option<DailyPageViewData>, Box<dyn Error>> {
         let num_articles = self.wikigraph.art_dense_to_original.len();
 
         let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "data".to_string());
@@ -483,19 +547,19 @@ impl PageViewEngine {
             return Ok(None);
         }
 
-        let day_vec = load_pageview_parquet(
+        let day_data = load_pageview_parquet(
             &parquet_filename,
             &self.wikigraph.art_original_to_dense,
             num_articles,
         )?;
         println!(
-            "Loaded page views for {} on {}, found {} articles",
+            "Loaded page views for {} on {}, found {} articles with views",
             self.wiki,
             date,
-            day_vec.len()
+            day_data.len()
         );
 
-        Ok(Some(day_vec))
+        Ok(Some(day_data))
     }
 
     /// Clear the top categories cache
@@ -547,10 +611,11 @@ impl PageViewEngine {
 
         let mut curr = start_date;
         while curr <= end_date {
-            if let Some(day_vec) = snapshot.get(&curr) {
-                // Vectorized addition (compiler auto-vectorizes this loop)
-                for (article_dense_id, &views) in day_vec.iter().enumerate() {
-                    article_views[article_dense_id] += views;
+            if let Some(day_data) = snapshot.get(&curr) {
+                // Iterate only non-zero entries (huge win over the previous
+                // dense scan: ~1.5 M iters per day for enwiki instead of 7 M).
+                for (article_dense_id, views) in day_data.iter() {
+                    article_views[article_dense_id as usize] += views;
                 }
             }
             curr = curr.succ_opt().unwrap();
@@ -639,9 +704,9 @@ impl PageViewEngine {
 
         let mut curr = start_date;
         while curr <= end_date {
-            if let Some(day_vec) = snapshot.get(&curr) {
-                for (article_dense_id, &views) in day_vec.iter().enumerate() {
-                    article_views[article_dense_id] += views as u64;
+            if let Some(day_data) = snapshot.get(&curr) {
+                for (article_dense_id, views) in day_data.iter() {
+                    article_views[article_dense_id as usize] += views as u64;
                 }
             }
             curr = curr.succ_opt().unwrap();
@@ -696,10 +761,8 @@ impl PageViewEngine {
 
             let mut curr = start_date;
             while curr <= end_date {
-                if let Some(day_data) = snapshot.get(&curr)
-                    && let Some(&views) = day_data.get(article_dense_id as usize)
-                {
-                    total_views += views as u64;
+                if let Some(day_data) = snapshot.get(&curr) {
+                    total_views += day_data.get(article_dense_id) as u64;
                 }
                 curr = curr.succ_opt().unwrap();
             }
@@ -743,12 +806,16 @@ mod bounded_cache_tests {
         NaiveDate::from_ymd_opt(y, m, day).unwrap()
     }
 
+    fn data(pairs: Vec<(u32, u32)>) -> Arc<DailyPageViewData> {
+        Arc::new(DailyPageViewData::from_pairs(pairs))
+    }
+
     #[test]
     fn evicts_oldest_when_capacity_reached() {
         let mut cache = BoundedDailyViews::new(2);
-        cache.insert(d(2025, 1, 1), Arc::new(vec![1]));
-        cache.insert(d(2025, 1, 2), Arc::new(vec![2]));
-        cache.insert(d(2025, 1, 3), Arc::new(vec![3]));
+        cache.insert(d(2025, 1, 1), data(vec![(0, 1)]));
+        cache.insert(d(2025, 1, 2), data(vec![(0, 2)]));
+        cache.insert(d(2025, 1, 3), data(vec![(0, 3)]));
 
         assert_eq!(cache.len(), 2);
         assert!(cache.get(&d(2025, 1, 1)).is_none(), "oldest must be evicted");
@@ -759,9 +826,9 @@ mod bounded_cache_tests {
     #[test]
     fn reinsert_is_noop() {
         let mut cache = BoundedDailyViews::new(2);
-        let original = Arc::new(vec![1]);
+        let original = data(vec![(0, 1)]);
         cache.insert(d(2025, 1, 1), Arc::clone(&original));
-        cache.insert(d(2025, 1, 1), Arc::new(vec![999]));
+        cache.insert(d(2025, 1, 1), data(vec![(0, 999)]));
 
         let stored = cache.get(&d(2025, 1, 1)).unwrap();
         assert!(Arc::ptr_eq(&stored, &original), "first insert wins");
@@ -771,9 +838,54 @@ mod bounded_cache_tests {
     fn capacity_zero_is_unbounded() {
         let mut cache = BoundedDailyViews::new(0);
         for i in 1..=10 {
-            cache.insert(d(2025, 1, i), Arc::new(vec![i as u32]));
+            cache.insert(d(2025, 1, i), data(vec![(0, i as u32)]));
         }
         assert_eq!(cache.len(), 10);
         assert!(cache.get(&d(2025, 1, 1)).is_some(), "no eviction at capacity 0");
+    }
+}
+
+#[cfg(test)]
+mod daily_pageview_data_tests {
+    use super::*;
+
+    #[test]
+    fn get_returns_zero_for_missing_article() {
+        let d = DailyPageViewData::from_pairs(vec![(5, 100), (10, 200)]);
+        assert_eq!(d.get(5), 100);
+        assert_eq!(d.get(10), 200);
+        assert_eq!(d.get(7), 0);
+        assert_eq!(d.get(0), 0);
+        assert_eq!(d.get(u32::MAX), 0);
+    }
+
+    #[test]
+    fn from_pairs_sorts_by_dense_id() {
+        let d = DailyPageViewData::from_pairs(vec![(30, 3), (10, 1), (20, 2)]);
+        let items: Vec<(u32, u32)> = d.iter().collect();
+        assert_eq!(items, vec![(10, 1), (20, 2), (30, 3)]);
+    }
+
+    #[test]
+    fn empty_data_returns_zero_for_any_lookup() {
+        let d = DailyPageViewData::from_pairs(vec![]);
+        assert!(d.is_empty());
+        assert_eq!(d.len(), 0);
+        assert_eq!(d.get(42), 0);
+    }
+
+    #[test]
+    fn binary_search_handles_many_entries() {
+        // Even-numbered dense IDs only.
+        let pairs: Vec<(u32, u32)> = (0..1000).step_by(2).map(|i| (i, i * 10)).collect();
+        let d = DailyPageViewData::from_pairs(pairs);
+
+        assert_eq!(d.get(0), 0);
+        assert_eq!(d.get(100), 1000);
+        assert_eq!(d.get(500), 5000);
+        // Odd numbers are not present.
+        assert_eq!(d.get(1), 0);
+        assert_eq!(d.get(101), 0);
+        assert_eq!(d.get(999), 0);
     }
 }

@@ -130,7 +130,8 @@ DATA_DIR=data
 
 # Maximum number of distinct dates the pageview engine keeps in its
 # in-memory cache, per wiki (optional, defaults to 120). Each cached
-# day for enwiki costs ~28 MB; 120 ≈ 3.3 GB worst case per wiki.
+# day for enwiki costs ~6-12 MB with the sparse representation
+# (~720 MB - 1.4 GB worst case per wiki at the default).
 # Lower this on memory-constrained hosts; raise it (or set 0 = unlimited)
 # only if you know your workload fits in RAM.
 TOPICTREND_PAGEVIEW_CACHE_DAYS=120
