@@ -2,7 +2,7 @@
 SHELL := /bin/bash
 .ONESHELL:
 .SHELLFLAGS := -euo pipefail -c
-export $(shell sed 's/=.*//' .env)
+export $(shell sed 's/=.*//' .env 2>/dev/null)
 
 # Date parsing - use DATE environment variable if set, otherwise use yesterday
 DATE ?= $(shell date -d "yesterday" +%Y-%m-%d)
@@ -10,50 +10,82 @@ YEAR := $(shell echo $(DATE) | cut -d'-' -f1)
 MONTH := $(shell echo $(DATE) | cut -d'-' -f2)
 DAY := $(shell echo $(DATE) | cut -d'-' -f3)
 
-CARGO := cargo
 CARGO_RELEASE := target/release
 
 DATA_DIR ?= data
 GSC_DIR ?= $(DATA_DIR)/gsc_page_date
-WIKIS := $(shell cat $(DATA_DIR)/wikipedia.list 2>/dev/null)
 QUERIES_DIR := queries
-PAGEVIEWS_DIR := $(DATA_DIR)/pageviews
-EDIT_SNAPSHOT ?= $(shell date -d "today -31 days" +%Y-%m)
-MIN_EDIT_YEAR ?= $(shell date -d "last year" +%Y)
+
+# Page edit defaults are derived from END_DATE (for `monthly`) or DATE so that
+# backfills pick the right MediaWiki history snapshot rather than always
+# defaulting to last month relative to today.
+REFERENCE_DATE := $(if $(END_DATE),$(END_DATE),$(DATE))
+EDIT_SNAPSHOT ?= $(shell date -d "$(REFERENCE_DATE) -1 month" +%Y-%m)
+MIN_EDIT_YEAR ?= $(shell date -d "$(REFERENCE_DATE) -1 year" +%Y)
+
+# Embedding service configuration
+EMBEDDING_SERVER ?= localhost:50051
+ZVEC_DIR ?= $(DATA_DIR)/embedding_store/zvec
+WIKI ?= enwiki
+EMBED_ENV := DATA_DIR=$(abspath $(DATA_DIR)) ZVEC_DIR=$(abspath $(ZVEC_DIR))
+
+# Deferred so the list is re-read after `init` produces it on a fresh checkout.
+WIKIS = $(shell cat $(DATA_DIR)/wikipedia.list 2>/dev/null)
 
 .DEFAULT_GOAL := run
 
-.PHONY: run init clean help $(WIKIS) monthly notebook index-wiki index-clean embedding-server web gsc
+.PHONY: run init clean help monthly index-wiki index-clean embedding-server web gsc _run-wikis
 
 # Help target
 help:
-	@echo "This Makefile can only be used in a wmcloud VPS."
+	@echo "This Makefile is intended for the wmcloud VPS (replica access + GNU date)."
+	@echo ""
 	@echo "Available targets:"
-	@echo "  run     - Process all wikis and run wikigraph cli"
-	@echo "  monthly - Process all wikis for the last 30 days"
-	@echo "  gsc     - Process Google Search Console data for all wikis (single date)"
-	@echo "  web     - Start webserver"
-	@echo "  init    - Initialize data directory and wikipedia list"
-	@echo "  clean   - Remove generated data files"
-	@echo "  help    - Show this help message"
+	@echo "  run              - Build binaries and process all wikis for DATE"
+	@echo "  monthly          - Process all wikis for the calendar month containing END_DATE"
+	@echo "                     (1..LAST_DAY of that month, capped at END_DATE's day)"
+	@echo "  gsc              - Process Google Search Console data for all wikis (single DATE)"
+	@echo "  web              - Start the web server (no rebuild)"
+	@echo "  init             - Build release binaries and fetch the Wikipedia list"
+	@echo "  embedding-server - Start the embedding gRPC server"
+	@echo "  index-wiki       - Index a wiki's categories into zvec (WIKI=enwiki)"
+	@echo "  index-clean      - Remove the zvec index store"
+	@echo "  clean            - Remove all generated data files"
+	@echo "  help             - Show this help message"
 	@echo ""
 	@echo "Environment variables:"
-	@echo "  DATE          - Date to process (YYYY-MM-DD format, defaults to yesterday)"
-	@echo "  EDIT_SNAPSHOT - MediaWiki history dump version (defaults to 2026-01)"
-	@echo "  MIN_EDIT_YEAR - Minimum year for page edit files (defaults to 2020)"
+	@echo "  DATE          - Date to process (YYYY-MM-DD, defaults to yesterday)"
+	@echo "  END_DATE      - Last day for 'monthly' (YYYY-MM-DD, defaults to yesterday)"
+	@echo "  EDIT_SNAPSHOT - MediaWiki history dump snapshot (defaults to the month before"
+	@echo "                  END_DATE/DATE, e.g. END_DATE=2024-01-31 -> 2023-12)"
+	@echo "  MIN_EDIT_YEAR - Minimum year for page edit files (defaults to the year before"
+	@echo "                  END_DATE/DATE)"
 	@echo "  GSC_DIR       - Path to GSC source root (defaults to data/gsc_page_date)"
-	@echo "  Example: make run DATE=2025-01-15"
-	@echo "  Example: make gsc DATE=2026-03-03"
-	@echo "  Example: make gsc DATE=2026-03-03 GSC_DIR=/mnt/gsc_data"
-	@echo "  Example: make data/mlwiki/pageedits/pageedits.parquet EDIT_SNAPSHOT=2025-12"
-	@echo "  Example: make data/arwiki/pageedits/pageedits.parquet MIN_EDIT_YEAR=2015"
+	@echo "  WIKI          - Wiki for index-wiki (defaults to enwiki)"
 	@echo ""
-	@echo "Note: Page edits processing automatically handles both single-file and"
-	@echo "      multi-part dumps (e.g., arwiki with year-split files)."
-	@echo "      Files with 'all-time' are always processed regardless of MIN_EDIT_YEAR."
+	@echo "Examples:"
+	@echo "  make run DATE=2025-01-15"
+	@echo "  make monthly END_DATE=2025-08-30"
+	@echo "  make gsc DATE=2026-03-03"
+	@echo "  make gsc DATE=2026-03-03 GSC_DIR=/mnt/gsc_data"
+	@echo "  make data/mlwiki/pageedits/pageedits.parquet EDIT_SNAPSHOT=2025-12"
+	@echo "  make data/arwiki/pageedits/pageedits.parquet MIN_EDIT_YEAR=2015"
+	@echo ""
+	@echo "Note: Page edits processing handles both single-file and multi-part dumps"
+	@echo "      (e.g., arwiki with year-split files). Files with 'all-time' are"
+	@echo "      always processed regardless of MIN_EDIT_YEAR."
 
-# Main run target
-run: init $(WIKIS)
+# Main run target.
+# First invocation may need to bootstrap wikipedia.list (so that WIKIS is
+# non-empty), then re-enter Make to expand the per-wiki dependency list.
+run:
+	@if [ ! -f $(DATA_DIR)/wikipedia.list ]; then \
+		echo "Bootstrapping wikipedia.list..."; \
+		$(MAKE) -s init; \
+	fi
+	@$(MAKE) -s _run-wikis DATE=$(DATE)
+
+_run-wikis: init $(WIKIS)
 
 $(DATA_DIR):
 	@mkdir -p $@
@@ -63,7 +95,8 @@ init: $(DATA_DIR)/wikipedia.list
 	cargo build --release
 	@mkdir -p $(DATA_DIR)
 
-# Per-wiki targets
+# Per-wiki targets. The trailing recipe just prints a completion line so the
+# operator can see progress while the run grinds through hundreds of wikis.
 $(WIKIS): %: \
 	$(DATA_DIR)/%/articles.parquet \
 	$(DATA_DIR)/%/categories.parquet \
@@ -71,6 +104,7 @@ $(WIKIS): %: \
 	$(DATA_DIR)/%/category_graph.parquet \
 	$(DATA_DIR)/%/pageviews/$(YEAR)/$(MONTH)/$(DAY).parquet \
 	$(DATA_DIR)/%/pageedits/pageedits.parquet
+	@echo "✓ $* ($(DATE))"
 
 # Helper function for database queries
 dbquery = mariadb --quick --host $*.analytics.db.svc.wikimedia.cloud --database $*_p
@@ -111,112 +145,47 @@ $(DATA_DIR)/%/pageviews/$(YEAR)/$(MONTH)/$(DAY).parquet: $(DATA_DIR)/pageviews/$
 	$(CARGO_RELEASE)/get-per_day_wiki_stats --wiki $* --year $(YEAR) --month $(MONTH) --day $(DAY) -o $@
 
 # Raw pageview data from Wikimedia
-# Expands to data/pageviews/2025/12/30.parquet (example)
+# Expands to data/pageviews/2025/12/30.parquet (example).
+# Uses a HEAD request to detect 404 (e.g. date not yet published) and skip
+# without erroring; any other failure during the actual download is a hard error.
 $(DATA_DIR)/pageviews/%.parquet:
 	@YEAR=$$(echo $* | cut -d'/' -f1); \
 	MONTH=$$(echo $* | cut -d'/' -f2); \
 	DAY=$$(basename $@ .parquet); \
 	mkdir -p $$(dirname $@); \
 	URL="https://dumps.wikimedia.org/other/pageview_complete/$$YEAR/$$YEAR-$$MONTH/pageviews-$$YEAR$$MONTH$$DAY-user.bz2"; \
-	HTTP_STATUS=$$(curl -o /dev/null -w "%{http_code}" -sSL "$$URL"); \
-	if [ "$$HTTP_STATUS" = "404" ]; then \
+	if ! curl -fsSI -o /dev/null "$$URL"; then \
 		echo "WARNING: pageviews not found (404) for $$YEAR-$$MONTH-$$DAY: $$URL" >&2; exit 0; \
 	fi; \
 	curl -fsSL "$$URL" | bzip2 -dc \
-		| $(CARGO_RELEASE)/get-pageviews $@ || { echo "Error downloading pageviews from $$URL"; exit 1; }
+		| $(CARGO_RELEASE)/get-pageviews $@ || { echo "Error processing pageviews from $$URL"; exit 1; }
 
 # Page edits from MediaWiki history dumps
-# Supports both single all-time file and multi-part dumps
-# Expands to data/mlwiki/pageedits/pageedits.parquet (example)
+# Expands to data/mlwiki/pageedits/pageedits.parquet (example).
+# The fetch/decompress pipeline lives in scripts/fetch_pageedits.sh; this rule
+# only orchestrates a 404 check + the stream-to-binary pipe.
 $(DATA_DIR)/%/pageedits/pageedits.parquet:
-	@WIKI=$*; \
-	mkdir -p $$(dirname $@); \
-	BASE_URL="https://dumps.wikimedia.org/other/mediawiki_history/$(EDIT_SNAPSHOT)/$$WIKI/"; \
-	TEMP_DIR="/tmp/topictrend-$$WIKI-pageedits-$$$$"; \
-	mkdir -p "$$TEMP_DIR"; \
-	echo "Processing page edits for $$WIKI from snapshot $(EDIT_SNAPSHOT)..."; \
-	echo "Fetching file list from $$BASE_URL"; \
-	FILELIST="$$TEMP_DIR/filelist.txt"; \
-	wget -q -O - "$$BASE_URL" | grep -oP 'href="\K[^"]*\.bz2(?=")' > "$$FILELIST" || { \
-		HTTP_STATUS=$$(curl -o /dev/null -w "%{http_code}" -sSL "$$BASE_URL"); \
-		if [ "$$HTTP_STATUS" = "404" ]; then \
-			echo "WARNING: pageedits not found (404) for $$WIKI: $$BASE_URL" >&2; \
-			rm -rf "$$TEMP_DIR"; exit 0; \
-		fi; \
-		echo "Error fetching file list from $$BASE_URL" >&2; \
-		rm -rf "$$TEMP_DIR"; \
-		exit 1; \
-	}; \
-	if [ ! -s "$$FILELIST" ]; then \
-		echo "No .bz2 files found at $$BASE_URL" >&2; \
-		rm -rf "$$TEMP_DIR"; \
-		exit 1; \
-	fi; \
-	echo "Filtering files by year (MIN_EDIT_YEAR=$(MIN_EDIT_YEAR))..."; \
-	FILTERED_LIST="$$TEMP_DIR/filtered.txt"; \
-	SKIPPED=0; \
-	while IFS= read -r filename; do \
-		year_part="$$(echo "$$filename" | cut -d'.' -f3)"; \
-		if [ "$$year_part" = "all-time" ]; then \
-			echo "$$filename" >> "$$FILTERED_LIST"; \
-		else \
-			year="$${year_part:0:4}"; \
-			if [[ "$$year" =~ ^[0-9]{4}$$ ]] && [ "$$year" -ge "$(MIN_EDIT_YEAR)" ]; then \
-				echo "$$filename" >> "$$FILTERED_LIST"; \
-			else \
-				SKIPPED=$$((SKIPPED+1)); \
-			fi; \
-		fi; \
-	done < "$$FILELIST"; \
-	if [ ! -s "$$FILTERED_LIST" ]; then \
-		echo "No files remain after year filtering (MIN_EDIT_YEAR=$(MIN_EDIT_YEAR))" >&2; \
-		rm -rf "$$TEMP_DIR"; \
-		exit 1; \
-	fi; \
-	if [ "$$SKIPPED" -gt 0 ]; then \
-		echo "Skipped $$SKIPPED file(s) before year $(MIN_EDIT_YEAR)"; \
-	fi; \
-	TOTAL=$$(wc -l < "$$FILTERED_LIST"); \
-	echo "Found $$TOTAL dump file(s) to download and process"; \
-	i=0; \
-	{ \
-		while IFS= read -r filename; do \
-			i=$$((i+1)); \
-			echo "[$$i/$$TOTAL] Downloading $$filename..." >&2; \
-			FILE_PATH="$$TEMP_DIR/$$filename"; \
-			wget -q --show-progress -O "$$FILE_PATH" "$$BASE_URL$$filename" || { \
-				echo "Error downloading $$filename" >&2; \
-				rm -rf "$$TEMP_DIR"; \
-				exit 1; \
-			}; \
-			echo "[$$i/$$TOTAL] Decompressing $$filename..." >&2; \
-			bzip2 -dc "$$FILE_PATH" || { \
-				echo "Error decompressing $$filename" >&2; \
-				rm -rf "$$TEMP_DIR"; \
-				exit 1; \
-			}; \
-			rm -f "$$FILE_PATH"; \
-			echo "Deleted $$filename to free disk space" >&2; \
-		done < "$$FILTERED_LIST"; \
-	} | $(CARGO_RELEASE)/get-pageedits $$WIKI $@ || { \
-		echo "Error processing page edits for $$WIKI" >&2; \
-		rm -rf "$$TEMP_DIR"; \
-		exit 1; \
-	}; \
-	rm -rf "$$TEMP_DIR"; \
-	echo "Cleaned up temporary files from $$TEMP_DIR"
+	@mkdir -p $(dir $@)
+	@if ! scripts/fetch_pageedits.sh --check $* "$(EDIT_SNAPSHOT)"; then \
+		echo "WARNING: pageedits not found (404) for $* at snapshot $(EDIT_SNAPSHOT)" >&2; \
+		exit 0; \
+	fi
+	scripts/fetch_pageedits.sh $* "$(EDIT_SNAPSHOT)" "$(MIN_EDIT_YEAR)" \
+		| $(CARGO_RELEASE)/get-pageedits $* $@
 
-# Wikipedia list
+# Wikipedia list. Downloads the active wikipedia list and strips closed /
+# excluded wikis. closed.dblist is staged in a temp dir so an interrupted run
+# never leaves an orphan in the repo root.
 $(DATA_DIR)/wikipedia.list: | $(DATA_DIR)
 	@echo "Fetching Wikipedia list..."
-	@mkdir -p $(DATA_DIR)
-	@curl -fsSL https://noc.wikimedia.org/conf/dblists/closed.dblist > closed.dblist
-	@curl -fsSL https://noc.wikimedia.org/conf/dblists/wikipedia.dblist \
+	@TMPDIR=$$(mktemp -d -t topictrend-wikilist.XXXXXX); \
+	trap 'rm -rf "$$TMPDIR"' EXIT; \
+	curl -fsSL https://noc.wikimedia.org/conf/dblists/closed.dblist > "$$TMPDIR/closed.dblist"; \
+	curl -fsSL https://noc.wikimedia.org/conf/dblists/wikipedia.dblist \
 		| grep -E 'wiki$$' \
 		| grep -v '^#' \
-		| grep -v -f closed.dblist > $@
-	@sed -i '/^arbcom/d; /^test/d; /^sysop/d; /^wg_en/d; /^cebwiki/d; /^warwiki/d; /^be_x_old/d' $@
-	@rm -f closed.dblist
+		| grep -v -f "$$TMPDIR/closed.dblist" > $@; \
+	sed -i '/^arbcom/d; /^test/d; /^sysop/d; /^wg_en/d; /^cebwiki/d; /^warwiki/d; /^be_x_old/d' $@
 
 # GSC per-wiki-per-date target
 # Expands to data/enwiki/gsc/2026/03/03.parquet (example)
@@ -236,7 +205,6 @@ $(DATA_DIR)/%/gsc/$(YEAR)/$(MONTH)/$(DAY).parquet: $(DATA_DIR)/%/articles.parque
 # Process GSC data for all wikis for a single date
 # Usage: make gsc DATE=2026-03-03
 # Falls back to yesterday if DATE is not set.
-.PHONY: gsc
 gsc: init $(foreach w,$(WIKIS),$(DATA_DIR)/$(w)/gsc/$(YEAR)/$(MONTH)/$(DAY).parquet)
 
 # Clean target
@@ -245,8 +213,10 @@ clean:
 	@rm -rf $(DATA_DIR)
 	@echo "Done!"
 
-
-web: init
+# Run the web server. Depends only on the wiki list so that starting the server
+# does not re-invoke cargo build; build the binary explicitly via `make init`
+# when needed.
+web: $(DATA_DIR)/wikipedia.list
 	@echo "Checking embedding server at $(EMBEDDING_SERVER)..."
 	@(cd services/embedding && EMBEDDING_SERVER=$(EMBEDDING_SERVER) uv run python healthcheck.py)
 	@echo "Embedding server OK"
@@ -256,23 +226,13 @@ web: init
 # ZVEC_DIR resolve as absolute paths regardless of shell CWD.
 embedding-server:
 	@echo "Starting embedding server..."
-	@cd services/embedding && \
-		DATA_DIR=$(abspath $(DATA_DIR)) \
-		ZVEC_DIR=$(abspath $(ZVEC_DIR)) \
-		uv run python embedding_server.py
+	@cd services/embedding && $(EMBED_ENV) uv run python embedding_server.py
 
-# Embedding DB indexing configuration
-EMBEDDING_SERVER ?= localhost:50051
-ZVEC_DIR ?= $(DATA_DIR)/embedding_store/zvec
-WIKI ?= enwiki
-
-# Index enwiki categories into zvec embedding database
-# Usage: make index-wiki
-.PHONY: index-wiki index-clean
-
+# Index a wiki's categories into zvec (usage: make index-wiki WIKI=enwiki)
 index-wiki: $(DATA_DIR)/$(WIKI)/categories.parquet
 	@echo "Indexing $(WIKI) categories into zvec..."
-	@cd services/embedding && DATA_DIR=$(abspath $(DATA_DIR)) ZVEC_DIR=$(abspath $(ZVEC_DIR)) uv run python index_categories.py --wiki $(WIKI) --server $(EMBEDDING_SERVER)
+	@cd services/embedding && $(EMBED_ENV) \
+		uv run python index_categories.py --wiki $(WIKI) --server $(EMBEDDING_SERVER)
 
 # Clean zvec indexes
 index-clean:
@@ -280,13 +240,9 @@ index-clean:
 	@rm -rf $(ZVEC_DIR)
 	@echo "Done"
 
-# Ensure categories parquet exists before indexing
-$(DATA_DIR)/%/categories.parquet:
-	@$(MAKE) $(DATA_DIR)/$*/categories.parquet
-
 # Monthly processing target
-# make monthly END_DATE=2025-08-30  # Processes all dates from 2025-08-01 to 2025-08-31
-# make monthly END_DATE=2025-02-15  # Processes all dates from 2025-02-01 to 2025-02-28
+# make monthly END_DATE=2025-08-30  # Processes all dates from 2025-08-01 to 2025-08-30
+# make monthly END_DATE=2025-02-15  # Processes all dates from 2025-02-01 to 2025-02-15
 monthly: init
 	@END_DATE_VAR=$${END_DATE:-$$(date -d "yesterday" +%Y-%m-%d)}; \
 	echo "Processing month containing END_DATE=$$END_DATE_VAR..."; \
@@ -311,6 +267,6 @@ monthly: init
            $(DATA_DIR)/%/article_category.parquet \
            $(DATA_DIR)/pageviews/%.parquet \
            $(DATA_DIR)/%/pageedits/pageedits.parquet \
-           $(DATA_DIR)/%/gsc/%.parquet
+           $(DATA_DIR)/%/gsc/$(YEAR)/$(MONTH)/$(DAY).parquet
 # Prevent parallel issues with shared resources
 .NOTPARALLEL: $(DATA_DIR)/pageviews/%.parquet
