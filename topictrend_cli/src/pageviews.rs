@@ -2,6 +2,7 @@ use polars::prelude::*;
 use rayon::prelude::*;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -159,6 +160,9 @@ fn convert_pageviews_to_parquet(
 
     let combined = concat(&lazy_frames, UnionArgs::default())?;
     println!("Writing to parquet file {} ", &output_path);
+    if let Some(parent) = Path::new(output_path).parent() {
+        std::fs::create_dir_all(parent)?;
+    }
     let mut file = File::create(output_path)?;
     let mut dataframe = combined.collect()?; // Collect LazyFrame into DataFrame
     ParquetWriter::new(&mut file)

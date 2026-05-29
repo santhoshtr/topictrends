@@ -28,6 +28,9 @@ pub fn write_pageview_parquet(
             .set_compression(parquet::basic::Compression::SNAPPY)
             .build(),
     );
+    if let Some(parent) = Path::new(output_path).parent() {
+        std::fs::create_dir_all(parent)?;
+    }
     let file = File::create(output_path)?;
     let mut writer = SerializedFileWriter::new(file, schema, props)?;
     let mut row_group = writer.next_row_group()?;
