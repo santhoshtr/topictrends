@@ -1,0 +1,223 @@
+date-range-picker {
+	display: block;
+
+	/* Native inputs stay in the DOM (form-associated, id-addressable) but hidden. */
+	.drp-native {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		padding: 0;
+		border: 0;
+		clip-path: inset(50%);
+		overflow: hidden;
+		white-space: nowrap;
+	}
+
+	.drp-trigger {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm, 0.5rem);
+		width: 100%;
+		text-align: start;
+		cursor: pointer;
+
+		.drp-icon {
+			flex-shrink: 0;
+			color: var(--color-subtle);
+		}
+	}
+
+	.drp-panel {
+		margin: 0;
+		padding: var(--spacing-lg, 1rem);
+		border: var(--border-width-base) solid var(--border-color-subtle);
+		border-radius: var(--border-radius-base);
+		background-color: var(--background-color-base);
+		color: var(--color-base);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+		position-area: block-end span-inline-end;
+		margin-block-start: var(--spacing-xs, 0.25rem);
+
+		/* Fallback for browsers without anchor positioning. */
+		@supports not (anchor-name: --test) {
+			position: fixed;
+			inset: 4rem auto auto 50%;
+			translate: -50% 0;
+		}
+	}
+
+	.drp-fields {
+		display: flex;
+		gap: var(--spacing-sm, 0.5rem);
+		margin-block-end: var(--spacing-md, 0.5rem);
+
+		.drp-field {
+			flex: 1;
+			min-width: 0;
+		}
+	}
+
+	.drp-body {
+		display: flex;
+		gap: var(--spacing-lg, 1rem);
+		align-items: stretch;
+	}
+
+	.drp-calendars {
+		display: flex;
+		gap: var(--spacing-lg, 1rem);
+	}
+
+	.drp-cal {
+		min-width: 15rem;
+	}
+
+	.drp-cal-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-block-end: var(--spacing-sm, 0.5rem);
+
+		.drp-month-title {
+			font-size: var(--font-size-base);
+			font-weight: var(--font-weight-bold);
+		}
+	}
+
+	.drp-nav,
+	.drp-nav-spacer {
+		width: 1.75rem;
+		height: 1.75rem;
+	}
+
+	.drp-nav {
+		border: 0;
+		background: none;
+		border-radius: var(--border-radius-base);
+		font-size: var(--font-size-xl);
+		line-height: 1;
+		color: var(--color-progressive);
+		cursor: pointer;
+
+		&:hover:not(:disabled) {
+			background-color: var(--background-color-interactive-subtle);
+		}
+
+		&:disabled {
+			color: var(--color-disabled);
+			cursor: default;
+		}
+	}
+
+	.drp-grid {
+		display: grid;
+		grid-template-columns: repeat(7, 1fr);
+		gap: 1px;
+	}
+
+	.drp-dow {
+		padding-block: var(--spacing-xs, 0.25rem);
+		text-align: center;
+		font-size: var(--font-size-sm);
+		font-weight: var(--font-weight-bold);
+		color: var(--color-subtle);
+	}
+
+	.drp-day {
+		aspect-ratio: 1;
+		border: 0;
+		border-radius: var(--border-radius-base);
+		background: none;
+		font: inherit;
+		font-size: var(--font-size-sm);
+		color: var(--color-base);
+		cursor: pointer;
+
+		&:not(.drp-day--disabled, .drp-day--empty):hover {
+			background-color: var(--background-color-progressive-subtle);
+		}
+
+		&.drp-day--empty {
+			cursor: default;
+		}
+
+		&.drp-day--disabled {
+			color: var(--color-disabled);
+			cursor: default;
+		}
+
+		&.drp-day--in-range {
+			border-radius: 0;
+			background-color: var(--background-color-progressive-subtle);
+		}
+
+		&.drp-day--start,
+		&.drp-day--end {
+			background-color: var(--color-progressive);
+			color: var(--color-inverted);
+			font-weight: var(--font-weight-bold);
+		}
+	}
+
+	.drp-presets {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-md, 0.5rem);
+		min-width: 9rem;
+		padding-inline-start: var(--spacing-lg, 1rem);
+		border-inline-start: var(--border-width-base) solid
+			var(--border-color-subtle);
+	}
+
+	/* Wrap presets into extra columns so the list never grows taller than the
+	   calendar; .drp-presets is stretched to the calendar height, and flex: 1
+	   gives the list a definite height for column-wrap to resolve against. */
+	.drp-preset-list {
+		display: flex;
+		flex: 1;
+		flex-flow: column wrap;
+		align-content: start;
+		gap: var(--spacing-xs, 0.25rem) var(--spacing-md, 0.5rem);
+	}
+
+	.drp-preset {
+		padding: var(--spacing-sm, 0.5rem);
+		border: 0;
+		border-radius: var(--border-radius-base);
+		background: none;
+		font: inherit;
+		text-align: start;
+		color: var(--color-progressive);
+		cursor: pointer;
+
+		&:hover {
+			background-color: var(--background-color-interactive-subtle);
+		}
+
+		&.drp-preset--active {
+			background-color: var(--color-progressive);
+			color: var(--color-inverted);
+			font-weight: var(--font-weight-bold);
+		}
+	}
+
+	.drp-actions {
+		display: flex;
+		gap: var(--spacing-sm, 0.5rem);
+		margin-block-start: auto;
+		padding-block-start: var(--spacing-md, 0.5rem);
+	}
+
+	@media (max-width: 40rem) {
+		.drp-body,
+		.drp-calendars {
+			flex-direction: column;
+		}
+
+		.drp-presets {
+			padding-inline-start: 0;
+			border-inline-start: 0;
+		}
+	}
+}
