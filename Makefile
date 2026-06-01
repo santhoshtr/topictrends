@@ -31,10 +31,11 @@ EMBED_ENV := DATA_DIR=$(abspath $(DATA_DIR)) ZVEC_DIR=$(abspath $(ZVEC_DIR))
 
 # Deferred so the list is re-read after `init` produces it on a fresh checkout.
 WIKIS = $(shell cat $(DATA_DIR)/wikipedia.list 2>/dev/null)
+PAGEEDITS_FILES = $(addsuffix /pageedits/pageedits.parquet,$(addprefix $(DATA_DIR)/,$(WIKIS)))
 
 .DEFAULT_GOAL := run
 
-.PHONY: run init clean help monthly index-wiki index-clean embedding-server web gsc _run-wikis
+.PHONY: run init clean help monthly index-wiki index-clean embedding-server web gsc _run-wikis pageedits _pageedits-wikis
 
 # Help target
 help:
@@ -45,6 +46,8 @@ help:
 	@echo "  monthly          - Process all wikis for the calendar month containing END_DATE"
 	@echo "                     (1..LAST_DAY of that month, capped at END_DATE's day)"
 	@echo "  gsc              - Process Google Search Console data for all wikis (single DATE)"
+	@echo "  pageedits        - Refresh page edits for all wikis at EDIT_SNAPSHOT (deletes"
+	@echo "                     existing parquets first so the new snapshot is re-fetched)"
 	@echo "  web              - Start the web server (no rebuild)"
 	@echo "  init             - Build release binaries and fetch the Wikipedia list"
 	@echo "  embedding-server - Start the embedding gRPC server"
@@ -86,6 +89,25 @@ run:
 	@$(MAKE) -s _run-wikis DATE=$(DATE)
 
 _run-wikis: init $(WIKIS)
+
+# Refresh page edits for all wikis at EDIT_SNAPSHOT.
+# The pageedits file rule has no prerequisites, so an existing parquet is always
+# considered up-to-date — changing EDIT_SNAPSHOT alone won't rebuild it. We
+# delete the existing files first, then re-enter Make so the now-missing targets
+# re-fire at the new snapshot. Pass EDIT_SNAPSHOT=YYYY-MM (and optionally
+# MIN_EDIT_YEAR=YYYY) on the command line.
+# Caveat: a wiki whose new snapshot 404s is skipped with a warning, leaving it
+# with no pageedits file until the next successful fetch.
+pageedits:
+	@if [ ! -f $(DATA_DIR)/wikipedia.list ]; then \
+		echo "Bootstrapping wikipedia.list..."; \
+		$(MAKE) -s init; \
+	fi
+	rm -f $(PAGEEDITS_FILES)
+	@$(MAKE) -s _pageedits-wikis
+
+_pageedits-wikis: init $(PAGEEDITS_FILES)
+	@echo "✓ pageedits refreshed for $(words $(WIKIS)) wikis at snapshot $(EDIT_SNAPSHOT)"
 
 $(DATA_DIR):
 	@mkdir -p $@
