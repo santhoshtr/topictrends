@@ -41,16 +41,10 @@
           </div>
         </div>
       </div>
-      <div class="form-item row">
-        <div class="form-item">
-          <label for=" start_date">Start Date</label>
-          <input type="date" id="start_date" name="start-date" required class="cdx-text-input__input">
-        </div>
-        <div class="form-item">
-          <label for=" end_date">End Date</label>
-          <input type="date" id="end_date" name="end-date" required class="cdx-text-input__input">
-        </div>
-      </div>
+      <date-range-picker min-date="2001-01-01">
+        <input type="date" id="start_date" name="start-date" data-role="start" required class="cdx-text-input__input">
+        <input type="date" id="end_date" name="end-date" data-role="end" required class="cdx-text-input__input">
+      </date-range-picker>
       <div class="form-item">
         <button type="submit"
           class="cdx-button cdx-button--action-progressive cdx-button--weight-primary">Submit</button>
@@ -85,6 +79,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="/static/components/date-range-picker.js" type="module"></script>
 <script src="/static/components/wiki-article-info.js" type="module"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
 <script src="/static/components/form-filler.js" type="module"></script>
