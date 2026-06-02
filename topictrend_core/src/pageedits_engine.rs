@@ -1,11 +1,21 @@
+use crate::direct_map::DirectMap;
 use crate::{graphbuilder::GraphBuilder, wikigraph::WikiGraph};
-use chrono::NaiveDate;
-use polars::prelude::*;
+use chrono::{Datelike, NaiveDate};
+use parquet::file::reader::{FileReader, SerializedFileReader};
+use parquet::record::RowAccessor;
+use std::collections::VecDeque;
 use std::fmt;
+use std::fs::File;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use std::{collections::HashMap, error::Error};
+
+/// Environment variable controlling how many distinct dates `PageEditsEngine`
+/// keeps in its in-memory edit cache. A value of `0` disables the bound.
+/// Default: 120 days (~4 months). Mirrors the pageview cache knob.
+const PAGEEDIT_CACHE_DAYS_ENV: &str = "TOPICTREND_PAGEEDIT_CACHE_DAYS";
+const DEFAULT_PAGEEDIT_CACHE_DAYS: usize = 120;
 
 /// Sparse storage for edit counts on a single date
 /// Optimized for read-heavy workloads with binary search lookups
@@ -178,10 +188,109 @@ impl TopCategoriesCache {
     }
 }
 
+/// Bounded per-date edit cache, mirroring `PageViewEngine`'s
+/// `BoundedDailyViews`. Each entry is a `DailyEditData` (sparse parallel
+/// arrays of only the articles edited on that date). FIFO eviction keeps the
+/// read path free of access-order bookkeeping so concurrent readers can run
+/// under the `RwLock`. Callers hold `Arc` snapshots of the range they need
+/// (see [`PageEditsEngine::load_history_for_date_range`]), so mid-request
+/// eviction is safe.
+#[derive(Debug)]
+struct BoundedDailyEdits {
+    map: HashMap<NaiveDate, Arc<DailyEditData>>,
+    insert_order: VecDeque<NaiveDate>,
+    capacity: usize,
+}
+
+impl BoundedDailyEdits {
+    fn new(capacity: usize) -> Self {
+        Self {
+            map: HashMap::new(),
+            insert_order: VecDeque::new(),
+            capacity,
+        }
+    }
+
+    fn get(&self, date: &NaiveDate) -> Option<Arc<DailyEditData>> {
+        self.map.get(date).cloned()
+    }
+
+    /// Insert `data` for `date`. If the cache is at capacity, evict the
+    /// oldest-inserted entries. A capacity of `0` means "unlimited".
+    fn insert(&mut self, date: NaiveDate, data: Arc<DailyEditData>) {
+        if self.map.contains_key(&date) {
+            return;
+        }
+        if self.capacity > 0 {
+            while self.map.len() >= self.capacity {
+                match self.insert_order.pop_front() {
+                    Some(oldest) => {
+                        self.map.remove(&oldest);
+                    }
+                    None => break,
+                }
+            }
+        }
+        self.map.insert(date, data);
+        self.insert_order.push_back(date);
+    }
+
+    fn len(&self) -> usize {
+        self.map.len()
+    }
+
+    fn capacity(&self) -> usize {
+        self.capacity
+    }
+}
+
+/// Read the cache-size cap from the environment, falling back to
+/// [`DEFAULT_PAGEEDIT_CACHE_DAYS`]. A value of `0` disables the bound.
+fn pageedit_cache_capacity() -> usize {
+    match std::env::var(PAGEEDIT_CACHE_DAYS_ENV) {
+        Ok(s) => s.parse().unwrap_or(DEFAULT_PAGEEDIT_CACHE_DAYS),
+        Err(_) => DEFAULT_PAGEEDIT_CACHE_DAYS,
+    }
+}
+
+/// Load a per-day pageedit Parquet `(qid, edit_count)` and produce a sparse
+/// `DailyEditData` keyed by current dense article ID. QIDs absent from
+/// `dense_map` (articles deleted since the file was written) and zero-count
+/// rows are dropped. Uses the raw synchronous `parquet` reader (not Polars)
+/// so it is safe to call from inside an async runtime — handler code reaches
+/// this path without `spawn_blocking`.
+fn load_pageedit_parquet(
+    path: &str,
+    dense_map: &DirectMap,
+    num_articles: usize,
+) -> Result<DailyEditData, Box<dyn Error>> {
+    let file = File::open(path)?;
+    let reader = SerializedFileReader::new(file)?;
+    let row_iter = reader.get_row_iter(None)?;
+
+    let mut pairs: Vec<(u32, u32)> = Vec::new();
+    for row_result in row_iter {
+        let row = row_result?;
+        let qid = row.get_uint(0)?;
+        let edit_count = row.get_uint(1)?;
+        if edit_count == 0 {
+            continue;
+        }
+        if let Some(dense_id) = dense_map.get(qid)
+            && (dense_id as usize) < num_articles
+        {
+            pairs.push((dense_id, edit_count));
+        }
+    }
+
+    Ok(DailyEditData::from_pairs(pairs))
+}
+
 #[derive(Debug)]
 pub struct PageEditsEngine {
-    // Map Date -> Sparse edit data (article_dense_id -> edit_count)
-    daily_edits: HashMap<NaiveDate, DailyEditData>,
+    // Bounded, lazily-populated per-date cache. Per-day Parquet files are
+    // loaded on first access (same layout as pageviews).
+    daily_edits: RwLock<BoundedDailyEdits>,
     wiki: String,
     // `Arc<WikiGraph>` so the graph can be shared with PageViewEngine and
     // GoogleSearchEngine for the same wiki — see EngineService.
@@ -202,21 +311,13 @@ impl PageEditsEngine {
     }
 
     /// Build a `PageEditsEngine` against a pre-built `WikiGraph` shared
-    /// with other metric engines for the same wiki.
+    /// with other metric engines for the same wiki. Edit data is loaded
+    /// lazily per date from per-day Parquet files on first access.
     pub fn with_graph(wiki: &str, wikigraph: Arc<WikiGraph>) -> Self {
-        // Load pageedits data from parquet
-        let daily_edits = Self::load_pageedits_from_parquet(wiki, &wikigraph)
-            .expect("Error loading pageedits data");
-
-        println!(
-            "Loaded pageedits for {} with {} dates",
-            wiki,
-            daily_edits.len()
-        );
-
+        let capacity = pageedit_cache_capacity();
         Self {
             wiki: wiki.to_string(),
-            daily_edits,
+            daily_edits: RwLock::new(BoundedDailyEdits::new(capacity)),
             wikigraph,
             top_categories_cache: RwLock::new(TopCategoriesCache::new()),
         }
@@ -226,67 +327,92 @@ impl PageEditsEngine {
         &self.wikigraph
     }
 
-    /// Load pageedits data from parquet file
-    fn load_pageedits_from_parquet(
-        wiki: &str,
-        wikigraph: &WikiGraph,
-    ) -> Result<HashMap<NaiveDate, DailyEditData>, Box<dyn Error>> {
-        let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "data".to_string());
-        let parquet_path = format!("{}/{}/pageedits/pageedits.parquet", data_dir, wiki);
+    /// Returns the current and configured size of the edit cache as
+    /// `(current_entries, capacity)`. A capacity of `0` is unbounded.
+    pub fn cache_stats(&self) -> (usize, usize) {
+        let cache = self.daily_edits.read().expect("daily_edits lock poisoned");
+        (cache.len(), cache.capacity())
+    }
 
-        if !std::path::Path::new(&parquet_path).exists() {
-            eprintln!("Pageedits file not found: {}", parquet_path);
-            return Ok(HashMap::new());
+    /// Ensure every date in `[start_date, end_date]` that has edit data on
+    /// disk is present in the in-memory cache, and return a snapshot of the
+    /// range as `Arc` clones. Mirrors
+    /// [`PageViewEngine::load_history_for_date_range`]: the returned `Arc`
+    /// clones keep the range alive even if a concurrent request evicts these
+    /// dates from the bounded cache immediately afterward. Missing dates (no
+    /// file on disk) are simply absent — callers treat absence as zero edits.
+    pub fn load_history_for_date_range(
+        &self,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+    ) -> Result<HashMap<NaiveDate, Arc<DailyEditData>>, Box<dyn Error>> {
+        // Phase 1: snapshot cached entries, collect missing dates.
+        let (mut snapshot, missing): (HashMap<NaiveDate, Arc<DailyEditData>>, Vec<NaiveDate>) = {
+            let cache = self.daily_edits.read().expect("daily_edits lock poisoned");
+            let mut snap = HashMap::new();
+            let mut miss = Vec::new();
+            let mut curr = start_date;
+            while curr <= end_date {
+                match cache.get(&curr) {
+                    Some(v) => {
+                        snap.insert(curr, v);
+                    }
+                    None => miss.push(curr),
+                }
+                curr = curr.succ_opt().unwrap();
+            }
+            (snap, miss)
+        };
+
+        if missing.is_empty() {
+            return Ok(snapshot);
         }
 
-        println!("Loading pageedits from: {}", parquet_path);
-
-        let path = PlRefPath::try_from_path(Path::new(&parquet_path))?;
-        let df = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
-
-        let article_qids = df.column("article_qid")?.u32()?;
-        let dates = df.column("date")?.str()?;
-        let edit_counts = df.column("edit_count")?.u32()?;
-
-        // Group data by date
-        let mut date_groups: HashMap<NaiveDate, Vec<(u32, u32)>> = HashMap::new();
-        let mut skipped = 0;
-        let mut loaded = 0;
-
-        for i in 0..df.height() {
-            if let (Some(article_qid), Some(date_str), Some(edit_count)) =
-                (article_qids.get(i), dates.get(i), edit_counts.get(i))
-            {
-                // Translate QID to dense_id
-                if let Some(dense_id) = wikigraph.art_original_to_dense.get(article_qid) {
-                    // Parse date
-                    if let Ok(date) = NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
-                        date_groups
-                            .entry(date)
-                            .or_default()
-                            .push((dense_id, edit_count));
-                        loaded += 1;
-                    }
-                } else {
-                    skipped += 1;
-                }
+        // Phase 2: load missing dates from disk with no lock held.
+        let mut loaded: Vec<(NaiveDate, Arc<DailyEditData>)> = Vec::with_capacity(missing.len());
+        for date in missing {
+            if let Some(day_data) = self.load_daily_edit(date)? {
+                let arc = Arc::new(day_data);
+                snapshot.insert(date, Arc::clone(&arc));
+                loaded.push((date, arc));
             }
         }
 
-        println!(
-            "Loaded {} edit records, skipped {} unknown articles",
-            loaded, skipped
+        // Phase 3: publish loaded entries under the write lock.
+        if !loaded.is_empty() {
+            let mut cache = self.daily_edits.write().expect("daily_edits lock poisoned");
+            for (date, data) in loaded {
+                cache.insert(date, data);
+            }
+        }
+
+        Ok(snapshot)
+    }
+
+    fn load_daily_edit(&self, date: NaiveDate) -> Result<Option<DailyEditData>, Box<dyn Error>> {
+        let num_articles = self.wikigraph.art_dense_to_original.len();
+
+        let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "data".to_string());
+        let parquet_filename = format!(
+            "{}/{}/pageedits/{}/{:02}/{:02}.parquet",
+            data_dir,
+            self.wiki,
+            date.year(),
+            date.month(),
+            date.day()
         );
 
-        // Build DailyEditData for each date
-        let daily_edits: HashMap<NaiveDate, DailyEditData> = date_groups
-            .into_iter()
-            .map(|(date, pairs)| (date, DailyEditData::from_pairs(pairs)))
-            .collect();
+        if !Path::new(&parquet_filename).exists() {
+            return Ok(None);
+        }
 
-        println!("Built edit data for {} unique dates", daily_edits.len());
+        let day_data = load_pageedit_parquet(
+            &parquet_filename,
+            &self.wikigraph.art_original_to_dense,
+            num_articles,
+        )?;
 
-        Ok(daily_edits)
+        Ok(Some(day_data))
     }
 
     /// Get edit trend for a single article over a date range
@@ -309,10 +435,13 @@ impl PageEditsEngine {
             }
         };
 
+        let snapshot = self
+            .load_history_for_date_range(start_date, end_date)
+            .expect("Error in loading pageedits history");
+
         let mut curr = start_date;
         while curr <= end_date {
-            let edit_count = self
-                .daily_edits
+            let edit_count = snapshot
                 .get(&curr)
                 .map(|day_data| day_data.get(article_dense_id) as u64)
                 .unwrap_or(0);
@@ -362,9 +491,13 @@ impl PageEditsEngine {
             depth
         );
 
+        let snapshot = self
+            .load_history_for_date_range(start_date, end_date)
+            .expect("Error in loading pageedits history");
+
         let mut curr = start_date;
         while curr <= end_date {
-            let daily_total = if let Some(day_data) = self.daily_edits.get(&curr) {
+            let daily_total = if let Some(day_data) = snapshot.get(&curr) {
                 // Iterate over articles with edits and check if they're in the category
                 day_data
                     .iter()
@@ -422,15 +555,20 @@ impl PageEditsEngine {
         // Phase 1: Aggregate edits per article across date range
         let mut article_edits = vec![0u32; num_articles];
 
+        let snapshot = self
+            .load_history_for_date_range(start_date, end_date)
+            .expect("Error in loading pageedits history");
+
         let mut curr = start_date;
         while curr <= end_date {
-            if let Some(day_data) = self.daily_edits.get(&curr) {
+            if let Some(day_data) = snapshot.get(&curr) {
                 for (article_dense_id, count) in day_data.iter() {
                     article_edits[article_dense_id as usize] += count;
                 }
             }
             curr = curr.succ_opt().unwrap();
         }
+        drop(snapshot);
 
         // Phase 2: Scatter article edits to categories
         let mut cat_scores = vec![0u64; num_cats];
@@ -501,9 +639,13 @@ impl PageEditsEngine {
         let num_articles = self.wikigraph.art_dense_to_original.len();
         let mut article_edits = vec![0u64; num_articles];
 
+        let snapshot = self
+            .load_history_for_date_range(start_date, end_date)
+            .expect("Error in loading pageedits history");
+
         let mut curr = start_date;
         while curr <= end_date {
-            if let Some(day_data) = self.daily_edits.get(&curr) {
+            if let Some(day_data) = snapshot.get(&curr) {
                 for (article_dense_id, count) in day_data.iter() {
                     article_edits[article_dense_id as usize] += count as u64;
                 }
@@ -549,6 +691,10 @@ impl PageEditsEngine {
             });
         }
 
+        let snapshot = self
+            .load_history_for_date_range(start_date, end_date)
+            .expect("Error in loading pageedits history");
+
         // Aggregate edits for each article
         let mut article_edits: Vec<(u32, u64)> = Vec::new();
 
@@ -557,7 +703,7 @@ impl PageEditsEngine {
 
             let mut curr = start_date;
             while curr <= end_date {
-                if let Some(day_data) = self.daily_edits.get(&curr) {
+                if let Some(day_data) = snapshot.get(&curr) {
                     total_edits += day_data.get(article_dense_id) as u64;
                 }
                 curr = curr.succ_opt().unwrap();
@@ -661,25 +807,21 @@ mod tests {
     #[test]
     #[ignore] // Run with: cargo test -- --ignored
     fn test_load_real_mlwiki_data() {
-        // This test requires real data: data/mlwiki/pageedits/pageedits.parquet
+        // This test requires real data under data/mlwiki/pageedits/{Y}/{M}/{D}.parquet
         // Run with: cargo test -p topictrend_core test_load_real_mlwiki_data -- --ignored --nocapture
 
         let engine = PageEditsEngine::new("mlwiki");
 
-        // Check basic stats
-        println!("Loaded {} dates", engine.daily_edits.len());
-        assert!(
-            !engine.daily_edits.is_empty(),
-            "Should have loaded some dates"
-        );
-
-        // Test getting a date range
+        // Test getting a date range — lazily populates the bounded cache.
         let start = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
         let end = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
 
         // Try to get any article - we don't know specific QIDs, just verify it doesn't crash
         let trend = engine.get_article_trend(1, start, end);
         println!("Article 1 trend has {} data points", trend.len());
+
+        let (cached, capacity) = engine.cache_stats();
+        println!("Cache holds {} dates (capacity {})", cached, capacity);
 
         println!("Successfully loaded and queried mlwiki pageedits!");
     }

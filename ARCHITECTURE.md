@@ -49,11 +49,11 @@ The per-date cache is bounded (FIFO eviction by insertion order) to keep RSS und
 
 ### Sparse In-Memory Pageedit Data
 
-Pageedit data has a different profile from pageviews: article edit activity is significantly sparser (most articles have zero edits on any given day), and the full history is processed as a batch rather than daily increments.
+Pageedit data is sparser than pageviews (most articles have zero edits on any given day) but uses the **same storage and loading model**: per-day Parquet files at `data/{wiki}/pageedits/{Y}/{M}/{D}.parquet` with schema `(qid: u32, edit_count: u32)` — the edit analogue of the per-day pageview files. Two producers write these files idempotently (write-if-missing) and converge on identical paths: the monthly MediaWiki history dump bulk-fills deep history, and a single-day replica query keeps the recent tail as current as pageviews.
 
-Pageedits are stored as a single Parquet file per wiki (`data/{wiki}/pageedits/pageedits.parquet`) with columns `article_qid`, `date`, and `edit_count`. At startup, the engine loads this file and builds a `HashMap<NaiveDate, DailyEditData>` in memory.
+The engine loads each day on first access into a bounded FIFO cache (`BoundedDailyEdits`, capped by `TOPICTREND_PAGEEDIT_CACHE_DAYS`, default `120`), mirroring `PageViewEngine`. `load_history_for_date_range` returns an `Arc`-snapshot of the requested range so eviction is race-free under concurrent requests.
 
-`DailyEditData` stores only articles with non-zero edit counts for that date as two parallel sorted `Vec<u32>` arrays — article dense IDs and corresponding counts. Lookup is O(log n) via binary search. This structure uses far less memory than a dense array, which would be wasteful given the sparsity of edit activity.
+`DailyEditData` stores only articles with non-zero edit counts for that date as two parallel sorted `Vec<u32>` arrays — article dense IDs and corresponding counts. Lookup is O(log n) via binary search.
 
 ## Algorithms
 

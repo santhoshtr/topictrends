@@ -241,25 +241,42 @@ make monthly END_DATE=2025-01-31
 
 **File format:** Per-day Parquet with schema `(qid: u32, views: u32)`, sorted by `qid`, sparse (only articles with non-zero views appear). On load the engine translates each QID to the current dense article ID via `articles.parquet` and produces an in-memory `Vec<u32>` indexed by dense ID for SIMD-friendly aggregation. The QID-keyed on-disk format is refresh-stable: a topology refresh (`articles.parquet` rebuild) does not invalidate historical pageview files; deleted articles' QIDs simply drop out of analytics, and added articles default to zero in pre-existing files.
 
-### Page Edit Ingestion (Monthly / On-demand)
+### Page Edit Ingestion (Daily replica fill + monthly dump backfill)
 
-**Frequency**: Monthly (or on-demand, aligned with Wikimedia history dump releases)
-**Runtime**: 1–3 hours per wiki (dump files are large)
-**Operation**: Processes MediaWiki history dumps for each wiki
+Page edits are written as **per-day** Parquet files at
+`data/{wiki}/pageedits/{Y}/{M}/{D}.parquet` (schema `(qid: u32, edit_count: u32)`),
+the same layout as pageviews. Two producers write the same paths **idempotently
+(write-if-missing)** so they converge and never conflict:
+
+**1. Daily replica fill** — part of `make run` (alongside pageviews). For each
+wiki and the run's date, `queries/day-pageedits.sql` aggregates one complete
+day of `revision` rows (namespace-0, non-redirect) on the analytics replica;
+`get-day-pageedits` maps `page_id → qid` via `articles.parquet` and writes the
+day file. Only complete (past) days are recorded — today's partial count is
+skipped. Cheap: one indexed `rev_timestamp` range scan per wiki per day.
 
 ```bash
-make data/mlwiki/pageedits/pageedits.parquet
-# or for all wikis: add pageedits dependency to per-wiki target
+make data/mlwiki/pageedits/2026/05/26.parquet    # one wiki, one day
 ```
 
-**Pipeline:**
-1. Fetch `.bz2` dump files from Wikimedia (`other/mediawiki_history/{snapshot}/{wiki}/`)
-2. Filter to `revision-create` events only
-3. Map `page_id` to QID via `articles.parquet`
-4. Aggregate edit counts by `(article_qid, date)`
-5. Write to `data/{wiki}/pageedits/pageedits.parquet`
+**2. Monthly dump backfill** — bulk-fills deep history so the replica is never
+queried for years of edits.
 
-**Schema:** columns `article_qid` (u32), `date` (string YYYY-MM-DD), `edit_count` (u32).
+**Frequency**: When a new history dump lands (~monthly), or for first-time
+catch-up. **Runtime**: 1–3 hours per wiki (dump files are large).
+
+```bash
+make pageedits EDIT_SNAPSHOT=2025-12 MIN_EDIT_YEAR=2024
+```
+
+Pipeline: fetch `.bz2` dumps from Wikimedia (`other/mediawiki_history/{snapshot}/{wiki}/`),
+filter to `revision-create` events, map `page_id → qid`, aggregate by
+`(qid, date)`, and write each day's file **if it does not already exist** —
+so the backfill never clobbers days produced by the daily replica fill.
+
+For first-time catch-up of the gap between the dump cutoff and today, loop
+`make run` (or `make monthly`) over the missing dates — one cheap single-day
+replica query per day.
 
 ### Google Search Console (GSC) Ingestion
 

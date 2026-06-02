@@ -1,11 +1,12 @@
+use chrono::{Datelike, NaiveDate};
 use polars::prelude::*;
 use rayon::prelude::*;
 use std::collections::HashMap;
-use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use topictrend::pageedit_parquet::write_pageedit_parquet;
 
 #[derive(Debug, Clone)]
 struct PageEditRecord {
@@ -16,7 +17,7 @@ struct PageEditRecord {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
 
-    let (wiki, output_file, chunk_size) = if args.len() >= 3 {
+    let (wiki, output_dir, chunk_size) = if args.len() >= 3 {
         let wiki = &args[1];
         let output = &args[2];
         let chunk = if args.len() >= 4 {
@@ -26,17 +27,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
         (wiki.as_str(), output.as_str(), chunk)
     } else {
-        eprintln!("Usage: <program> <wiki> <output_file> [chunk_size]");
-        eprintln!("Example: get-pageedits mlwiki output.parquet 100000");
+        eprintln!("Usage: <program> <wiki> <output_dir> [chunk_size]");
+        eprintln!("Example: get-pageedits mlwiki data/mlwiki/pageedits 100000");
         std::process::exit(1);
     };
 
-    println!("=== Wikipedia Page Edits to Parquet Converter ===");
+    println!("=== Wikipedia Page Edits to per-day Parquet Converter ===");
     println!("Wiki: {}", wiki);
-    println!("Output: {}", output_file);
+    println!("Output dir: {}", output_dir);
     println!("Chunk size: {}", chunk_size);
 
-    convert_pageedits_to_parquet(wiki, output_file, chunk_size)?;
+    convert_pageedits_to_parquet(wiki, output_dir, chunk_size)?;
 
     Ok(())
 }
@@ -143,7 +144,7 @@ fn process_chunk(
 
 fn convert_pageedits_to_parquet(
     wiki: &str,
-    output_path: &str,
+    output_dir: &str,
     chunk_size: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting conversion...");
@@ -232,33 +233,55 @@ fn convert_pageedits_to_parquet(
     // Combine all chunks and aggregate again (in case same article_qid+date across chunks)
     let combined = concat(&lazy_frames, UnionArgs::default())?
         .group_by([col("article_qid"), col("date")])
-        .agg([col("edit_count").sum()]);
-
-    println!("Writing to parquet file {} ", &output_path);
-
-    // Create output file with error handling
-    let mut file = File::create(output_path)
-        .map_err(|e| format!("Failed to create output file '{}': {}", output_path, e))?;
-
-    // Collect the final dataframe
-    let mut dataframe = combined
+        .agg([col("edit_count").sum()])
         .collect()
         .map_err(|e| format!("Failed to collect final dataframe: {}", e))?;
 
-    // Write to parquet with error handling
-    ParquetWriter::new(&mut file)
-        .with_compression(ParquetCompression::Snappy)
-        .finish(&mut dataframe)
-        .map_err(|e| format!("Failed to write parquet file '{}': {}", output_path, e))?;
+    // Partition the aggregate by date so each day lands in its own per-day
+    // Parquet file, matching the pageviews layout
+    // (data/{wiki}/pageedits/{Y}/{M}/{D}.parquet).
+    let article_qids = combined.column("article_qid")?.u32()?;
+    let dates = combined.column("date")?.str()?;
+    let edit_counts = combined.column("edit_count")?.u32()?;
 
-    // Ensure all data is written to disk
-    file.sync_all()
-        .map_err(|e| format!("Failed to sync file to disk '{}': {}", output_path, e))?;
+    let mut by_date: HashMap<NaiveDate, Vec<(u32, u32)>> = HashMap::new();
+    for i in 0..combined.height() {
+        if let (Some(qid), Some(date_str), Some(count)) =
+            (article_qids.get(i), dates.get(i), edit_counts.get(i))
+            && let Ok(date) = NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
+        {
+            by_date.entry(date).or_default().push((qid, count));
+        }
+    }
+
+    // Write one Parquet per date, skipping any that already exist — the dump
+    // backfill must not clobber days already produced (idempotent), whether by
+    // an earlier dump run or the daily replica fill.
+    let mut written = 0;
+    let mut skipped_existing = 0;
+    for (date, mut pairs) in by_date {
+        let path = format!(
+            "{}/{}/{:02}/{:02}.parquet",
+            output_dir,
+            date.year(),
+            date.month(),
+            date.day()
+        );
+        if Path::new(&path).exists() {
+            skipped_existing += 1;
+            continue;
+        }
+        pairs.sort_unstable_by_key(|&(qid, _)| qid);
+        write_pageedit_parquet(&pairs, &path)
+            .map_err(|e| format!("Failed to write parquet file '{}': {}", path, e))?;
+        written += 1;
+    }
 
     println!("\n✓ Conversion complete!");
     println!("  Lines processed: {}", lines_processed);
     println!("  Revision-create events: {}", lines_filtered);
-    println!("  Output records: {}", dataframe.height());
+    println!("  Day files written: {}", written);
+    println!("  Day files skipped (already existed): {}", skipped_existing);
 
     Ok(())
 }

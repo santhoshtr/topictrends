@@ -7,8 +7,9 @@
 #   fetch_pageedits.sh WIKI SNAPSHOT MIN_EDIT_YEAR Stream concatenated, decompressed
 #                                                  dump content to stdout. Logs to stderr.
 #
-# Designed to be piped into get-pageedits:
-#   fetch_pageedits.sh enwiki 2026-04 2025 | get-pageedits enwiki out.parquet
+# Designed to be piped into get-pageedits (which partitions the stream into
+# per-day Parquet files under the given directory):
+#   fetch_pageedits.sh enwiki 2026-04 2025 | get-pageedits enwiki data/enwiki/pageedits
 
 set -euo pipefail
 
