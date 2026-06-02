@@ -101,7 +101,7 @@ The following latencies are observed in production on commodity hardware:
 |---|---|---|
 | Category pageview aggregation | O(E), E = edges in subgraph | 15–25 ms |
 | Trending category discovery | O(N), N = articles with traffic | 20–50 ms |
-| Article pageview lookup | O(1), direct mmap | < 1 ms |
+| Article pageview lookup | O(log n), binary search | < 1 ms |
 | Article pageedit lookup | O(log n), binary search | < 1 ms |
 | Semantic search (encode + search + translate) | O(log N) vector search | 50–150 ms |
 | Title translation (batch) | Database round-trip | 5–10 ms |

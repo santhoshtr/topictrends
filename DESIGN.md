@@ -12,9 +12,11 @@ Graph databases like Neo4j provide query convenience at the cost of runtime over
 
 CSR is the classical approach for this exact problem: large sparse graphs with static structure and frequent traversals. The tradeoff is immutability — dynamic insertion requires full reconstruction — but this matches TopicTrends' batch-update model. Topology is refreshed monthly, not incrementally.
 
-## Why Memory-Mapped Files
+## Why Per-Day Parquet with a Bounded Cache
 
-Keeping gigabytes of time series in RAM wastes memory for cold data (historical dates rarely queried). Keeping data entirely on disk incurs I/O latency on every access. Memory-mapped files let the OS manage this boundary automatically. The kernel's page cache handles hot/cold data more efficiently than any application-level caching strategy. The application gains simplicity; the OS gains full visibility into access patterns for prefetch optimization.
+Keeping gigabytes of time series in RAM wastes memory for cold data (historical dates are rarely queried). Keeping everything on disk and re-reading per request incurs I/O latency on every access. TopicTrends stores each `(wiki, date)` as a small sparse Parquet file keyed by the stable Wikidata QID, and loads days on demand into a bounded per-wiki cache that evicts oldest-first (`TOPICTREND_PAGEVIEW_CACHE_DAYS` / `TOPICTREND_PAGEEDIT_CACHE_DAYS`, default 120). Hot recent dates stay resident; cold dates fall out and are re-read only if queried again. Keying on the QID rather than a positional index makes the files refresh-stable: rebuilding topology does not invalidate historical data.
+
+An earlier design memory-mapped a single dense time-series file per wiki. That was abandoned because dense per-date vectors wasted space on Wikipedia's mostly-zero traffic distribution, and a positional layout broke on every topology refresh. The per-day sparse-Parquet model is smaller, refresh-stable, and bounds RSS explicitly instead of relying on page-cache pressure.
 
 ## Why a Single English Embedding Model
 

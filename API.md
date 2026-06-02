@@ -135,7 +135,7 @@ curl "http://localhost:8765/api/pageviews/article?wiki=enwiki&qid=42&start_date=
 }
 ```
 
-**Complexity:** $O(1)$ — Direct array lookup via mmap. Execution time: <1 millisecond.
+**Complexity:** $O(\log n)$ — binary search over the day's sparse dense-ID array. Execution time: <1 millisecond.
 
 **Error Responses:**
 

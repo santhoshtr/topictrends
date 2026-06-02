@@ -77,7 +77,7 @@ The system consists of several distinct components that operate independently:
 Runs via Makefile targets and system cron jobs. Fetches topology from Wikimedia SQL replicas and pageview dumps from public archives.
 
 #### 2. Core Engine (In-Memory)
-Loads processed data at startup into memory. Performs pure numeric operations on CSR graphs and mmap'd time series.
+Loads topology at startup into memory (CSR graphs); loads time series (pageviews, pageedits, GSC) on demand per date into a bounded in-memory cache. Performs pure numeric operations on these structures.
 
 #### 3. Web Server (Axum)
 Thin translation layer. Handles HTTP requests, translates titles to QIDs via MariaDB, invokes core engine, translates results back to titles.
@@ -355,9 +355,10 @@ PORT=8000 ./target/release/topictrend_web
 
 The server:
 1. Loads topology from Parquet files into memory (CSR structure)
-2. Mmaps daily pageview binaries
-3. Starts HTTP server on `0.0.0.0:8765` (or custom `PORT`)
-4. Establishes connection pool to MariaDB replica for title translation
+2. Starts HTTP server on `0.0.0.0:8765` (or custom `PORT`)
+3. Establishes connection pool to MariaDB replica for title translation
+
+Daily pageview, pageedit, and GSC Parquet files are not loaded at startup; each date is read on first request into a bounded FIFO cache.
 
 ### Dependencies
 
@@ -495,10 +496,10 @@ Expected latencies (in milliseconds):
 - **Title translation (batch)**: 5-10ms
 
 If latencies exceed these significantly, check:
-- Memory pressure (is mmap causing page swaps?)
+- Memory pressure (cache size — tune `TOPICTREND_PAGEVIEW_CACHE_DAYS` / `TOPICTREND_PAGEEDIT_CACHE_DAYS`)
 - CPU utilization (saturated?)
 - Network latency (database replica slow?)
-- Disk I/O (pageview binaries on slow storage?)
+- Disk I/O (per-day Parquet files on slow storage?)
 
 ### Logging
 
