@@ -18,13 +18,6 @@ DATA_DIR ?= data
 GSC_DIR ?= $(DATA_DIR)/gsc_page_date
 QUERIES_DIR := queries
 
-# Page edit defaults are derived from END_DATE (for `monthly`) or DATE so that
-# backfills pick the right MediaWiki history snapshot rather than always
-# defaulting to last month relative to today.
-REFERENCE_DATE := $(if $(END_DATE),$(END_DATE),$(DATE))
-EDIT_SNAPSHOT ?= $(shell date -d "$(REFERENCE_DATE) -1 month" +%Y-%m)
-MIN_EDIT_YEAR ?= $(shell date -d "$(REFERENCE_DATE) -1 year" +%Y)
-
 # Embedding service configuration
 EMBEDDING_SERVER ?= localhost:50051
 ZVEC_DIR ?= $(DATA_DIR)/embedding_store/zvec
@@ -33,11 +26,10 @@ EMBED_ENV := DATA_DIR=$(abspath $(DATA_DIR)) ZVEC_DIR=$(abspath $(ZVEC_DIR))
 
 # Deferred so the list is re-read after `init` produces it on a fresh checkout.
 WIKIS = $(shell cat $(DATA_DIR)/wikipedia.list 2>/dev/null)
-PAGEEDITS_BACKFILL = $(addsuffix /pageedits-backfill,$(addprefix $(DATA_DIR)/,$(WIKIS)))
 
 .DEFAULT_GOAL := run
 
-.PHONY: run init clean help monthly index-wiki index-clean embedding-server web gsc _run-wikis pageedits _pageedits-wikis
+.PHONY: run init clean help monthly index-wiki index-clean embedding-server web gsc _run-wikis
 
 # Help target
 help:
@@ -48,8 +40,6 @@ help:
 	@echo "  monthly          - Process all wikis for the calendar month containing END_DATE"
 	@echo "                     (1..LAST_DAY of that month, capped at END_DATE's day)"
 	@echo "  gsc              - Process Google Search Console data for all wikis (single DATE)"
-	@echo "  pageedits        - Bulk-backfill historical page edits for all wikis from the"
-	@echo "                     EDIT_SNAPSHOT dump into per-day files (idempotent, write-if-missing)"
 	@echo "  web              - Start the web server (no rebuild)"
 	@echo "  init             - Build release binaries and fetch the Wikipedia list"
 	@echo "  embedding-server - Start the embedding gRPC server"
@@ -61,10 +51,6 @@ help:
 	@echo "Environment variables:"
 	@echo "  DATE          - Date to process (YYYY-MM-DD, defaults to yesterday)"
 	@echo "  END_DATE      - Last day for 'monthly' (YYYY-MM-DD, defaults to yesterday)"
-	@echo "  EDIT_SNAPSHOT - MediaWiki history dump snapshot (defaults to the month before"
-	@echo "                  END_DATE/DATE, e.g. END_DATE=2024-01-31 -> 2023-12)"
-	@echo "  MIN_EDIT_YEAR - Minimum year for page edit files (defaults to the year before"
-	@echo "                  END_DATE/DATE)"
 	@echo "  GSC_DIR       - Path to GSC source root (defaults to data/gsc_page_date)"
 	@echo "  WIKI          - Wiki for index-wiki (defaults to enwiki)"
 	@echo ""
@@ -73,12 +59,7 @@ help:
 	@echo "  make monthly END_DATE=2025-08-30"
 	@echo "  make gsc DATE=2026-03-03"
 	@echo "  make gsc DATE=2026-03-03 GSC_DIR=/mnt/gsc_data"
-	@echo "  make pageedits EDIT_SNAPSHOT=2025-12       # dump backfill, all wikis"
-	@echo "  make data/mlwiki/pageedits/2026/05/26.parquet   # one wiki, one day (replica)"
-	@echo ""
-	@echo "Note: Page edits processing handles both single-file and multi-part dumps"
-	@echo "      (e.g., arwiki with year-split files). Files with 'all-time' are"
-	@echo "      always processed regardless of MIN_EDIT_YEAR."
+	@echo "  make data/mlwiki/pageedits/2026/05/26.parquet DATE=2026-05-26   # one wiki, one day (replica)"
 
 # Main run target.
 # First invocation may need to bootstrap wikipedia.list (so that WIKIS is
@@ -91,22 +72,6 @@ run:
 	@$(MAKE) -s _run-wikis DATE=$(DATE)
 
 _run-wikis: init $(WIKIS)
-
-# Bulk-backfill historical page edits for all wikis from the EDIT_SNAPSHOT dump
-# into the per-day layout (data/{wiki}/pageedits/{Y}/{M}/{D}.parquet). Writes
-# are idempotent (write-if-missing), so this never clobbers days already
-# produced by the daily replica fill or an earlier backfill — re-running only
-# fills holes. Pass EDIT_SNAPSHOT=YYYY-MM (and optionally MIN_EDIT_YEAR=YYYY).
-# Caveat: a wiki whose snapshot 404s is skipped with a warning.
-pageedits:
-	@if [ ! -f $(DATA_DIR)/wikipedia.list ]; then \
-		echo "Bootstrapping wikipedia.list..."; \
-		$(MAKE) -s init; \
-	fi
-	@$(MAKE) -s _pageedits-wikis
-
-_pageedits-wikis: init $(PAGEEDITS_BACKFILL)
-	@echo "✓ pageedits backfilled for $(words $(WIKIS)) wikis at snapshot $(EDIT_SNAPSHOT)"
 
 $(DATA_DIR):
 	@mkdir -p $@
@@ -183,10 +148,9 @@ $(DATA_DIR)/pageviews/%.parquet:
 
 # Daily pageedits for a specific wiki/date, filled from the MediaWiki replica.
 # Expands to data/enwiki/pageedits/2026/05/26.parquet (example).
-# Mirrors the pageviews per-day layout so edits stay as current as views; the
-# monthly dump backfill (`make pageedits`) writes the same paths for older
-# dates. Only complete (past) days are recorded — today's partial count is
-# skipped so it is never frozen. articles.parquet is an order-only prerequisite
+# Mirrors the pageviews per-day layout so edits stay as current as views. Only
+# complete (past) days are recorded — today's partial count is skipped so it is
+# never frozen. articles.parquet is an order-only prerequisite
 # (the `|`): it must exist for page_id→qid mapping, but its mtime must not force
 # a re-query of existing day files, keeping per-day files idempotent across
 # topology refreshes.
@@ -201,19 +165,6 @@ $(DATA_DIR)/%/pageedits/$(YEAR)/$(MONTH)/$(DAY).parquet: $(QUERIES_DIR)/day-page
 	sed -e 's/@NEXTDAY/$(NEXT_DATE)/' -e 's/@DAY/$(YEAR)$(MONTH)$(DAY)/' $< \
 		| $(call dbquery) \
 		| $(CARGO_RELEASE)/get-day-pageedits $* $@
-
-# Bulk backfill of historical pageedits from MediaWiki history dumps into the
-# same per-day layout. The fetch/decompress pipeline lives in
-# scripts/fetch_pageedits.sh; get-pageedits partitions the dump by date and
-# writes each day's parquet only if it does not already exist (idempotent), so
-# it never clobbers days produced by the daily replica fill or an earlier run.
-$(DATA_DIR)/%/pageedits-backfill: | $(DATA_DIR)/%/articles.parquet
-	@if ! scripts/fetch_pageedits.sh --check $* "$(EDIT_SNAPSHOT)"; then \
-		echo "WARNING: pageedits not found (404) for $* at snapshot $(EDIT_SNAPSHOT)" >&2; \
-		exit 0; \
-	fi
-	scripts/fetch_pageedits.sh $* "$(EDIT_SNAPSHOT)" "$(MIN_EDIT_YEAR)" \
-		| $(CARGO_RELEASE)/get-pageedits $* $(DATA_DIR)/$*/pageedits
 
 # Wikipedia list. Downloads the active wikipedia list and strips closed /
 # excluded wikis. closed.dblist is staged in a temp dir so an interrupted run

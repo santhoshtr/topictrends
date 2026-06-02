@@ -49,7 +49,7 @@ The per-date cache is bounded (FIFO eviction by insertion order) to keep RSS und
 
 ### Sparse In-Memory Pageedit Data
 
-Pageedit data is sparser than pageviews (most articles have zero edits on any given day) but uses the **same storage and loading model**: per-day Parquet files at `data/{wiki}/pageedits/{Y}/{M}/{D}.parquet` with schema `(qid: u32, edit_count: u32)` — the edit analogue of the per-day pageview files. Two producers write these files idempotently (write-if-missing) and converge on identical paths: the monthly MediaWiki history dump bulk-fills deep history, and a single-day replica query keeps the recent tail as current as pageviews.
+Pageedit data is sparser than pageviews (most articles have zero edits on any given day) but uses the **same storage and loading model**: per-day Parquet files at `data/{wiki}/pageedits/{Y}/{M}/{D}.parquet` with schema `(qid: u32, edit_count: u32)` — the edit analogue of the per-day pageview files. A single-day replica query writes these files idempotently (write-if-missing), keeping edits as current as pageviews; historical dates are backfilled by looping the same per-day query.
 
 The engine loads each day on first access into a bounded FIFO cache (`BoundedDailyEdits`, capped by `TOPICTREND_PAGEEDIT_CACHE_DAYS`, default `120`), mirroring `PageViewEngine`. `load_history_for_date_range` returns an `Arc`-snapshot of the requested range so eviction is race-free under concurrent requests.
 

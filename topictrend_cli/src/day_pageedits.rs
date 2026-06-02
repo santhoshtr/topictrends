@@ -9,15 +9,12 @@ use topictrend::pageedit_parquet::write_pageedit_parquet;
 /// Reads the day-aggregated query output `(page_id, edit_count)` on stdin
 /// (piped from `queries/day-pageedits.sql` via the mariadb client), maps
 /// `page_id → qid` through `articles.parquet`, re-aggregates by qid, and
-/// writes `(qid, edit_count)` to the per-day Parquet path — the same layout
-/// and schema the dump backfill produces, so both converge on identical files.
+/// writes `(qid, edit_count)` to the per-day Parquet path.
 ///
 /// Single-file producer: it always writes the path it is given. Idempotency
 /// (don't rebuild an existing day) is handled by the Makefile, which only
 /// invokes this when the target file is missing — the same convention as
-/// `get-pageviews` / `get-per_day_wiki_stats`. The dump backfill's
-/// `get-pageedits`, by contrast, writes many files in one run and so guards
-/// each with write-if-missing itself.
+/// `get-pageviews` / `get-per_day_wiki_stats`.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 3 {

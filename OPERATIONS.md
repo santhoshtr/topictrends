@@ -35,7 +35,7 @@ This produces binaries in `target/release/`:
 - `wikigraph`: CLI for graph analysis
 - `topictrend_web`: Web server (Axum)
 - `get-pageviews`: Pageview data processor
-- `get-pageedits`: Pageedits ETL from MediaWiki history dumps
+- `get-day-pageedits`: Pageedits ETL — one day's edit counts from the replica
 - `get-gsc-qid-date`: Google Search Console data processor (maps pages to QIDs per wiki per date)
 - `get-articles`, `get-categories`, `get-categorygraph`, `get-article_category`, `get-per_day_wiki_stats`: Data extraction utilities
 
@@ -241,42 +241,24 @@ make monthly END_DATE=2025-01-31
 
 **File format:** Per-day Parquet with schema `(qid: u32, views: u32)`, sorted by `qid`, sparse (only articles with non-zero views appear). On load the engine translates each QID to the current dense article ID via `articles.parquet` and produces an in-memory `Vec<u32>` indexed by dense ID for SIMD-friendly aggregation. The QID-keyed on-disk format is refresh-stable: a topology refresh (`articles.parquet` rebuild) does not invalidate historical pageview files; deleted articles' QIDs simply drop out of analytics, and added articles default to zero in pre-existing files.
 
-### Page Edit Ingestion (Daily replica fill + monthly dump backfill)
+### Page Edit Ingestion (Daily replica fill)
 
 Page edits are written as **per-day** Parquet files at
 `data/{wiki}/pageedits/{Y}/{M}/{D}.parquet` (schema `(qid: u32, edit_count: u32)`),
-the same layout as pageviews. Two producers write the same paths **idempotently
-(write-if-missing)** so they converge and never conflict:
-
-**1. Daily replica fill** — part of `make run` (alongside pageviews). For each
-wiki and the run's date, `queries/day-pageedits.sql` aggregates one complete
-day of `revision` rows (namespace-0, non-redirect) on the analytics replica;
+the same layout as pageviews. They are filled from the replica **idempotently
+(write-if-missing)** as part of `make run` (alongside pageviews). For each wiki
+and the run's date, `queries/day-pageedits.sql` aggregates one complete day of
+`revision` rows (namespace-0, non-redirect) on the analytics replica;
 `get-day-pageedits` maps `page_id → qid` via `articles.parquet` and writes the
 day file. Only complete (past) days are recorded — today's partial count is
 skipped. Cheap: one indexed `rev_timestamp` range scan per wiki per day.
 
 ```bash
-make data/mlwiki/pageedits/2026/05/26.parquet    # one wiki, one day
+make data/mlwiki/pageedits/2026/05/26.parquet DATE=2026-05-26    # one wiki, one day
 ```
 
-**2. Monthly dump backfill** — bulk-fills deep history so the replica is never
-queried for years of edits.
-
-**Frequency**: When a new history dump lands (~monthly), or for first-time
-catch-up. **Runtime**: 1–3 hours per wiki (dump files are large).
-
-```bash
-make pageedits EDIT_SNAPSHOT=2025-12 MIN_EDIT_YEAR=2024
-```
-
-Pipeline: fetch `.bz2` dumps from Wikimedia (`other/mediawiki_history/{snapshot}/{wiki}/`),
-filter to `revision-create` events, map `page_id → qid`, aggregate by
-`(qid, date)`, and write each day's file **if it does not already exist** —
-so the backfill never clobbers days produced by the daily replica fill.
-
-For first-time catch-up of the gap between the dump cutoff and today, loop
-`make run` (or `make monthly`) over the missing dates — one cheap single-day
-replica query per day.
+To backfill historical dates, loop `make run` (or `make monthly`) over the
+missing dates — one cheap single-day replica query per wiki per day.
 
 ### Google Search Console (GSC) Ingestion
 

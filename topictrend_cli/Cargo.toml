@@ -32,11 +32,6 @@ path = "src/pageviews.rs"
 name = "get-per_day_wiki_stats"
 path = "src/per_day_wiki_stats.rs"
 
-
-[[bin]]
-name = "get-pageedits"
-path = "src/pageedits.rs"
-
 [[bin]]
 name = "get-day-pageedits"
 path = "src/day_pageedits.rs"

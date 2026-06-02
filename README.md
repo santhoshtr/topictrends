@@ -42,7 +42,6 @@ graph TD
     subgraph "ETL Layer"
         SQL["Wikimedia SQL Replicas"]
         PV_DUMPS["Pageview Dumps\n(daily)"]
-        PE_DUMPS["MediaWiki History Dumps"]
         GSC_DUMPS["Google Search Console\n(external, per-date parquet)"]
     end
 
@@ -58,7 +57,7 @@ graph TD
         PQ_CAT["Parquet: Categories"]
         PQ_GRAPH["Parquet: Topology"]
         PQ_PV["Parquet: Pageview Time Series\n(per-day files)"]
-        PQ_PE["Parquet: Pageedits\n(single file per wiki)"]
+        PQ_PE["Parquet: Pageedits\n(per-day files)"]
         PQ_GSC["Parquet: GSC\n(per-wiki, per-day files)"]
     end
 
@@ -75,8 +74,8 @@ graph TD
     end
 
     SQL -->|Monthly| META
+    SQL -->|Daily| PE_PROC
     PV_DUMPS -->|Daily| PV_PROC
-    PE_DUMPS -->|On refresh| PE_PROC
     GSC_DUMPS -->|Daily| GSC_PROC
 
     META --> PQ_ART
@@ -89,7 +88,7 @@ graph TD
     PQ_ART -->|Load at startup| CSR_LINK
     PQ_GRAPH -->|Load at startup| CSR_TOPO
     PQ_PV -->|Lazy load per date| DENSE_PV
-    PQ_PE -->|Load at startup| SPARSE_PE
+    PQ_PE -->|Lazy load per date| SPARSE_PE
 
     API -->|Title → QID| DB_REP
     API -->|Query| CSR_TOPO
@@ -99,7 +98,7 @@ graph TD
 
 The system divides into four layers: ETL (data ingestion), batch processing (parsing and storage), core engine (in-memory numeric computation), and web layer (title translation and HTTP routing).
 
-Pageviews and pageedits use the same in-memory shape, with different load timing. Pageviews are written as per-day Parquet files keyed by Wikidata QID — sparse, sorted, and refresh-stable across topology rebuilds. On first access for a given date the engine decompresses the file, translates QIDs to current dense article IDs, and caches a `DailyPageViewData` (two parallel sorted `Vec<u32>` arrays — dense IDs and view counts — over only the articles that had views on that date) for `O(log n)` lookup and zero-skipping aggregation. This in-memory cache is bounded (default 120 days per wiki, configurable via `TOPICTREND_PAGEVIEW_CACHE_DAYS`) and evicts oldest entries in FIFO order. Pageedits are stored in a single Parquet file per wiki and loaded at startup into the same shape (`HashMap<Date, DailyEditData>`).
+Pageviews and pageedits use the same in-memory shape, with different load timing. Pageviews are written as per-day Parquet files keyed by Wikidata QID — sparse, sorted, and refresh-stable across topology rebuilds. On first access for a given date the engine decompresses the file, translates QIDs to current dense article IDs, and caches a `DailyPageViewData` (two parallel sorted `Vec<u32>` arrays — dense IDs and view counts — over only the articles that had views on that date) for `O(log n)` lookup and zero-skipping aggregation. This in-memory cache is bounded (default 120 days per wiki, configurable via `TOPICTREND_PAGEVIEW_CACHE_DAYS`) and evicts oldest entries in FIFO order. Pageedits use the same per-day Parquet layout and the same lazy, bounded-cache load (`TOPICTREND_PAGEEDIT_CACHE_DAYS`, default 120) into a `DailyEditData` shape.
 
 Google Search Console data is an external source deposited as Hive-partitioned parquets (`data/gsc_page_date/date=YYYY-MM-DD/data.parquet`). The `get-gsc-qid-date` ETL binary maps article page URLs to QIDs via `articles.parquet` and writes per-wiki, per-day parquets to `data/<wiki>/gsc/<YEAR>/<MONTH>/<DAY>.parquet`. The output schema is `(qid, clicks, impressions, ctr, position)` — no URLs or titles retained.
 
