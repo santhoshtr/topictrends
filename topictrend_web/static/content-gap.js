@@ -213,29 +213,32 @@ function renderResults(data) {
 			data.category,
 			currentDepth,
 		);
-		const views = (wikiResult.pageviews_last_month ?? 0).toLocaleString();
-		const edits = (wikiResult.edits_last_month ?? 0).toLocaleString();
-		const clicks = (wikiResult.gsc_clicks_last_month ?? 0).toLocaleString();
-		const impressions = (
-			wikiResult.gsc_impressions_last_month ?? 0
-		).toLocaleString();
+		const subtext = (metric) =>
+			`<span class="metric-subtext" data-metric="${metric}" aria-busy="true">…</span>`;
 		tr.innerHTML = `
 			<td class="wiki-code">${wikiResult.wiki}</td>
 			<td><a href="${searchUrl}">${wikiResult.article_count} articles</a></td>
 			<td>
 				<a href="${buildTrendsUrl("pageviews", wikiResult.wiki, data.category, currentDepth)}">${plotIcon}</a>
-				<span class="metric-subtext">${views} views last month</span>
+				${subtext("pageviews")}
 			</td>
 			<td>
 				<a href="${buildTrendsUrl("pageedits", wikiResult.wiki, data.category, currentDepth)}">${plotIcon}</a>
-				<span class="metric-subtext">${edits} edits last month</span>
+				${subtext("pageedits")}
 			</td>
 			<td>
 				<a href="${buildTrendsUrl("googlesearch", wikiResult.wiki, data.category, currentDepth)}">${plotIcon}</a>
-				<span class="metric-subtext">${clicks} clicks · ${impressions} impr. last month</span>
+				${subtext("googlesearch")}
 			</td>
 		`;
 		tbody.appendChild(tr);
+
+		const spans = {
+			pageviews: tr.querySelector('[data-metric="pageviews"]'),
+			pageedits: tr.querySelector('[data-metric="pageedits"]'),
+			googlesearch: tr.querySelector('[data-metric="googlesearch"]'),
+		};
+		loadMonthlyTotals(wikiResult.wiki, currentType, data.category, spans);
 	});
 
 	tbody.appendChild(buildCompareRow());
@@ -411,4 +414,76 @@ function buildTrendsUrl(page, wiki, query, depth) {
 	}
 
 	return `/${page}/trends?${params}`;
+}
+
+// Monthly totals are fetched lazily per row from the existing trend endpoints
+// (which default to the last 30 days). Cached by type|wiki|query|depth so that
+// re-rendering the table when a wiki is added doesn't refetch warm rows.
+const monthlyCache = new Map();
+
+const sumField = (rows, field) =>
+	(rows || []).reduce((total, row) => total + (row[field] || 0), 0);
+
+// metric key → trend endpoint path segment + formatter over its response.
+const MONTHLY_METRICS = {
+	pageviews: {
+		path: "pageviews",
+		format: (d) =>
+			`${sumField(d.views, "views").toLocaleString()} views last month`,
+	},
+	pageedits: {
+		path: "pageedits",
+		format: (d) =>
+			`${sumField(d.edits, "edits").toLocaleString()} edits last month`,
+	},
+	googlesearch: {
+		path: "googlesearch",
+		format: (d) =>
+			`${sumField(d.search, "clicks").toLocaleString()} clicks · ${sumField(
+				d.search,
+				"impressions",
+			).toLocaleString()} impr. last month`,
+	},
+};
+
+async function fetchMonthlyMetric(metric, type, wiki, query) {
+	const { path, format } = MONTHLY_METRICS[metric];
+	const params = new URLSearchParams({ wiki, depth: currentDepth });
+	params.set(type === "topic" ? "topic" : "category", query);
+	try {
+		const response = await fetch(
+			`https://topictrends.wmcloud.org/api/${path}/${type}?${params}`,
+		);
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		return format(await response.json());
+	} catch (error) {
+		console.error(`Failed to load ${metric} for ${wiki}:`, error);
+		return "—";
+	}
+}
+
+function fillSubtext(span, text) {
+	if (!span) return;
+	span.textContent = text;
+	span.removeAttribute("aria-busy");
+}
+
+async function loadMonthlyTotals(wiki, type, query, spans) {
+	const key = `${type}|${wiki}|${query}|${currentDepth}`;
+	const cached = monthlyCache.get(key);
+	if (cached) {
+		for (const metric of Object.keys(spans))
+			fillSubtext(spans[metric], cached[metric]);
+		return;
+	}
+
+	const results = {};
+	await Promise.all(
+		Object.keys(spans).map(async (metric) => {
+			const text = await fetchMonthlyMetric(metric, type, wiki, query);
+			results[metric] = text;
+			fillSubtext(spans[metric], text);
+		}),
+	);
+	monthlyCache.set(key, results);
 }

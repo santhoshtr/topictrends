@@ -1746,15 +1746,7 @@ components:
 
     ContentGapWikiResult:
       type: object
-      required:
-        [
-          wiki,
-          article_count,
-          pageviews_last_month,
-          edits_last_month,
-          gsc_clicks_last_month,
-          gsc_impressions_last_month,
-        ]
+      required: [wiki, article_count]
       properties:
         wiki:
           type: string
@@ -1764,26 +1756,6 @@ components:
           format: int32
           minimum: 0
           description: Number of articles in the category/topic for this wiki
-        pageviews_last_month:
-          type: integer
-          format: int64
-          minimum: 0
-          description: Total pageviews for the category/topic over the trailing 30 days
-        edits_last_month:
-          type: integer
-          format: int64
-          minimum: 0
-          description: Total page edits for the category/topic over the trailing 30 days
-        gsc_clicks_last_month:
-          type: integer
-          format: int64
-          minimum: 0
-          description: Total Google Search clicks for the category/topic over the trailing 30 days
-        gsc_impressions_last_month:
-          type: integer
-          format: int64
-          minimum: 0
-          description: Total Google Search impressions for the category/topic over the trailing 30 days
 
     ContentGapResult:
       type: object
