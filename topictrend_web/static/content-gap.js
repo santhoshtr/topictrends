@@ -33,43 +33,51 @@ document.addEventListener("DOMContentLoaded", async () => {
 			if (e.target === e.currentTarget) e.currentTarget.close();
 		});
 
-	document.getElementById("content-gap-form").addEventListener("form-fill-complete", () => {
-		const p = new URLSearchParams(window.location.search);
-		const type = p.get("type") || "topic";
-		const wiki = p.get("wiki");
-		const depth = p.get("depth");
-		const compare = p.get("compare");
+	document
+		.getElementById("content-gap-form")
+		.addEventListener("form-fill-complete", () => {
+			const p = new URLSearchParams(window.location.search);
+			const type = p.get("type") || "topic";
+			const wiki = p.get("wiki");
+			const depth = p.get("depth");
+			const compare = p.get("compare");
 
-		// Set the type tab (param name differs from field id: tab-topic / tab-category)
-		const typeRadio = document.getElementById(`tab-${type}`);
-		if (typeRadio) typeRadio.checked = true;
+			// Set the type tab (param name differs from field id: tab-topic / tab-category)
+			const typeRadio = document.getElementById(`tab-${type}`);
+			if (typeRadio) typeRadio.checked = true;
 
-		if (type === "topic") {
-			const topic = p.get("topic");
-			if (topic) {
-				currentType = "topic";
-				currentTopic = topic;
-				currentCategory = null;
+			if (type === "topic") {
+				const topic = p.get("topic");
+				if (topic) {
+					currentType = "topic";
+					currentTopic = topic;
+					currentCategory = null;
+				}
+			} else {
+				const category = p.get("category");
+				if (category) {
+					currentType = "category";
+					currentCategory = category;
+					currentTopic = null;
+				}
 			}
-		} else {
-			const category = p.get("category");
-			if (category) {
-				currentType = "category";
-				currentCategory = category;
-				currentTopic = null;
-			}
-		}
 
-		if ((type === "topic" && currentTopic) || (type === "category" && currentCategory)) {
-			currentDepth = depth || "2";
-			const baseWiki = wiki || document.getElementById("wiki").value;
-			const compareWikis = compare
-				? compare.split(",").map((w) => w.trim()).filter(Boolean)
-				: [];
-			activeWikis = [baseWiki, ...compareWikis];
-			fetchAndRender();
-		}
-	});
+			if (
+				(type === "topic" && currentTopic) ||
+				(type === "category" && currentCategory)
+			) {
+				currentDepth = depth || "2";
+				const baseWiki = wiki || document.getElementById("wiki").value;
+				const compareWikis = compare
+					? compare
+							.split(",")
+							.map((w) => w.trim())
+							.filter(Boolean)
+					: [];
+				activeWikis = [baseWiki, ...compareWikis];
+				fetchAndRender();
+			}
+		});
 
 	if (!window.location.search) {
 		document.querySelector(".examples").hidden = false;
@@ -205,12 +213,27 @@ function renderResults(data) {
 			data.category,
 			currentDepth,
 		);
+		const views = (wikiResult.pageviews_last_month ?? 0).toLocaleString();
+		const edits = (wikiResult.edits_last_month ?? 0).toLocaleString();
+		const clicks = (wikiResult.gsc_clicks_last_month ?? 0).toLocaleString();
+		const impressions = (
+			wikiResult.gsc_impressions_last_month ?? 0
+		).toLocaleString();
 		tr.innerHTML = `
 			<td class="wiki-code">${wikiResult.wiki}</td>
 			<td><a href="${searchUrl}">${wikiResult.article_count} articles</a></td>
-			<td><a href="${buildTrendsUrl("pageviews", wikiResult.wiki, data.category, currentDepth)}">${plotIcon}</a></td>
-			<td><a href="${buildTrendsUrl("pageedits", wikiResult.wiki, data.category, currentDepth)}">${plotIcon}</a></td>
-            <td><a href="${buildTrendsUrl("googlesearch", wikiResult.wiki, data.category, currentDepth)}">${plotIcon}</a></td>
+			<td>
+				<a href="${buildTrendsUrl("pageviews", wikiResult.wiki, data.category, currentDepth)}">${plotIcon}</a>
+				<span class="metric-subtext">${views} views last month</span>
+			</td>
+			<td>
+				<a href="${buildTrendsUrl("pageedits", wikiResult.wiki, data.category, currentDepth)}">${plotIcon}</a>
+				<span class="metric-subtext">${edits} edits last month</span>
+			</td>
+			<td>
+				<a href="${buildTrendsUrl("googlesearch", wikiResult.wiki, data.category, currentDepth)}">${plotIcon}</a>
+				<span class="metric-subtext">${clicks} clicks · ${impressions} impr. last month</span>
+			</td>
 		`;
 		tbody.appendChild(tr);
 	});

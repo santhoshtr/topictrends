@@ -77,6 +77,14 @@
 		white-space: nowrap;
 	}
 
+	& .metric-subtext {
+		display: block;
+		margin-top: 0.2rem;
+		font-size: var(--font-size-x-small, 0.75rem);
+		color: var(--color-subtle);
+		white-space: nowrap;
+	}
+
 	& a {
 		color: var(--color-progressive);
 		text-decoration: none;

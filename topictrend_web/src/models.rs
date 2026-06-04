@@ -601,6 +601,10 @@ pub struct ArticleItem {
 pub struct ContentGapWikiResult {
     pub wiki: String,
     pub article_count: usize,
+    pub pageviews_last_month: u64,
+    pub edits_last_month: u64,
+    pub gsc_clicks_last_month: u64,
+    pub gsc_impressions_last_month: u64,
 }
 
 #[derive(Serialize, JsonSchema)]
