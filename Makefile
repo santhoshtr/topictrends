@@ -29,7 +29,7 @@ WIKIS = $(shell cat $(DATA_DIR)/wikipedia.list 2>/dev/null)
 
 .DEFAULT_GOAL := run
 
-.PHONY: run init clean help monthly index-wiki index-clean embedding-server web gsc _run-wikis
+.PHONY: run init clean help monthly index-wiki index-clean embedding-server web gsc _run-wikis topology-refresh
 
 # Help target
 help:
@@ -40,6 +40,8 @@ help:
 	@echo "  monthly          - Process all wikis for the calendar month containing END_DATE"
 	@echo "                     (1..LAST_DAY of that month, capped at END_DATE's day)"
 	@echo "  gsc              - Process Google Search Console data for all wikis (single DATE)"
+	@echo "  topology-refresh - Re-fetch topology (articles/categories/graph) from the replica"
+	@echo "                     for all wikis; scope with WIKIS=enwiki. Restart the server after."
 	@echo "  web              - Start the web server (no rebuild)"
 	@echo "  init             - Build release binaries and fetch the Wikipedia list"
 	@echo "  embedding-server - Start the embedding gRPC server"
@@ -60,6 +62,7 @@ help:
 	@echo "  make gsc DATE=2026-03-03"
 	@echo "  make gsc DATE=2026-03-03 GSC_DIR=/mnt/gsc_data"
 	@echo "  make data/mlwiki/pageedits/2026/05/26.parquet DATE=2026-05-26   # one wiki, one day (replica)"
+	@echo "  make topology-refresh WIKIS=enwiki                              # refresh one wiki's topology"
 
 # Main run target.
 # First invocation may need to bootstrap wikipedia.list (so that WIKIS is
@@ -108,7 +111,7 @@ $(DATA_DIR)/%/categories.parquet: $(QUERIES_DIR)/categories.sql
 	@cat $< | $(call dbquery) | $(CARGO_RELEASE)/get-categories $@
 
 # Category graph
-$(DATA_DIR)/%/category_graph.parquet: $(QUERIES_DIR)/category-graph.sql
+$(DATA_DIR)/%/category_graph.parquet: $(QUERIES_DIR)/category-graph.sql $(DATA_DIR)/%/categories.parquet
 	@mkdir -p $(dir $@)
 	@echo "Fetching category graph for $*..."
 	@cat $< | $(call dbquery) | $(CARGO_RELEASE)/get-categorygraph $(DATA_DIR)/$*/categories.parquet $@
@@ -119,6 +122,23 @@ $(DATA_DIR)/%/article_category.parquet: $(QUERIES_DIR)/article-category.sql $(DA
 	@echo "Fetching article-category mapping for $*..."
 	@cat $< | $(call dbquery) | \
 		$(CARGO_RELEASE)/get-article_category $(DATA_DIR)/$*/articles.parquet $(DATA_DIR)/$*/categories.parquet  $@
+
+# Force-refetch every wiki's topology from the replica. Derives the target list
+# from $(WIKIS) (not a filesystem glob) so newly-added wikis are covered and
+# excluded/stale dirs are skipped. Per-day pageview/pageedit/gsc files are left
+# untouched — they take articles.parquet as an order-only prerequisite. Scope to
+# a subset with a command-line override, e.g. `make topology-refresh WIKIS=enwiki`.
+# Topology is loaded only at server startup, so restart topictrend_web afterward.
+TOPOLOGY_FILES = articles.parquet categories.parquet \
+                 article_category.parquet category_graph.parquet
+TOPOLOGY = $(foreach w,$(WIKIS),$(addprefix $(DATA_DIR)/$(w)/,$(TOPOLOGY_FILES)))
+
+topology-refresh: init
+	@if [ -z "$(strip $(TOPOLOGY))" ]; then \
+		echo "No wikis to refresh (empty WIKIS / $(DATA_DIR)/wikipedia.list)" >&2; exit 1; \
+	fi
+	@$(MAKE) -B $(TOPOLOGY)
+	@echo "Topology refreshed. Restart topictrend_web to load it."
 
 # Daily pageviews for a specific wiki/date.
 # Expands to data/enwiki/pageviews/2025/12/30.parquet (example).
