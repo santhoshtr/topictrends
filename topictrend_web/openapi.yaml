@@ -656,6 +656,35 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/related/articles:
+    get:
+      operationId: getRelatedArticles
+      tags: [Lists]
+      summary: Find related articles by shared-category overlap
+      description: |
+        Returns the articles that share the most categories with the given
+        article, ranked by overlap. Each result includes the title, a
+        constructed Wikipedia URL, and the shared-category count (`score`).
+
+        Runs entirely on the in-memory category graph. Note: at least one of
+        `article` or `article_qid` must be provided.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/ArticleOptional"
+        - $ref: "#/components/parameters/ArticleQidOptional"
+        - $ref: "#/components/parameters/LimitOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RelatedArticlesResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/pageviews/categories:
     get:
       operationId: getCategoriesPageviewTrendBySearch
@@ -1743,6 +1772,34 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CategoryInfo"
+
+    RelatedArticleItem:
+      type: object
+      required: [qid, title, url, score]
+      properties:
+        qid:
+          type: integer
+          format: int32
+          minimum: 0
+        title:
+          type: string
+        url:
+          type: string
+          description: Constructed Wikipedia article URL.
+        score:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Number of categories shared with the input article.
+
+    RelatedArticlesResponse:
+      type: object
+      required: [articles]
+      properties:
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/RelatedArticleItem"
 
     ContentGapWikiResult:
       type: object

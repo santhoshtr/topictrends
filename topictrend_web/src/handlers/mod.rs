@@ -73,9 +73,11 @@ pub mod pageedits;
 pub mod googlesearch;
 pub mod delta;
 pub mod search;
+pub mod related;
 
 pub use pageviews::*;
 pub use pageedits::*;
 pub use googlesearch::*;
 pub use delta::*;
 pub use search::*;
+pub use related::*;

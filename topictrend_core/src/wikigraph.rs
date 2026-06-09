@@ -176,6 +176,41 @@ impl WikiGraph {
             .collect())
     }
 
+    /// Find articles most related to `article_qid` by shared-category overlap.
+    ///
+    /// Reverse scatter: for each category the input article belongs to, tally
+    /// every other article in that category. Each article's tally is the number
+    /// of categories it shares with the input. Returns up to `top`
+    /// `(article_qid, shared_category_count)` pairs, highest overlap first
+    /// (ties broken by dense id for stable output), excluding the input article.
+    /// Empty if the article is not in the graph.
+    pub fn related_by_categories(&self, article_qid: u32, top: usize) -> Vec<(u32, u32)> {
+        let input_dense = match self.art_original_to_dense.get(article_qid) {
+            Some(id) => id,
+            None => return Vec::new(),
+        };
+
+        let mut counts: HashMap<u32, u32> = HashMap::new();
+        for &cat_dense in self.article_cats.get(input_dense) {
+            if let Some(articles) = self.cat_articles.get(cat_dense as usize) {
+                for art_dense in articles {
+                    if art_dense != input_dense {
+                        *counts.entry(art_dense).or_insert(0) += 1;
+                    }
+                }
+            }
+        }
+
+        let mut ranked: Vec<(u32, u32)> = counts.into_iter().collect();
+        ranked.sort_unstable_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        ranked.truncate(top);
+
+        ranked
+            .into_iter()
+            .map(|(dense, score)| (self.art_dense_to_original[dense as usize], score))
+            .collect()
+    }
+
     /// Calculates the depth of every category starting from a specific Root.
     /// Returns:
     /// 1. Max Depth found
