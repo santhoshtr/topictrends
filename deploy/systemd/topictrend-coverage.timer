@@ -1,0 +1,12 @@
+[Unit]
+Description=Monthly TopicTrends coverage matrix snapshot
+
+[Timer]
+# First of each month at 02:00 UTC. Coverage is a topology-derived snapshot, so
+# monthly cadence matches the dated-snapshot / coverage-delta semantics.
+OnCalendar=*-*-01 02:00:00
+# Catch up a missed run if the VPS was down at the scheduled time.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

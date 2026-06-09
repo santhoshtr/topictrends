@@ -40,6 +40,14 @@ path = "src/day_pageedits.rs"
 name = "get-gsc-qid-date"
 path = "src/google_search_data.rs"
 
+[[bin]]
+name = "coverage-matrix"
+path = "src/coverage_matrix.rs"
+
+[[bin]]
+name = "coverage-overlap"
+path = "src/coverage_overlap.rs"
+
 [dependencies]
 topictrend_core = { path = "../topictrend_core" }
 parquet = { workspace = true }
@@ -51,3 +59,4 @@ clap = { workspace = true }
 chrono = { workspace = true }
 rayon = { workspace = true }
 byteorder = { workspace = true }
+roaring = { workspace = true }

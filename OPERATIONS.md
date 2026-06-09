@@ -316,6 +316,60 @@ Date is encoded in the path; no `date` column in the file.
 GSC_DIR ?= data/gsc_page_date   # override if source is elsewhere
 ```
 
+### Coverage Matrix (cross-wiki content gap)
+
+**Frequency**: Monthly (systemd timer)
+**Runtime**: minutes for stage 1, longer for the stage-2 cross-wiki pass
+**Operation**: Materializes a dated coverage snapshot per wiki — the precomputed,
+scannable form of the live content-gap query.
+
+```bash
+make coverage DATE=2026-06-09        # full matrix, all wikis (stage 1 + stage 2)
+```
+
+**Two depth-0 measures** (recursive/subtree coverage is deliberately omitted — the
+correct depth is per-category and can't be precomputed; see
+`.plans/materialied-content-gap.md`):
+
+- **`direct_coverage(C, W)`** — distinct articles filed *directly* under category C in
+  wiki W. Divergence across wikis = a structure/categorization gap.
+- **`qid_overlap_coverage(C, W)`** — `|{ a ∈ ∪_wikis directmembers(C) : a exists as an
+  article in W }|`. The pure content gap: how many of a category's globally-known
+  articles W has, independent of how W categorizes them.
+
+**Pipeline:**
+1. **Stage 1** (`coverage-matrix`, per wiki): group-by on `article_category.parquet`
+   (already node-filtered, so faithful to `get_articles_in_category(C, 0)` without
+   building the graph) → `direct_coverage`. Written to `data/<wiki>/coverage/<DATE>.parquet`.
+2. **Stage 2** (`coverage-overlap`, once over all wikis): builds canonical
+   `(article_qid, category_qid)` membership across every wiki, then for each wiki
+   reverse-scatters its article set to tally `qid_overlap`, and enriches each snapshot
+   in place (full outer union of the two key sets — a category can have `qid_overlap > 0`
+   with `direct_coverage = 0` when it is absent in W but some of its canonical articles
+   exist there).
+
+**Output schema per file** `data/<wiki>/coverage/<DATE>.parquet`, sorted by `category_qid`:
+
+| column                | type | notes                                            |
+|-----------------------|------|--------------------------------------------------|
+| category_qid          | u32  | Wikidata QID of the category                     |
+| direct_coverage       | u32  | distinct direct member articles in this wiki     |
+| qid_overlap_coverage  | u32  | canonical articles present as articles in this wiki |
+
+Wiki and snapshot date are encoded in the path; no `wiki`/`date` columns in the file.
+Dated snapshots are retained to support coverage-delta over time.
+
+**Scheduling (systemd):** install the units in `deploy/systemd/` (edit `User` and
+`WorkingDirectory` to match the checkout, which must have replica access like the daily
+`make run`):
+
+```bash
+sudo cp deploy/systemd/topictrend-coverage.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now topictrend-coverage.timer
+systemctl list-timers topictrend-coverage.timer   # verify next run
+```
+
 ### Incremental Updates
 
 The system does not support incremental topology updates. Complete monthly refreshes are required because:

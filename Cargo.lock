@@ -4739,6 +4739,7 @@ dependencies = [
  "parquet_derive",
  "polars",
  "rayon",
+ "roaring",
  "topictrend_core",
 ]
 

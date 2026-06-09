@@ -29,7 +29,7 @@ WIKIS = $(shell cat $(DATA_DIR)/wikipedia.list 2>/dev/null)
 
 .DEFAULT_GOAL := run
 
-.PHONY: run init clean help monthly index-wiki index-clean embedding-server web gsc _run-wikis topology-refresh
+.PHONY: run init clean help monthly index-wiki index-clean embedding-server web gsc coverage _run-wikis topology-refresh
 
 # Help target
 help:
@@ -40,6 +40,8 @@ help:
 	@echo "  monthly          - Process all wikis for the calendar month containing END_DATE"
 	@echo "                     (1..LAST_DAY of that month, capped at END_DATE's day)"
 	@echo "  gsc              - Process Google Search Console data for all wikis (single DATE)"
+	@echo "  coverage         - Build the coverage matrix (depth-0 direct_coverage) for all"
+	@echo "                     wikis as a dated snapshot (data/<wiki>/coverage/<DATE>.parquet)"
 	@echo "  topology-refresh - Re-fetch topology (articles/categories/graph) from the replica"
 	@echo "                     for all wikis; scope with WIKIS=enwiki. Restart the server after."
 	@echo "  web              - Start the web server (no rebuild)"
@@ -61,6 +63,7 @@ help:
 	@echo "  make monthly END_DATE=2025-08-30"
 	@echo "  make gsc DATE=2026-03-03"
 	@echo "  make gsc DATE=2026-03-03 GSC_DIR=/mnt/gsc_data"
+	@echo "  make coverage DATE=2026-06-09                                   # coverage snapshot, all wikis"
 	@echo "  make data/mlwiki/pageedits/2026/05/26.parquet DATE=2026-05-26   # one wiki, one day (replica)"
 	@echo "  make topology-refresh WIKIS=enwiki                              # refresh one wiki's topology"
 
@@ -219,6 +222,25 @@ $(DATA_DIR)/%/gsc/$(YEAR)/$(MONTH)/$(DAY).parquet: $(DATA_DIR)/%/articles.parque
 # Usage: make gsc DATE=2026-03-03
 # Falls back to yesterday if DATE is not set.
 gsc: init $(foreach w,$(WIKIS),$(DATA_DIR)/$(w)/gsc/$(YEAR)/$(MONTH)/$(DAY).parquet)
+
+# Coverage matrix (stage 1: depth-0 direct_coverage) for one wiki, dated snapshot.
+# Derived from topology (article_category.parquet), captured per snapshot date.
+# article_category is an order-only prerequisite (|): it must exist for the
+# derivation, but its mtime must not force a rebuild of an existing dated
+# snapshot, keeping snapshots idempotent across topology refreshes.
+$(DATA_DIR)/%/coverage/$(DATE).parquet: | $(DATA_DIR)/%/article_category.parquet
+	@mkdir -p $(dir $@)
+	@echo "Building coverage matrix for $* ($(DATE)) -> $@"
+	$(CARGO_RELEASE)/coverage-matrix $(DATA_DIR)/$*/article_category.parquet $@
+
+# Build the full coverage matrix for all wikis as a dated snapshot.
+# Stage 1 (per-wiki direct_coverage) runs via the prerequisites; stage 2 then
+# runs once over all wikis to enrich each snapshot with qid_overlap_coverage
+# (it needs every wiki's article_category at once to build canonical membership).
+# Usage: make coverage DATE=2026-06-09  (falls back to yesterday if DATE unset)
+coverage: init $(foreach w,$(WIKIS),$(DATA_DIR)/$(w)/coverage/$(DATE).parquet)
+	@echo "Enriching coverage snapshots with qid_overlap (cross-wiki pass)..."
+	DATA_DIR=$(DATA_DIR) $(CARGO_RELEASE)/coverage-overlap --date $(DATE)
 
 # Clean target
 clean:
