@@ -27,7 +27,9 @@ pub async fn get_related_articles_handler(
                 "Either article or article_qid must be provided".to_string(),
             )
         })?;
-        QidService::get_qid_by_title(Arc::clone(&state), params.wiki.as_str(), &article, 0).await?
+        // MediaWiki page_title uses underscores; accept spaces from the caller.
+        let title = article.replace(' ', "_");
+        QidService::get_qid_by_title(Arc::clone(&state), params.wiki.as_str(), &title, 0).await?
     };
 
     let related = RelatedService::get_related_articles(
