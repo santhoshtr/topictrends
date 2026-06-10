@@ -52,6 +52,10 @@ path = "src/coverage_overlap.rs"
 name = "coverage-articles"
 path = "src/coverage_articles.rs"
 
+[[bin]]
+name = "article-categories"
+path = "src/article_categories.rs"
+
 [dependencies]
 topictrend_core = { path = "../topictrend_core" }
 parquet = { workspace = true }
