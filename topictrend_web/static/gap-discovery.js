@@ -169,7 +169,7 @@ function renderResults(data) {
 		<th scope="col" class="num">${data.target}</th>
 		<th scope="col">Gap</th>
 		<th scope="col">Coverage</th>
-		<th scope="col">Structure</th>
+		<th scope="col">Category status</th>
 	</tr></thead>`;
 	const tbody = document.createElement("tbody");
 
@@ -180,9 +180,10 @@ function renderResults(data) {
 		const covTier = cov < 10 ? "low" : cov < 50 ? "mid" : "high";
 		const gapWidth = (c.gap / maxGap) * 100;
 		const title = c.category_title.replace(/_/g, " ");
+		const articlesNote = `${data.target} files ${c.direct_coverage_target.toLocaleString()} articles directly under this category`;
 		const badge = c.has_category
-			? `<span class="structure-badge exists">Category exists<span class="badge-sub">${c.direct_coverage_target.toLocaleString()} direct</span></span>`
-			: `<span class="structure-badge absent">Category absent</span>`;
+			? `<span class="structure-badge exists">Present<span class="badge-sub" title="${articlesNote}">${c.direct_coverage_target.toLocaleString()} articles</span></span>`
+			: `<span class="structure-badge absent" title="${data.target} has no such category">Absent</span>`;
 
 		tr.innerHTML = `
 			<td class="num rank">${rank}</td>
