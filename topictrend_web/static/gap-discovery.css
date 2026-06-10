@@ -22,10 +22,6 @@
 	margin: 0.2rem 0 0;
 }
 
-.narrow-input {
-	width: 8rem;
-}
-
 /* Segmented structure filter (mirrors the .tab radio pattern). */
 .structure-filter {
 	display: inline-flex;

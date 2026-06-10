@@ -13,14 +13,12 @@ const nextBtn = document.getElementById("next-page");
 const pageRange = document.getElementById("page-range");
 const statusEl = document.getElementById("status");
 
-// Query state. `skipBase` is the floor set by the "Skip top categories" field;
-// Prev/Next move `offset` in steps of `limit` but never below `skipBase`.
+// Query state. `offset` is the current page start; Prev/Next move it by `limit`.
 const state = {
 	reference: "enwiki",
 	target: "hiwiki",
 	hasCategory: null, // null = all, true = under-populated, false = missing
-	limit: 50,
-	skipBase: 0,
+	limit: 100, // fixed page size (no UI control)
 	offset: 0,
 	total: 0,
 };
@@ -70,18 +68,14 @@ function readForm() {
 	state.target = targetSelect.value;
 	const struct = form.querySelector('input[name="structure"]:checked')?.value ?? "all";
 	state.hasCategory = structureToHasCategory(struct);
-	state.limit = Number.parseInt(document.getElementById("limit").value, 10) || 50;
-	state.skipBase = Math.max(0, Number.parseInt(document.getElementById("skip").value, 10) || 0);
-	state.offset = state.skipBase;
 }
 
 function syncUrl() {
 	const p = new URLSearchParams({
 		reference: state.reference,
 		target: state.target,
-		skip: String(state.offset),
-		limit: String(state.limit),
 	});
+	if (state.offset > 0) p.set("skip", String(state.offset));
 	if (state.hasCategory === true) p.set("structure", "under");
 	if (state.hasCategory === false) p.set("structure", "missing");
 	window.history.replaceState({}, "", `${window.location.pathname}?${p}`);
@@ -91,8 +85,7 @@ function applyUrlParams() {
 	const p = new URLSearchParams(window.location.search);
 	if (p.has("reference")) state.reference = p.get("reference");
 	if (p.has("target")) state.target = p.get("target");
-	if (p.has("limit")) document.getElementById("limit").value = p.get("limit");
-	if (p.has("skip")) document.getElementById("skip").value = p.get("skip");
+	if (p.has("skip")) state.offset = Math.max(0, Number.parseInt(p.get("skip"), 10) || 0);
 	const struct = p.get("structure");
 	if (struct === "missing") document.getElementById("struct-missing").checked = true;
 	else if (struct === "under") document.getElementById("struct-under").checked = true;
@@ -146,8 +139,8 @@ function renderResults(data) {
 	resultsHeader.append(h2, meta);
 
 	if (data.categories.length === 0) {
-		resultsEl.innerHTML = `<div class="empty-state">No gaps with these filters. Try
-			reducing "Skip top categories" or switching Gap type to All.</div>`;
+		resultsEl.innerHTML = `<div class="empty-state">No gaps for this pair with the
+			current Gap type. Try switching Gap type to All, or a different target wiki.</div>`;
 		return;
 	}
 
@@ -198,7 +191,7 @@ function renderPagination(data) {
 	const start = data.total === 0 ? 0 : data.offset + 1;
 	const end = Math.min(data.offset + data.limit, data.total);
 	pageRange.textContent = `rows ${start.toLocaleString()}–${end.toLocaleString()} of ${data.total.toLocaleString()} gaps`;
-	prevBtn.disabled = state.offset <= state.skipBase;
+	prevBtn.disabled = state.offset <= 0;
 	nextBtn.disabled = data.offset + data.limit >= data.total;
 	pagination.hidden = data.total === 0;
 }
@@ -206,11 +199,12 @@ function renderPagination(data) {
 form.addEventListener("submit", (e) => {
 	e.preventDefault();
 	readForm();
+	state.offset = 0;
 	fetchAndRender();
 });
 
 prevBtn.addEventListener("click", () => {
-	state.offset = Math.max(state.skipBase, state.offset - state.limit);
+	state.offset = Math.max(0, state.offset - state.limit);
 	fetchAndRender();
 });
 
