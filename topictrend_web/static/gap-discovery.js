@@ -175,7 +175,6 @@ function renderResults(data) {
 		const tr = document.createElement("tr");
 		const rank = data.offset + i + 1;
 		const cov = c.coverage_pct * 100;
-		const covTier = cov < 10 ? "low" : cov < 50 ? "mid" : "high";
 		const title = c.category_title.replace(/_/g, " ");
 		const articlesNote = `${data.target} files ${c.direct_coverage_target.toLocaleString()} articles directly under this category`;
 		const badge = c.has_category
@@ -192,7 +191,7 @@ function renderResults(data) {
 			<td class="num">${c.overlap_target.toLocaleString()}</td>
 			<td class="num">${c.gap.toLocaleString()}</td>
 			<td class="cov-cell">
-				<span class="cov-track" aria-hidden="true"><span class="cov-fill ${covTier}" style="width:${Math.min(cov, 100)}%"></span></span>
+				<meter class="cov-meter" min="0" max="1" low="0.1" high="0.5" optimum="1" value="${c.coverage_pct}" title="${cov.toFixed(1)}%"></meter>
 				<span class="cov-num">${cov.toFixed(1)}%</span>
 			</td>
 			<td>${badge}</td>`;

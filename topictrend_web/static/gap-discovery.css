@@ -131,33 +131,16 @@
 	}
 }
 
-/* Coverage: track + tiered fill */
+/* Coverage: semantic <meter>; native low/high/optimum drives the tier color. */
 .cov-cell {
 	min-width: 7rem;
 	white-space: nowrap;
 }
-.cov-track {
-	display: inline-block;
+.cov-meter {
 	width: 4rem;
-	height: 0.55rem;
-	background: var(--background-color-interactive-subtle, #eaecf0);
-	border-radius: 2px;
-	overflow: hidden;
+	height: 0.6rem;
 	vertical-align: middle;
 	margin-right: 0.4rem;
-}
-.cov-fill {
-	display: block;
-	height: 100%;
-}
-.cov-fill.low {
-	background: var(--color-destructive, #d33);
-}
-.cov-fill.mid {
-	background: var(--color-warning, #fc3);
-}
-.cov-fill.high {
-	background: var(--color-success, #14866d);
 }
 .cov-num {
 	font-variant-numeric: tabular-nums;
