@@ -60,3 +60,7 @@ chrono = { workspace = true }
 rayon = { workspace = true }
 byteorder = { workspace = true }
 roaring = { workspace = true }
+
+[[bin]]
+name = "coverage-gaps"
+path = "src/coverage_gaps.rs"
