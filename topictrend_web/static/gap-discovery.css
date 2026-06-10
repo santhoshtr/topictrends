@@ -131,25 +131,6 @@
 	}
 }
 
-/* Gap: number + bar */
-.gap-cell {
-	min-width: 9rem;
-}
-.gap-num {
-	display: inline-block;
-	min-width: 4rem;
-	text-align: right;
-	font-variant-numeric: tabular-nums;
-	margin-right: 0.4rem;
-}
-.gap-bar {
-	display: inline-block;
-	height: 0.55rem;
-	background: var(--color-progressive);
-	border-radius: 2px;
-	vertical-align: middle;
-}
-
 /* Coverage: track + tiered fill */
 .cov-cell {
 	min-width: 7rem;

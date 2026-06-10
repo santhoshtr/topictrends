@@ -158,8 +158,6 @@ function renderResults(data) {
 		return;
 	}
 
-	const maxGap = data.categories.reduce((m, c) => Math.max(m, c.gap), 0) || 1;
-
 	const table = document.createElement("table");
 	table.className = "gap-table";
 	table.innerHTML = `<thead><tr>
@@ -167,7 +165,7 @@ function renderResults(data) {
 		<th scope="col">Category</th>
 		<th scope="col" class="num">${data.reference}</th>
 		<th scope="col" class="num">${data.target}</th>
-		<th scope="col">Gap</th>
+		<th scope="col" class="num">Gap</th>
 		<th scope="col">Coverage</th>
 		<th scope="col">Category status</th>
 	</tr></thead>`;
@@ -178,7 +176,6 @@ function renderResults(data) {
 		const rank = data.offset + i + 1;
 		const cov = c.coverage_pct * 100;
 		const covTier = cov < 10 ? "low" : cov < 50 ? "mid" : "high";
-		const gapWidth = (c.gap / maxGap) * 100;
 		const title = c.category_title.replace(/_/g, " ");
 		const articlesNote = `${data.target} files ${c.direct_coverage_target.toLocaleString()} articles directly under this category`;
 		const badge = c.has_category
@@ -193,10 +190,7 @@ function renderResults(data) {
 			</td>
 			<td class="num">${c.overlap_reference.toLocaleString()}</td>
 			<td class="num">${c.overlap_target.toLocaleString()}</td>
-			<td class="gap-cell">
-				<span class="gap-num">${c.gap.toLocaleString()}</span>
-				<span class="gap-bar" style="width:${gapWidth}%" aria-hidden="true"></span>
-			</td>
+			<td class="num">${c.gap.toLocaleString()}</td>
 			<td class="cov-cell">
 				<span class="cov-track" aria-hidden="true"><span class="cov-fill ${covTier}" style="width:${Math.min(cov, 100)}%"></span></span>
 				<span class="cov-num">${cov.toFixed(1)}%</span>
