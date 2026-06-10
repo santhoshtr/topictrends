@@ -79,6 +79,10 @@
 	anchor-name: --googlesearch-anchor;
 }
 
+.nav-button#contentgap-anchor {
+	anchor-name: --contentgap-anchor;
+}
+
 .nav-button .chevron {
 	font-size: 0.75em;
 	opacity: 0.7;
@@ -126,6 +130,12 @@
 }
 .nav-menu[anchor="googlesearch-anchor"] {
 	position-anchor: --googlesearch-anchor;
+	position-area: block-end;
+	margin-block-start: var(--spacing-xs, 0.25rem);
+	left: calc(anchor(left) + 0.5em);
+}
+.nav-menu[anchor="contentgap-anchor"] {
+	position-anchor: --contentgap-anchor;
 	position-area: block-end;
 	margin-block-start: var(--spacing-xs, 0.25rem);
 	left: calc(anchor(left) + 0.5em);
