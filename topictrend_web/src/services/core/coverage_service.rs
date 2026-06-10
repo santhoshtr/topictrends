@@ -29,22 +29,22 @@ use topictrend::coverage_parquet::{
 static EXCLUDED_CATEGORY_QIDS: LazyLock<HashSet<u32>> = LazyLock::new(|| {
     [
         // Whole-population / biographical classification
-        5312304,   // Living people
-        4047087,   // People
-        9507857,   // Men
-        7473085,   // Women
-        6697530,   // Humans
-        7045213,   // Surnames
+        5312304, // Living people
+        4047087, // People
+        9507857, // Men
+        7473085, // Women
+        6697530, // Humans
+        7045213, // Surnames
         // Disambiguation
-        1982926,   // Disambiguation pages
-        9700479,   // All disambiguation pages
-        4671251,   // Human name disambiguation pages
-        4671284,   // Place name disambiguation pages
-        8379354,   // Disambiguation pages with surname-holder lists
+        1982926, // Disambiguation pages
+        9700479, // All disambiguation pages
+        4671251, // Human name disambiguation pages
+        4671284, // Place name disambiguation pages
+        8379354, // Disambiguation pages with surname-holder lists
         // Stubs
-        2944440,   // Stubs
-        7046360,   // Biology stubs
-        7046440,   // Geography stubs
+        2944440, // Stubs
+        7046360, // Biology stubs
+        7046440, // Geography stubs
         // Wikipedia maintenance / templates
         130251703, // Pages with image sizes containing extra px
         3740,      // Wikipedia templates
@@ -96,8 +96,8 @@ pub struct GapRanking {
 /// A filtered, paginated slice of a `GapRanking` plus summary counts.
 pub struct GapWindow {
     pub rows: Vec<GapRow>,
-    pub filtered_total: usize,   // rows passing the filters (before skip/limit)
-    pub with_category: usize,    // of the filtered set, rows where has_category
+    pub filtered_total: usize, // rows passing the filters (before skip/limit)
+    pub with_category: usize,  // of the filtered set, rows where has_category
     pub without_category: usize, // of the filtered set, rows where !has_category
 }
 
