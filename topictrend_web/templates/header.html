@@ -48,7 +48,17 @@
         </div>
       </li>
       <li>
-        <a href="/content-gap" class="nav-link {% if is_content_gap_active %}active{% endif %}">Content gap</a>
+        <button
+          popovertarget="contentgap-menu"
+          class="nav-button {% if is_content_gap_active %}active{% endif %}"
+          id="contentgap-anchor"
+        >
+          Content gap <span class="chevron"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" width="16" height="16"><path d="M17,9.17a1,1,0,0,0-1.41,0L12,12.71,8.46,9.17a1,1,0,0,0-1.41,0,1,1,0,0,0,0,1.42l4.24,4.24a1,1,0,0,0,1.42,0L17,10.59A1,1,0,0,0,17,9.17Z" fill="currentColor"></path></svg></span>
+        </button>
+        <div popover id="contentgap-menu" class="nav-menu" anchor="contentgap-anchor">
+          <a href="/content-gap" class="{% if is_content_gap_compare %}active{% endif %}">Compare</a>
+          <a href="/gap-discovery" class="{% if is_content_gap_discover %}active{% endif %}">Discover</a>
+        </div>
       </li>
       <li>
         <a href="/search" class="nav-link {% if is_search_active %}active{% endif %}">Search</a>

@@ -1,5 +1,6 @@
 pub mod article_service;
 pub mod category_service;
+pub mod coverage_service;
 pub mod engine_service;
 pub mod google_search_service;
 pub mod pageedit_service;
@@ -9,6 +10,7 @@ pub mod related_service;
 
 pub use article_service::ArticleService;
 pub use category_service::CategoryService;
+pub use coverage_service::CoverageService;
 pub use engine_service::EngineService;
 pub use google_search_service::GoogleSearchService;
 pub use pageedit_service::PageEditService;

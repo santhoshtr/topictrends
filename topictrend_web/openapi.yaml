@@ -741,6 +741,61 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/gap_discovery/categories:
+    get:
+      operationId: getGapDiscovery
+      tags: [ContentGap]
+      summary: Rank categories where a target wiki lags a reference wiki
+      description: |
+        From the precomputed coverage matrix, ranks categories by
+        `gap = qid_overlap(reference) - qid_overlap(target)` (descending) — the
+        canonical articles of a topic that the reference edition has and the
+        target lacks. Supports skip/limit pagination and filtering by reference
+        size (`min_ref`/`max_ref`, to drop tiny noise and giant meta-categories)
+        and by structure (`has_category`: `false` = category absent in target,
+        `true` = present but under-populated).
+      parameters:
+        - name: reference
+          in: query
+          required: true
+          schema: { type: string }
+          description: Reference (baseline) wiki, e.g. enwiki.
+        - name: target
+          in: query
+          required: true
+          schema: { type: string }
+          description: Target (analysed) wiki, e.g. mlwiki.
+        - name: skip
+          in: query
+          required: false
+          schema: { type: integer, default: 0 }
+          description: Skip the top N ranked rows (alias of `offset`).
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, default: 50, maximum: 200 }
+        - name: min_ref
+          in: query
+          required: false
+          schema: { type: integer }
+        - name: max_ref
+          in: query
+          required: false
+          schema: { type: integer }
+        - name: has_category
+          in: query
+          required: false
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GapDiscoveryResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
 components:
   parameters:
     Wiki:
@@ -1836,6 +1891,72 @@ components:
           items:
             $ref: "#/components/schemas/ContentGapWikiResult"
           description: Article counts per wiki
+
+    GapDiscoveryItem:
+      type: object
+      required: [category_qid, category_title, direct_coverage_target, overlap_target, overlap_reference, gap, coverage_pct, has_category]
+      properties:
+        category_qid:
+          type: integer
+          format: int32
+        category_title:
+          type: string
+          description: Category title resolved from the reference wiki (or `Q<id>` fallback)
+        direct_coverage_target:
+          type: integer
+          format: int32
+          description: Articles filed directly under the category in the target wiki
+        overlap_target:
+          type: integer
+          format: int32
+          description: Canonical articles of the category present in the target wiki
+        overlap_reference:
+          type: integer
+          format: int32
+          description: Canonical articles of the category present in the reference wiki
+        gap:
+          type: integer
+          format: int64
+          description: overlap_reference - overlap_target
+        coverage_pct:
+          type: number
+          format: double
+          description: overlap_target / overlap_reference
+        has_category:
+          type: boolean
+          description: Whether the target wiki has the category populated (direct_coverage_target > 0)
+
+    GapDiscoveryResponse:
+      type: object
+      required: [reference, target, reference_date, target_date, total, with_category, without_category, offset, limit, categories]
+      properties:
+        reference:
+          type: string
+        target:
+          type: string
+        reference_date:
+          type: string
+          description: Reference snapshot date (YYYY-MM-DD)
+        target_date:
+          type: string
+          description: Target snapshot date (YYYY-MM-DD)
+        total:
+          type: integer
+          description: Total gaps matching the filters (before skip/limit)
+        with_category:
+          type: integer
+          description: Of the filtered set, rows where the target has the category
+        without_category:
+          type: integer
+          description: Of the filtered set, rows where the target lacks the category
+        offset:
+          type: integer
+        limit:
+          type: integer
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/GapDiscoveryItem"
 
     QidTitleMap:
       type: object

@@ -137,6 +137,10 @@ pub fn app_router(state: Arc<AppState>) -> Router {
             get(|| async { render_template("content-gap.html", PageContext::content_gap()) }),
         )
         .route(
+            "/gap-discovery",
+            get(|| async { render_template("gap-discovery.html", PageContext::gap_discovery()) }),
+        )
+        .route(
             "/openapi.yaml",
             get(|| async {
                 (
@@ -259,6 +263,10 @@ pub fn app_router(state: Arc<AppState>) -> Router {
         .route(
             "/api/content_gap/topic",
             get(handlers::get_content_gap_topic_handler),
+        )
+        .route(
+            "/api/gap_discovery/categories",
+            get(handlers::get_gap_discovery_handler),
         )
         .nest_service(
             "/mcp",

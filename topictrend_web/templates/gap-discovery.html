@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Topic Trends - Gap Discovery{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/gap-discovery.css">
+{% endblock %}
+
+{% block content %}
+<div class="app-container">
+  <div class="form-container">
+    <h2>Gap discovery</h2>
+    <form id="gap-discovery-form">
+      <div class="form-item reference-item">
+        <label for="reference-wiki" class="cdx-label">Reference wiki</label>
+        <select id="reference-wiki" name="reference" class="cdx-select"></select>
+        <p class="field-description">The editorial lens — gaps are measured against what
+          this edition covers. Tip: a sister-language wiki (e.g. hiwiki) surfaces
+          region-relevant gaps; enwiki surfaces Anglo/Western topics.</p>
+      </div>
+
+      <div class="form-item">
+        <label for="target-wiki" class="cdx-label">Target wiki</label>
+        <select id="target-wiki" name="target" class="cdx-select"></select>
+        <p class="field-description">The wiki you want to improve. Gap = reference − target.</p>
+      </div>
+
+      <div class="form-item">
+        <span class="cdx-label">Gap type</span>
+        <div class="structure-filter" role="radiogroup" aria-label="Gap type">
+          <input type="radio" id="struct-all" name="structure" value="all" checked>
+          <label for="struct-all">All</label>
+          <input type="radio" id="struct-missing" name="structure" value="missing">
+          <label for="struct-missing">Missing category</label>
+          <input type="radio" id="struct-under" name="structure" value="under">
+          <label for="struct-under">Under-populated</label>
+        </div>
+        <p class="field-description"><strong>Missing category</strong>: target has no such
+          category (create / recategorize). <strong>Under-populated</strong>: category exists
+          but most articles are absent (translate / create).</p>
+      </div>
+
+      <div class="form-item">
+        <label for="skip" class="cdx-label">Skip top categories</label>
+        <input type="number" id="skip" name="skip" value="0" min="0" step="1"
+          class="cdx-text-input__input narrow-input">
+        <p class="field-description">The top rows are usually cross-cutting maintenance
+          categories (Living people, stubs, disambiguation). Skip them, or cap size below.</p>
+      </div>
+
+      <div class="form-item">
+        <label for="max-ref" class="cdx-label">Hide categories larger than</label>
+        <input type="number" id="max-ref" name="max_ref" min="0" step="1"
+          placeholder="(no limit)" class="cdx-text-input__input narrow-input">
+        <button type="button" id="hide-giants" class="cdx-button chip-button">Hide giants (&gt;5000)</button>
+        <p class="field-description">Reference-article count above which a category is
+          suppressed — prunes the giant meta-categories.</p>
+      </div>
+
+      <div class="form-item">
+        <label for="limit" class="cdx-label">Rows per page</label>
+        <select id="limit" name="limit" class="cdx-select narrow-input">
+          <option value="25">25</option>
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+
+      <div class="form-item coming-soon-item">
+        <label class="cdx-label">
+          <input type="checkbox" disabled> Weight by pageviews
+          <span class="coming-soon-pill">coming soon</span>
+        </label>
+        <p class="field-description">Raw article-count gaps over-weight bot-created stub
+          farms. A pageview-weighted ranking is planned.</p>
+      </div>
+
+      <div class="form-item">
+        <button type="submit"
+          class="cdx-button cdx-button--action-progressive cdx-button--weight-primary">Analyse</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="main">
+    <section id="gap-results-section" hidden>
+      <div id="results-header" class="results-header"></div>
+      <div id="gap-results" class="gap-results"></div>
+      <nav id="pagination" class="pagination-bar" hidden aria-label="Pagination">
+        <button type="button" id="prev-page" class="cdx-button">Previous</button>
+        <span id="page-range" class="page-range"></span>
+        <button type="button" id="next-page" class="cdx-button">Next</button>
+      </nav>
+      <p class="stub-footnote">Ranking is by raw article-count gap, which over-weights
+        bot-created stubs. Pageview weighting is planned.</p>
+    </section>
+    <footer>
+      <p id="status" class="status"></p>
+    </footer>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/gap-discovery.js" type="module"></script>
+{% endblock %}

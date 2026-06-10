@@ -1,3 +1,4 @@
+pub mod coverage_parquet;
 pub mod csr_adjacency;
 pub mod direct_map;
 pub mod google_search_engine;

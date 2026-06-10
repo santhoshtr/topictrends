@@ -7,6 +7,9 @@ use chrono::NaiveDate;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::{MySql, Pool};
+use crate::services::core::coverage_service::{
+    BoundedCache, CoverageSnapshot, GapRanking, coverage_cache_capacity, ranking_cache_capacity,
+};
 use topictrend::google_search_engine::GoogleSearchEngine;
 use topictrend::pageedits_engine::PageEditsEngine;
 use topictrend::pageview_engine::PageViewEngine;
@@ -70,6 +73,10 @@ pub struct AppState {
     pub db_pools: Arc<RwLock<HashMap<String, Pool<MySql>>>>,
     pub db_username: String,
     pub db_password: String,
+    // Gap-discovery: per-wiki coverage snapshots and per-(reference,target)
+    // sorted rankings, both lazily loaded and FIFO-bounded.
+    pub coverage_snapshots: Arc<RwLock<BoundedCache<String, CoverageSnapshot>>>,
+    pub gap_rankings: Arc<RwLock<BoundedCache<(String, String), GapRanking>>>,
 }
 
 impl AppState {
@@ -82,6 +89,8 @@ impl AppState {
             db_pools: Arc::new(RwLock::new(HashMap::new())),
             db_username,
             db_password,
+            coverage_snapshots: Arc::new(RwLock::new(BoundedCache::new(coverage_cache_capacity()))),
+            gap_rankings: Arc::new(RwLock::new(BoundedCache::new(ranking_cache_capacity()))),
         }
     }
 }
@@ -605,6 +614,44 @@ pub struct ContentGapTopicParams {
     pub topic: String,
     pub wikis: String,
     pub depth: Option<u32>,
+}
+
+#[derive(Deserialize)]
+pub struct GapDiscoveryParams {
+    pub reference: String,
+    pub target: String,
+    #[serde(alias = "skip")]
+    pub offset: Option<usize>,
+    pub limit: Option<usize>,
+    pub min_ref: Option<u32>,
+    pub max_ref: Option<u32>,
+    pub has_category: Option<bool>,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct GapDiscoveryItemResponse {
+    pub category_qid: u32,
+    pub category_title: String,
+    pub direct_coverage_target: u32,
+    pub overlap_target: u32,
+    pub overlap_reference: u32,
+    pub gap: i64,
+    pub coverage_pct: f64,
+    pub has_category: bool,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct GapDiscoveryResponse {
+    pub reference: String,
+    pub target: String,
+    pub reference_date: String,
+    pub target_date: String,
+    pub total: usize,
+    pub with_category: usize,
+    pub without_category: usize,
+    pub offset: usize,
+    pub limit: usize,
+    pub categories: Vec<GapDiscoveryItemResponse>,
 }
 
 #[derive(Serialize, JsonSchema)]

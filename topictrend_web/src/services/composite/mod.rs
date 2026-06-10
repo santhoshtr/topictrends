@@ -1,4 +1,5 @@
 pub mod content_gap_service;
+pub mod gap_discovery_service;
 pub mod google_search_delta_service;
 pub mod google_search_service;
 pub mod pageedit_delta_service;
@@ -8,6 +9,7 @@ pub mod pageviews_service;
 pub mod source_attribution;
 
 pub use content_gap_service::ContentGapService;
+pub use gap_discovery_service::GapDiscoveryService;
 pub use google_search_delta_service::GoogleSearchDeltaService;
 pub use google_search_service::GoogleSearchTrendsService;
 pub use pageedit_delta_service::PageEditDeltaService;

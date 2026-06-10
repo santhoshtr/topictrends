@@ -72,6 +72,7 @@ pub mod pageviews;
 pub mod pageedits;
 pub mod googlesearch;
 pub mod delta;
+pub mod gap_discovery;
 pub mod search;
 pub mod related;
 
@@ -79,5 +80,6 @@ pub use pageviews::*;
 pub use pageedits::*;
 pub use googlesearch::*;
 pub use delta::*;
+pub use gap_discovery::*;
 pub use search::*;
 pub use related::*;
