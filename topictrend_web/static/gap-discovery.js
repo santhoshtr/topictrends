@@ -19,7 +19,6 @@ const state = {
 	reference: "enwiki",
 	target: "hiwiki",
 	hasCategory: null, // null = all, true = under-populated, false = missing
-	maxRef: null,
 	limit: 50,
 	skipBase: 0,
 	offset: 0,
@@ -71,8 +70,6 @@ function readForm() {
 	state.target = targetSelect.value;
 	const struct = form.querySelector('input[name="structure"]:checked')?.value ?? "all";
 	state.hasCategory = structureToHasCategory(struct);
-	const maxRefRaw = document.getElementById("max-ref").value.trim();
-	state.maxRef = maxRefRaw === "" ? null : Math.max(0, Number.parseInt(maxRefRaw, 10) || 0);
 	state.limit = Number.parseInt(document.getElementById("limit").value, 10) || 50;
 	state.skipBase = Math.max(0, Number.parseInt(document.getElementById("skip").value, 10) || 0);
 	state.offset = state.skipBase;
@@ -85,7 +82,6 @@ function syncUrl() {
 		skip: String(state.offset),
 		limit: String(state.limit),
 	});
-	if (state.maxRef != null) p.set("max_ref", String(state.maxRef));
 	if (state.hasCategory === true) p.set("structure", "under");
 	if (state.hasCategory === false) p.set("structure", "missing");
 	window.history.replaceState({}, "", `${window.location.pathname}?${p}`);
@@ -97,7 +93,6 @@ function applyUrlParams() {
 	if (p.has("target")) state.target = p.get("target");
 	if (p.has("limit")) document.getElementById("limit").value = p.get("limit");
 	if (p.has("skip")) document.getElementById("skip").value = p.get("skip");
-	if (p.has("max_ref")) document.getElementById("max-ref").value = p.get("max_ref");
 	const struct = p.get("structure");
 	if (struct === "missing") document.getElementById("struct-missing").checked = true;
 	else if (struct === "under") document.getElementById("struct-under").checked = true;
@@ -115,7 +110,6 @@ async function fetchAndRender() {
 		offset: String(state.offset),
 		limit: String(state.limit),
 	});
-	if (state.maxRef != null) params.set("max_ref", String(state.maxRef));
 	if (state.hasCategory != null) params.set("has_category", String(state.hasCategory));
 
 	showProgress();
@@ -153,8 +147,7 @@ function renderResults(data) {
 
 	if (data.categories.length === 0) {
 		resultsEl.innerHTML = `<div class="empty-state">No gaps with these filters. Try
-			lowering "Hide categories larger than", reducing "Skip top", or switching Gap type
-			to All.</div>`;
+			reducing "Skip top categories" or switching Gap type to All.</div>`;
 		return;
 	}
 
@@ -214,10 +207,6 @@ form.addEventListener("submit", (e) => {
 	e.preventDefault();
 	readForm();
 	fetchAndRender();
-});
-
-document.getElementById("hide-giants").addEventListener("click", () => {
-	document.getElementById("max-ref").value = "5000";
 });
 
 prevBtn.addEventListener("click", () => {

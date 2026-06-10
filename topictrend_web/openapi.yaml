@@ -750,10 +750,10 @@ paths:
         From the precomputed coverage matrix, ranks categories by
         `gap = qid_overlap(reference) - qid_overlap(target)` (descending) — the
         canonical articles of a topic that the reference edition has and the
-        target lacks. Supports skip/limit pagination and filtering by reference
-        size (`min_ref`/`max_ref`, to drop tiny noise and giant meta-categories)
-        and by structure (`has_category`: `false` = category absent in target,
-        `true` = present but under-populated).
+        target lacks. Maintenance / content-organization categories are excluded
+        server-side. Supports skip/limit pagination, a `min_ref` floor (to drop
+        tiny noise), and a structure filter (`has_category`: `false` = category
+        absent in target, `true` = present but under-populated).
       parameters:
         - name: reference
           in: query
@@ -775,10 +775,6 @@ paths:
           required: false
           schema: { type: integer, default: 50, maximum: 200 }
         - name: min_ref
-          in: query
-          required: false
-          schema: { type: integer }
-        - name: max_ref
           in: query
           required: false
           schema: { type: integer }

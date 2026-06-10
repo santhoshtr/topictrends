@@ -102,13 +102,12 @@ pub struct GapWindow {
 }
 
 impl GapRanking {
-    /// Apply `min_ref`/`max_ref` (bounds on the reference overlap, to drop tiny
-    /// noise and giant cross-cutting meta-categories) and the `has_category`
-    /// structure filter, then skip `offset` and take `limit`. Pure — no I/O.
+    /// Apply `min_ref` (a floor on the reference overlap, to drop tiny noise)
+    /// and the `has_category` structure filter, then skip `offset` and take
+    /// `limit`. Pure — no I/O.
     pub fn window(
         &self,
         min_ref: Option<u32>,
-        max_ref: Option<u32>,
         has_category: Option<bool>,
         offset: usize,
         limit: usize,
@@ -121,11 +120,6 @@ impl GapRanking {
         for r in &self.rows {
             if let Some(m) = min_ref
                 && r.overlap_reference < m
-            {
-                continue;
-            }
-            if let Some(m) = max_ref
-                && r.overlap_reference > m
             {
                 continue;
             }

@@ -624,7 +624,6 @@ pub struct GapDiscoveryParams {
     pub offset: Option<usize>,
     pub limit: Option<usize>,
     pub min_ref: Option<u32>,
-    pub max_ref: Option<u32>,
     pub has_category: Option<bool>,
 }
 

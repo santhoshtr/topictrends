@@ -37,7 +37,6 @@ impl GapDiscoveryService {
         reference: &str,
         target: &str,
         min_ref: Option<u32>,
-        max_ref: Option<u32>,
         has_category: Option<bool>,
         offset: usize,
         limit: usize,
@@ -50,7 +49,7 @@ impl GapDiscoveryService {
 
         let ranking =
             CoverageService::get_or_build_ranking(Arc::clone(&state), reference, target).await?;
-        let window = ranking.window(min_ref, max_ref, has_category, offset, limit);
+        let window = ranking.window(min_ref, has_category, offset, limit);
 
         // Resolve titles for just this page, from the reference wiki. Degrade to
         // "Q{qid}" if the replica is unavailable rather than failing the request.

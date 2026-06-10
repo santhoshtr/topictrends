@@ -26,7 +26,6 @@ pub async fn get_gap_discovery_handler(
         &params.reference,
         &params.target,
         params.min_ref,
-        params.max_ref,
         params.has_category,
         offset,
         limit,

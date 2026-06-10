@@ -26,10 +26,6 @@
 	width: 8rem;
 }
 
-.chip-button {
-	margin-top: 0.4rem;
-}
-
 /* Segmented structure filter (mirrors the .tab radio pattern). */
 .structure-filter {
 	display: inline-flex;
