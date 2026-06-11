@@ -158,7 +158,8 @@ Queries are defined in `queries/` directory:
 - `articles.sql`: Fetch articles with QID mappings
 - `categories.sql`: Fetch category metadata
 - `category-graph.sql`: Fetch category parent relationships
-- `article-category.sql`: Fetch article-to-category assignments
+- `article-category.sql`: Fetch article-to-category assignments (hidden
+  maintenance/tracking categories excluded)
 - `get_qid_by_title.sql`: Translate title to QID
 - `get_titles_by_qids.sql`: Batch translate QIDs to titles
 
@@ -328,8 +329,7 @@ make coverage DATE=2026-06-09        # full matrix, all wikis (stage 1 + stage 2
 ```
 
 **Two depth-0 measures** (recursive/subtree coverage is deliberately omitted — the
-correct depth is per-category and can't be precomputed; see
-`.plans/materialied-content-gap.md`):
+correct depth is per-category and can't be precomputed):
 
 - **`direct_coverage(C, W)`** — distinct articles filed *directly* under category C in
   wiki W. Divergence across wikis = a structure/categorization gap.
@@ -368,6 +368,60 @@ sudo cp deploy/systemd/topictrend-coverage.{service,timer} /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now topictrend-coverage.timer
 systemctl list-timers topictrend-coverage.timer   # verify next run
+```
+
+### Canonical Article→Category Relation (cross-wiki union)
+
+**Frequency**: Monthly (systemd timer, after the coverage snapshot)
+**Runtime**: ~15 seconds for the union itself (inputs must already exist)
+**Operation**: Unions every wiki's `article_category.parquet` into one global
+relation. Articles and categories share Wikidata QIDs across editions, so the
+union carries a per-edge count of how many wikis assert each assignment — the
+categorization-consensus signal.
+
+```bash
+make canonical DATE=2026-06-11
+
+# Or directly:
+target/release/canonical-membership --date 2026-06-11 [--force] [wiki ...]
+```
+
+**Output** `data/canonical/<DATE>/article_category.parquet`, sorted by
+`(article_qid, category_qid)`:
+
+| column       | type | notes                                          |
+|--------------|------|------------------------------------------------|
+| article_qid  | u32  | Wikidata QID of the article                    |
+| category_qid | u32  | Wikidata QID of the category                   |
+| wiki_count   | u32  | number of wikis asserting this assignment      |
+
+(`wiki_count` is u32, not u16: Polars cannot scan UInt16 Parquet columns, and
+all downstream consumers read via Polars.)
+
+**Manifest & sanity gate:** each snapshot also writes `manifest.tsv` (per-wiki
+input row counts). The next run compares its inputs against the most recent
+previous manifest and **aborts (exit 2) if any wiki's `article_category` row
+count dropped below 50%**. This guards the known failure mode where a failed
+replica fetch silently truncates one wiki's parquet — which would otherwise
+shrink *every* wiki's canonical sets in the snapshot. Re-run with `--force`
+after confirming the drop is legitimate. The manifest is written only after a
+successful build, so a crashed run never becomes a gate baseline.
+
+**Expected one-time gate trip:** `queries/article-category.sql` excludes
+hidden (maintenance/tracking) categories. The first topology refresh after
+that change legitimately shrinks `article_category` row counts (enwiki loses
+"Living people", stub and tracking categories), so the first `make canonical`
+on the refreshed topology will trip the gate and needs `--force` once.
+
+**Scheduling (systemd):** same pattern as coverage; the timer fires monthly at
+03:00 on the 1st, an hour after the coverage timer, so the two
+topology-derived snapshots don't contend for the same inputs:
+
+```bash
+sudo cp deploy/systemd/topictrend-canonical.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now topictrend-canonical.timer
+systemctl list-timers topictrend-canonical.timer   # verify next run
 ```
 
 ### Incremental Updates
