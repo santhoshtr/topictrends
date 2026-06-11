@@ -1,4 +1,4 @@
-use super::{CoreServiceError, EngineService};
+use super::{CoreServiceError, EngineService, excluded_categories};
 use crate::models::AppState;
 use chrono::NaiveDate;
 use std::sync::Arc;
@@ -104,13 +104,14 @@ impl PageEditService {
     ) -> Result<Vec<CategoryEdits>, CoreServiceError> {
         let engine = EngineService::get_or_build_pageedit_engine(state, wiki).await?;
 
+        // Oversample so dropping denylisted categories cannot shrink the page.
         let categories = {
             let engine_lock = engine.read().map_err(|e| {
                 CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
             })?;
 
             engine_lock
-                .get_top_categories(start_date, end_date, limit)
+                .get_top_categories(start_date, end_date, excluded_categories::oversampled(limit))
                 .map_err(|e| {
                     CoreServiceError::EngineError(format!("Failed to get top categories: {}", e))
                 })?
@@ -118,6 +119,8 @@ impl PageEditService {
 
         let raw_categories: Vec<CategoryEdits> = categories
             .into_iter()
+            .filter(|cat| !excluded_categories::EXCLUDED_CATEGORY_QIDS.contains(&cat.category_qid))
+            .take(limit)
             .map(|cat| {
                 let top_articles: Vec<ArticleEdits> = cat
                     .top_articles

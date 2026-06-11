@@ -11,56 +11,16 @@
 //! triggers a rebuild.
 
 use super::CoreServiceError;
+use super::excluded_categories::EXCLUDED_CATEGORY_QIDS;
 use crate::models::AppState;
 use chrono::NaiveDate;
 use std::collections::VecDeque;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::hash::Hash;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 use topictrend::coverage_parquet::{
     CoverageMatrix, latest_coverage_snapshot, load_coverage_parquet,
 };
-
-/// Category QIDs excluded from every gap ranking: maintenance,
-/// content-organization, and whole-population classification categories that
-/// saturate the top of the ranking without being editathon-actionable. Curated
-/// from the enwiki→hiwiki response (the largest reference); unlabeled entries
-/// were identified via Wikidata. Add new ones here as they surface.
-static EXCLUDED_CATEGORY_QIDS: LazyLock<HashSet<u32>> = LazyLock::new(|| {
-    [
-        // Whole-population / biographical classification
-        5312304, // Living people
-        4047087, // People
-        9507857, // Men
-        7473085, // Women
-        6697530, // Humans
-        7045213, // Surnames
-        // Disambiguation
-        1982926, // Disambiguation pages
-        9700479, // All disambiguation pages
-        4671251, // Human name disambiguation pages
-        4671284, // Place name disambiguation pages
-        8379354, // Disambiguation pages with surname-holder lists
-        // Stubs
-        2944440, // Stubs
-        7046360, // Biology stubs
-        7046440, // Geography stubs
-        // Wikipedia maintenance / templates
-        130251703, // Pages with image sizes containing extra px
-        3740,      // Wikipedia templates
-        6332021,   // Articles in translation
-        18285010,  // Bot created articles from 2013-02
-        22165254,  // Robot created butterfly items
-        // "By alphabetical order" / by-name organizational containers
-        32889963, // People by alphabetical order
-        6547581,  // Populated places by alphabet
-        9961681,  // Sportspeople by name
-        54860644, // Administrative subdivisions in alphabetical order
-        9700775,  // Footballers by alphabetical order
-    ]
-    .into_iter()
-    .collect()
-});
 
 const COVERAGE_CACHE_ENV: &str = "TOPICTREND_COVERAGE_WIKIS";
 const DEFAULT_COVERAGE_CACHE: usize = 8;

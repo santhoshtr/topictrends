@@ -2,6 +2,7 @@ pub mod article_service;
 pub mod category_service;
 pub mod coverage_service;
 pub mod engine_service;
+pub mod excluded_categories;
 pub mod google_search_service;
 pub mod pageedit_service;
 pub mod pageview_service;

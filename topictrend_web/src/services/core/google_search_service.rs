@@ -1,4 +1,4 @@
-use super::{CoreServiceError, EngineService};
+use super::{CoreServiceError, EngineService, excluded_categories};
 use crate::models::AppState;
 use chrono::NaiveDate;
 use std::sync::Arc;
@@ -135,13 +135,14 @@ impl GoogleSearchService {
     ) -> Result<Vec<CategorySearchRank>, CoreServiceError> {
         let engine = EngineService::get_or_build_google_search_engine(state, wiki).await?;
 
+        // Oversample so dropping denylisted categories cannot shrink the page.
         let categories = {
             let engine_lock = engine.read().map_err(|e| {
                 CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
             })?;
 
             engine_lock
-                .get_top_categories(start_date, end_date, limit)
+                .get_top_categories(start_date, end_date, excluded_categories::oversampled(limit))
                 .map_err(|e| {
                     CoreServiceError::EngineError(format!("Failed to get top categories: {}", e))
                 })?
@@ -149,6 +150,10 @@ impl GoogleSearchService {
 
         Ok(categories
             .into_iter()
+            .filter(|category| {
+                !excluded_categories::EXCLUDED_CATEGORY_QIDS.contains(&category.category_qid)
+            })
+            .take(limit)
             .map(|category| CategorySearchRank {
                 category_qid: category.category_qid,
                 total_clicks: category.total_clicks,
