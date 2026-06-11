@@ -10,6 +10,10 @@ pub struct WikiGraph {
     pub parents: CsrAdjacency,
     pub cat_articles: Vec<RoaringBitmap>,
     pub article_cats: CsrAdjacency,
+    /// Per-edge cross-wiki agreement counts, parallel to `article_cats`'
+    /// flattened edge array (slice via `article_cats.edge_range`). Empty when
+    /// the graph was built from the local relation, which carries no weights.
+    pub article_cat_weights: Vec<u16>,
     pub cat_dense_to_original: Vec<u32>,  // Dense -> QID
     pub cat_original_to_dense: DirectMap, // QID -> Dense
     pub art_dense_to_original: Vec<u32>,
@@ -174,6 +178,34 @@ impl WikiGraph {
                 self.cat_dense_to_original[idx]
             })
             .collect())
+    }
+
+    /// Categories for an article ranked by cross-wiki agreement, highest
+    /// first (ties broken by category QID for stable output). Returns
+    /// `(category_qid, weight)` pairs. Weight is 1 for every edge when the
+    /// graph was built from the local relation (no weights loaded).
+    pub fn get_categories_for_article_ranked(&self, article_qid: u32) -> Vec<(u32, u16)> {
+        let dense = match self.art_original_to_dense.get(article_qid) {
+            Some(id) => id,
+            None => return Vec::new(),
+        };
+
+        let cats = self.article_cats.get(dense);
+        let range = self.article_cats.edge_range(dense);
+        let mut ranked: Vec<(u32, u16)> = cats
+            .iter()
+            .enumerate()
+            .map(|(i, &cat_dense)| {
+                let weight = if self.article_cat_weights.is_empty() {
+                    1
+                } else {
+                    self.article_cat_weights[range.start + i]
+                };
+                (self.cat_dense_to_original[cat_dense as usize], weight)
+            })
+            .collect();
+        ranked.sort_unstable_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        ranked
     }
 
     /// Find articles most related to `article_qid` by shared-category overlap.

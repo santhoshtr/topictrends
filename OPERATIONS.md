@@ -128,6 +128,14 @@ PORT=8765
 # Data directory path (optional, defaults to "data")
 DATA_DIR=data
 
+# Topology source for graph building (optional). "canonical" builds each
+# wiki's graph from the cross-wiki canonical projection
+# (article_category_canonical.parquet + categories_canonical.parquet,
+# produced by `make canonical`) instead of the local relation. Article->
+# category edges then carry cross-wiki agreement weights; the category
+# hierarchy stays local. Unset (default) = local relation, v1 behavior.
+TOPICTREND_TOPOLOGY=canonical
+
 # Maximum number of distinct dates the pageview engine keeps in its
 # in-memory cache, per wiki (optional, defaults to 120). Each cached
 # day for enwiki costs ~6-12 MB with the sparse representation
