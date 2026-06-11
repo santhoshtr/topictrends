@@ -1,0 +1,15 @@
+[Unit]
+Description=TopicTrends canonical article-category relation snapshot (all wikis)
+After=network.target
+
+[Service]
+Type=oneshot
+# Adjust User and WorkingDirectory to match the VPS checkout (must have replica
+# access via the user's ~/.my.cnf, same as the daily `make run`).
+User=topictrend
+WorkingDirectory=/srv/topictrend
+# DATE defaults to "yesterday"; for a 1st-of-month firing that labels the
+# snapshot with the last day of the previous month. Override DATE= to pin it.
+ExecStart=/usr/bin/make canonical
+Nice=10
+IOSchedulingClass=idle

@@ -29,7 +29,7 @@ WIKIS = $(shell cat $(DATA_DIR)/wikipedia.list 2>/dev/null)
 
 .DEFAULT_GOAL := run
 
-.PHONY: run init clean help monthly index-wiki index-clean embedding-server web gsc coverage _run-wikis topology-refresh
+.PHONY: run init clean help monthly index-wiki index-clean embedding-server web gsc coverage canonical _run-wikis topology-refresh
 
 # Help target
 help:
@@ -42,6 +42,8 @@ help:
 	@echo "  gsc              - Process Google Search Console data for all wikis (single DATE)"
 	@echo "  coverage         - Build the coverage matrix (depth-0 direct_coverage) for all"
 	@echo "                     wikis as a dated snapshot (data/<wiki>/coverage/<DATE>.parquet)"
+	@echo "  canonical        - Union all wikis' article_category into the canonical relation"
+	@echo "                     with per-edge wiki counts (data/canonical/<DATE>/)"
 	@echo "  topology-refresh - Re-fetch topology (articles/categories/graph) from the replica"
 	@echo "                     for all wikis; scope with WIKIS=enwiki. Restart the server after."
 	@echo "  web              - Start the web server (no rebuild)"
@@ -64,6 +66,7 @@ help:
 	@echo "  make gsc DATE=2026-03-03"
 	@echo "  make gsc DATE=2026-03-03 GSC_DIR=/mnt/gsc_data"
 	@echo "  make coverage DATE=2026-06-09                                   # coverage snapshot, all wikis"
+	@echo "  make canonical DATE=2026-06-11                                  # canonical relation snapshot"
 	@echo "  make data/mlwiki/pageedits/2026/05/26.parquet DATE=2026-05-26   # one wiki, one day (replica)"
 	@echo "  make topology-refresh WIKIS=enwiki                              # refresh one wiki's topology"
 
@@ -241,6 +244,14 @@ $(DATA_DIR)/%/coverage/$(DATE).parquet: | $(DATA_DIR)/%/article_category.parquet
 coverage: init $(foreach w,$(WIKIS),$(DATA_DIR)/$(w)/coverage/$(DATE).parquet)
 	@echo "Enriching coverage snapshots with qid_overlap (cross-wiki pass)..."
 	DATA_DIR=$(DATA_DIR) $(CARGO_RELEASE)/coverage-overlap --date $(DATE)
+
+# Canonical cross-wiki article->category relation, dated snapshot.
+# Unions every wiki's article_category.parquet with per-edge wiki counts into
+# data/canonical/$(DATE)/article_category.parquet (+ manifest.tsv, which gates
+# the next run against truncated inputs).
+# Usage: make canonical DATE=2026-06-11  (falls back to yesterday if DATE unset)
+canonical: init
+	DATA_DIR=$(DATA_DIR) $(CARGO_RELEASE)/canonical-membership --date $(DATE)
 
 # Clean target
 clean:
