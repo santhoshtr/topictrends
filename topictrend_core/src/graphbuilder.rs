@@ -105,7 +105,6 @@ impl GraphBuilder {
         let path: PlRefPath = PlRefPath::try_from_path(Path::new(
             format!("{}/{}/{}", data_dir, self.wiki, relation_file).as_str(),
         ))?;
-        let mut cat_articles = vec![RoaringBitmap::new(); num_cats];
         let mut article_cats_vec: Vec<(u32, u32)> = Vec::with_capacity(num_arts);
         let mut weights_vec: Vec<u16> = Vec::new();
 
@@ -135,14 +134,30 @@ impl GraphBuilder {
                     cat_original_to_dense.get(c_raw),
                 )
             {
-                // Populate RoaringBitmap for Category
-                cat_articles[c_dense as usize].insert(a_dense);
                 article_cats_vec.push((a_dense, c_dense));
                 if let Some(w) = &w_by_row {
                     weights_vec.push(w[row]);
                 }
             }
         }
+
+        // Fill the category->articles bitmaps in ascending dense-id order per
+        // category (roaring's append fast path). The canonical relation is
+        // sorted by article QID — random in dense-id space — and unsorted
+        // roaring inserts are ~25x slower at enwiki scale (112s vs 4s).
+        let mut by_cat: Vec<u64> = article_cats_vec
+            .iter()
+            .map(|&(a_dense, c_dense)| ((c_dense as u64) << 32) | a_dense as u64)
+            .collect();
+        by_cat.sort_unstable();
+        let mut cat_articles = vec![RoaringBitmap::new(); num_cats];
+        for &packed in &by_cat {
+            // Err means the value is not strictly greater than the bitmap's
+            // max — a duplicate edge; insert() would have absorbed it too.
+            let _ = cat_articles[(packed >> 32) as usize].try_push(packed as u32);
+        }
+        drop(by_cat);
+
         let (article_cats, article_cat_weights) = if canonical {
             CsrAdjacency::from_pairs_with_weights(num_arts, &article_cats_vec, &weights_vec)
         } else {
