@@ -5,19 +5,37 @@ import "./components/wiki-selector.js";
 document.addEventListener("DOMContentLoaded", () => {
 	document.getElementById("delta-form").addEventListener("submit", onSubmit);
 
-	document.getElementById("delta-form").addEventListener("form-fill-complete", () => {
-		onSubmit(new Event("submit"));
-	});
+	document
+		.getElementById("delta-form")
+		.addEventListener("form-fill-complete", () => {
+			onSubmit(new Event("submit"));
+		});
 
 	if (!window.location.search) {
 		document.querySelector(".examples").hidden = false;
 		const now = new Date();
-		const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-		const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
-		document.getElementById("impact_end_date").value = now.toISOString().slice(0, 10);
-		document.getElementById("baseline_start_date").value = twoMonthsAgo.toISOString().slice(0, 10);
-		document.getElementById("baseline_end_date").value = oneMonthAgo.toISOString().slice(0, 10);
-		document.getElementById("impact_start_date").value = oneMonthAgo.toISOString().slice(0, 10);
+		const oneMonthAgo = new Date(
+			now.getFullYear(),
+			now.getMonth() - 1,
+			now.getDate(),
+		);
+		const twoMonthsAgo = new Date(
+			now.getFullYear(),
+			now.getMonth() - 2,
+			now.getDate(),
+		);
+		document.getElementById("impact_end_date").value = now
+			.toISOString()
+			.slice(0, 10);
+		document.getElementById("baseline_start_date").value = twoMonthsAgo
+			.toISOString()
+			.slice(0, 10);
+		document.getElementById("baseline_end_date").value = oneMonthAgo
+			.toISOString()
+			.slice(0, 10);
+		document.getElementById("impact_start_date").value = oneMonthAgo
+			.toISOString()
+			.slice(0, 10);
 	}
 });
 
@@ -68,7 +86,7 @@ async function onSubmit(event) {
 }
 
 async function fetchCategoryDeltaData(params) {
-	const url = `https://topictrends.wmcloud.org/api/googlesearch/delta/categories?${params.toString()}`;
+	const url = `/api/googlesearch/delta/categories?${params.toString()}`;
 	try {
 		showProgress();
 		const response = await fetch(url);
@@ -106,7 +124,7 @@ async function fetchArticleDeltaData(
 		limit: limit || 100,
 	});
 
-	const url = `https://topictrends.wmcloud.org/api/googlesearch/delta/articles?${params.toString()}`;
+	const url = `/api/googlesearch/delta/articles?${params.toString()}`;
 	const response = await fetch(url);
 	if (!response.ok) {
 		throw new Error(`HTTP error! status: ${response.status}`);
@@ -306,7 +324,14 @@ function renderArticles(container, articles, wiki, summaryMetrics) {
 
 	const thead = document.createElement("thead");
 	const headerRow = document.createElement("tr");
-	for (const label of ["Article", "Info", "Clicks", "Impressions", "Delta", "Plot"]) {
+	for (const label of [
+		"Article",
+		"Info",
+		"Clicks",
+		"Impressions",
+		"Delta",
+		"Plot",
+	]) {
 		const th = document.createElement("th");
 		th.textContent = label;
 		headerRow.appendChild(th);

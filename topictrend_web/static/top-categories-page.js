@@ -5,7 +5,7 @@ import "./components/wiki-selector.js";
 
 const CONFIG = {
 	pageviews: {
-		endpoint: "https://topictrends.wmcloud.org/api/pageviews/top_categories",
+		endpoint: "/api/pageviews/top_categories",
 		categoryTrendPath: "/pageviews/trends",
 		articleTrendPath: "/pageviews/trends",
 		categoryMetricField: "views",
@@ -13,7 +13,7 @@ const CONFIG = {
 		metricLabel: "views",
 	},
 	pageedits: {
-		endpoint: "https://topictrends.wmcloud.org/api/pageedits/top_categories",
+		endpoint: "/api/pageedits/top_categories",
 		categoryTrendPath: "/pageedits/trends",
 		articleTrendPath: "/pageedits/trends",
 		categoryMetricField: "edits",
@@ -21,7 +21,7 @@ const CONFIG = {
 		metricLabel: "edits",
 	},
 	googlesearch: {
-		endpoint: "https://topictrends.wmcloud.org/api/googlesearch/top_categories",
+		endpoint: "/api/googlesearch/top_categories",
 		categoryTrendPath: "/googlesearch/trends",
 		articleTrendPath: "/googlesearch/trends",
 		categoryMetricField: "clicks",

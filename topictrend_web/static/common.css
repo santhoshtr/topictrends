@@ -40,8 +40,8 @@
 @layer base {
 	:root {
 		--font-family-sans-serif:
-			system-ui, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, Helvetica, Arial,
-			"Helvetica Neue", sans-serif;
+			system-ui, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, Helvetica,
+			Arial, "Helvetica Neue", sans-serif;
 		--font-family-monospace:
 			ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
 			"Liberation Mono", monospace;

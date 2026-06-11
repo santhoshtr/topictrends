@@ -138,7 +138,7 @@ function updateChartWithData(data, label) {
 
 async function renderSubCategories(wiki, category, depth = 4) {
 	const categoryListContainer = document.getElementById("category-list");
-	const apiUrl = `https://topictrends.wmcloud.org/api/list/sub_categories?wiki=${wiki}&category=${category}`;
+	const apiUrl = `/api/list/sub_categories?wiki=${wiki}&category=${category}`;
 
 	showProgress();
 	const response = await fetch(apiUrl);
@@ -223,7 +223,7 @@ document.addEventListener("DOMContentLoaded", () => {
 async function fetchTopicPageviews(wiki, topic, startDate, endDate, depth) {
 	showSection("chart-with-articles");
 
-	const apiUrl = `https://topictrends.wmcloud.org/api/pageviews/topic?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&topic=${encodeURIComponent(
+	const apiUrl = `/api/pageviews/topic?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&topic=${encodeURIComponent(
 		topic,
 	)}`;
 	const label = `Topic: ${wiki} - ${topic.replaceAll("_", " ")}`;
@@ -262,7 +262,7 @@ async function fetchCategoryPageviews(
 ) {
 	showSection("chart-with-articles");
 
-	const apiUrl = `https://topictrends.wmcloud.org/api/pageviews/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&category=${encodeURIComponent(
+	const apiUrl = `/api/pageviews/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&category=${encodeURIComponent(
 		category,
 	)}`;
 	const label = `Category: ${wiki} - ${category.replaceAll("_", " ")}`;
@@ -295,7 +295,7 @@ async function fetchCategoryPageviews(
 async function fetchArticlePageviews(wiki, article, startDate, endDate) {
 	showSection("chart");
 
-	const apiUrl = `https://topictrends.wmcloud.org/api/pageviews/article?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&article=${encodeURIComponent(
+	const apiUrl = `/api/pageviews/article?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&article=${encodeURIComponent(
 		article,
 	)}`;
 	const label = `Article: ${wiki} - ${article.replaceAll("_", " ")}`;

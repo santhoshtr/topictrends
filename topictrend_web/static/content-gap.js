@@ -148,11 +148,11 @@ async function fetchAndRender() {
 		let url;
 
 		if (currentType === "topic") {
-			url = `https://topictrends.wmcloud.org/api/content_gap/topic?topic=${encodeURIComponent(
+			url = `/api/content_gap/topic?topic=${encodeURIComponent(
 				currentTopic,
 			)}&wikis=${encodeURIComponent(wikisParam)}&depth=${currentDepth}`;
 		} else {
-			url = `https://topictrends.wmcloud.org/api/content_gap/categories?category=${encodeURIComponent(
+			url = `/api/content_gap/categories?category=${encodeURIComponent(
 				currentCategory,
 			)}&wikis=${encodeURIComponent(wikisParam)}&depth=${currentDepth}`;
 		}
@@ -451,9 +451,7 @@ async function fetchMonthlyMetric(metric, type, wiki, query) {
 	const params = new URLSearchParams({ wiki, depth: currentDepth });
 	params.set(type === "topic" ? "topic" : "category", query);
 	try {
-		const response = await fetch(
-			`https://topictrends.wmcloud.org/api/${path}/${type}?${params}`,
-		);
+		const response = await fetch(`/api/${path}/${type}?${params}`);
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);
 		return format(await response.json());
 	} catch (error) {

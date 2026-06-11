@@ -2,7 +2,7 @@ import { hideProgress, showProgress } from "./utils/progress-bar.js";
 import { showMessage } from "./utils/ui-utils.js";
 import "./components/wiki-selector.js";
 
-const BASE_URL = "https://topictrends.wmcloud.org";
+const BASE_URL = "";
 
 document.addEventListener("DOMContentLoaded", () => {
 	document.getElementById("search-form").addEventListener("submit", onSubmit);
@@ -15,10 +15,12 @@ document.addEventListener("DOMContentLoaded", () => {
 		wikiSelector.value.replaceAll("wiki", ""),
 	);
 
-	document.getElementById("search-form").addEventListener("form-fill-complete", () => {
-		updateTrendLinks();
-		onSubmit(new Event("submit"));
-	});
+	document
+		.getElementById("search-form")
+		.addEventListener("form-fill-complete", () => {
+			updateTrendLinks();
+			onSubmit(new Event("submit"));
+		});
 
 	wikiSelector.addEventListener("change", updateTrendLinks);
 	categoryElement.addEventListener("input", updateTrendLinks);
@@ -124,7 +126,7 @@ function renderArticles(articles, lang) {
 }
 
 async function searchCategory(wiki, query, match_threshold) {
-	const apiUrl = `https://topictrends.wmcloud.org/api/search/categories?wiki=${wiki}&query=${encodeURIComponent(query)}&match_threshold=${match_threshold}`;
+	const apiUrl = `/api/search/categories?wiki=${wiki}&query=${encodeURIComponent(query)}&match_threshold=${match_threshold}`;
 
 	try {
 		showProgress();
@@ -144,7 +146,7 @@ async function searchCategory(wiki, query, match_threshold) {
 }
 
 async function listArticles(wiki, category_qid) {
-	const apiUrl = `https://topictrends.wmcloud.org/api/list/articles?wiki=${wiki}&category_qid=${category_qid}`;
+	const apiUrl = `/api/list/articles?wiki=${wiki}&category_qid=${category_qid}`;
 
 	try {
 		showProgress();

@@ -19,9 +19,11 @@ const ACCORDION_CONFIG = {
 document.addEventListener("DOMContentLoaded", () => {
 	document.getElementById("delta-form").addEventListener("submit", onSubmit);
 
-	document.getElementById("delta-form").addEventListener("form-fill-complete", () => {
-		onSubmit(new Event("submit"));
-	});
+	document
+		.getElementById("delta-form")
+		.addEventListener("form-fill-complete", () => {
+			onSubmit(new Event("submit"));
+		});
 
 	if (!window.location.search) {
 		document.querySelector(".examples").hidden = false;
@@ -104,7 +106,7 @@ async function fetchDeltaData(
 		limit: limit || 100,
 	});
 
-	const API_URL = `https://topictrends.wmcloud.org/api/pageviews/delta/categories?${params.toString()}`;
+	const API_URL = `/api/pageviews/delta/categories?${params.toString()}`;
 
 	try {
 		showProgress();
@@ -143,7 +145,7 @@ async function fetchArticleDeltaData(
 		limit: limit || 50,
 	});
 
-	const API_URL = `https://topictrends.wmcloud.org/api/pageviews/delta/articles?${params.toString()}`;
+	const API_URL = `/api/pageviews/delta/articles?${params.toString()}`;
 
 	try {
 		showProgress();

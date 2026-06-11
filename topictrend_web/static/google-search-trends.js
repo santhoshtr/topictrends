@@ -17,16 +17,24 @@ document.addEventListener("DOMContentLoaded", () => {
 		categoryElement?.setAttribute("wiki", wikiValue);
 	});
 
-	document.getElementById("trend-form").addEventListener("form-fill-complete", () => {
-		onSubmit(new Event("submit"));
-	});
+	document
+		.getElementById("trend-form")
+		.addEventListener("form-fill-complete", () => {
+			onSubmit(new Event("submit"));
+		});
 
 	if (!window.location.search) {
 		document.querySelector(".examples").hidden = false;
 		const now = new Date();
-		const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+		const monthAgo = new Date(
+			now.getFullYear(),
+			now.getMonth() - 1,
+			now.getDate(),
+		);
 		document.getElementById("end_date").value = now.toISOString().slice(0, 10);
-		document.getElementById("start_date").value = monthAgo.toISOString().slice(0, 10);
+		document.getElementById("start_date").value = monthAgo
+			.toISOString()
+			.slice(0, 10);
 	}
 });
 
@@ -186,7 +194,7 @@ async function onSubmit(event) {
 }
 
 async function fetchTopicSearchData(wiki, topic, startDate, endDate, depth) {
-	const url = `https://topictrends.wmcloud.org/api/googlesearch/topic?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&topic=${encodeURIComponent(topic)}`;
+	const url = `/api/googlesearch/topic?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&topic=${encodeURIComponent(topic)}`;
 	const label = `Topic: ${wiki} - ${topic.replaceAll("_", " ")}`;
 
 	try {
@@ -216,7 +224,7 @@ async function fetchCategorySearchData(
 	endDate,
 	depth,
 ) {
-	const url = `https://topictrends.wmcloud.org/api/googlesearch/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&category=${encodeURIComponent(category)}`;
+	const url = `/api/googlesearch/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&category=${encodeURIComponent(category)}`;
 	const label = `Category: ${wiki} - ${category.replaceAll("_", " ")}`;
 
 	try {
@@ -240,7 +248,7 @@ async function fetchCategorySearchData(
 }
 
 async function fetchArticleSearchData(wiki, article, startDate, endDate) {
-	const url = `https://topictrends.wmcloud.org/api/googlesearch/article?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&article=${encodeURIComponent(article)}`;
+	const url = `/api/googlesearch/article?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&article=${encodeURIComponent(article)}`;
 	const label = `Article: ${wiki} - ${article.replaceAll("_", " ")}`;
 
 	try {
