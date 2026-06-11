@@ -619,6 +619,19 @@ paths:
         - $ref: "#/components/parameters/Wiki"
         - $ref: "#/components/parameters/CategoryOptional"
         - $ref: "#/components/parameters/CategoryQidOptional"
+        - name: min_agreement
+          in: query
+          required: false
+          description: >
+            Keep only members whose direct membership edge is asserted by at
+            least this many Wikipedia editions (default 1). Meaningful when the
+            server runs on the canonical cross-wiki topology; on local topology
+            every edge counts as 1.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            default: 1
       responses:
         "200":
           description: OK
@@ -911,11 +924,12 @@ components:
       name: depth
       in: query
       required: false
-      description: Traversal depth (0 = direct members only).
+      description: Traversal depth (0 = direct members only, the default).
       schema:
         type: integer
         format: int32
         minimum: 0
+        default: 0
 
     LimitOptional:
       name: limit
@@ -1270,6 +1284,22 @@ components:
           minimum: 0
         title:
           type: string
+
+    RankedCategoryInfo:
+      type: object
+      required: [qid, title, wiki_count]
+      properties:
+        qid:
+          type: integer
+          format: int32
+          minimum: 0
+        title:
+          type: string
+        wiki_count:
+          type: integer
+          format: int32
+          minimum: 1
+          description: Number of Wikipedia editions asserting this assignment.
 
     CategoriesTrendResponse:
       type: object
@@ -1818,11 +1848,15 @@ components:
     ArticleCategoriesResponse:
       type: object
       required: [categories]
+      description: >
+        Categories ordered by cross-wiki agreement (highest first). Ties at the
+        same wiki_count are common for articles existing in few editions —
+        consumers should read the count, not trust the order alone.
       properties:
         categories:
           type: array
           items:
-            $ref: "#/components/schemas/CategoryInfo"
+            $ref: "#/components/schemas/RankedCategoryInfo"
 
     RelatedArticleItem:
       type: object

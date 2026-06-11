@@ -30,7 +30,7 @@ function updateTrendLinks() {
 	const params = new URLSearchParams({
 		type: "topic",
 		wiki,
-		depth: 1,
+		depth: 0,
 		topic,
 	});
 	document.getElementById("pageviews-trends-link").href =

@@ -567,9 +567,21 @@ pub struct ListArticleCategoriesParams {
     pub article_qid: Option<u32>,
 }
 
+/// One category of an article, ranked by cross-wiki agreement. `wiki_count`
+/// is the number of editions asserting the assignment (1 everywhere when the
+/// server runs on local topology); ties at the same count are common for
+/// articles existing in few editions — consumers should read the count, not
+/// trust the order alone.
+#[derive(Serialize, JsonSchema)]
+pub struct RankedCategoryInfo {
+    pub qid: u32,
+    pub title: String,
+    pub wiki_count: u16,
+}
+
 #[derive(Serialize, JsonSchema)]
 pub struct ArticleCategoriesResponse {
-    pub categories: Vec<CategoryInfo>,
+    pub categories: Vec<RankedCategoryInfo>,
 }
 
 #[derive(Deserialize)]
@@ -598,6 +610,8 @@ pub struct ListArticlesInCategoryParams {
     pub wiki: String,
     pub category: Option<String>,
     pub category_qid: Option<u32>,
+    /// Keep only members at least this many wikis agree on (default 1).
+    pub min_agreement: Option<u16>,
 }
 
 #[derive(Deserialize)]

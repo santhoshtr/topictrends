@@ -166,6 +166,8 @@ pub struct ListArticlesInput {
     pub category: Option<String>,
     /// Wikidata QID as a plain integer. At least one of category or category_qid required.
     pub category_qid: Option<u32>,
+    /// Keep only members at least this many wikis agree on (default 1).
+    pub min_agreement: Option<u16>,
 }
 
 /// Input for content gap analysis by semantic topic.

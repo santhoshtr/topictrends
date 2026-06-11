@@ -442,9 +442,12 @@ impl PageViewsService {
         let mut all_qids: HashSet<u32> = article_qids.iter().copied().collect();
 
         for article_qid in &article_qids {
-            let category_qids =
+            let category_qids: Vec<u32> =
                 ArticleService::get_article_categories(Arc::clone(&state), wiki, *article_qid)
-                    .await?;
+                    .await?
+                    .into_iter()
+                    .map(|(qid, _)| qid)
+                    .collect();
             all_qids.extend(category_qids.iter().copied());
             article_categories_by_qid.insert(*article_qid, category_qids);
         }
@@ -530,7 +533,7 @@ impl PageViewsService {
 
         // Get all articles in the category (depth 0 = direct members only)
         let article_qids =
-            CategoryService::get_category_articles(Arc::clone(&state), wiki, category_qid, 0)
+            CategoryService::get_category_articles(Arc::clone(&state), wiki, category_qid, 0, 1)
                 .await?;
 
         // Get titles for all articles

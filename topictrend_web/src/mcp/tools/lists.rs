@@ -61,7 +61,7 @@ impl TopicTrendMcpServer {
         };
 
         let article_qids = CategoryService::get_category_articles(
-            Arc::clone(&self.state), &p.wiki, category_qid, 0,
+            Arc::clone(&self.state), &p.wiki, category_qid, 0, p.min_agreement.unwrap_or(1),
         ).await.map_err(core_err)?;
 
         let titles = QidService::get_titles_by_qids(
@@ -127,17 +127,18 @@ impl TopicTrendMcpServer {
                 .await.map_err(core_err)?
         };
 
-        let category_qids = ArticleService::get_article_categories(
+        let ranked = ArticleService::get_article_categories(
             Arc::clone(&self.state), &p.wiki, article_qid,
         ).await.map_err(core_err)?;
 
+        let category_qids: Vec<u32> = ranked.iter().map(|(qid, _)| *qid).collect();
         let titles = QidService::get_titles_by_qids(
             Arc::clone(&self.state), &p.wiki, &category_qids,
         ).await.map_err(core_err)?;
 
-        let categories = category_qids.into_iter().map(|qid| {
+        let categories = ranked.into_iter().map(|(qid, wiki_count)| {
             let title = titles.get(&qid).cloned().unwrap_or_else(|| format!("Q{}", qid));
-            crate::models::CategoryInfo { qid, title }
+            crate::models::RankedCategoryInfo { qid, title, wiki_count }
         }).collect();
 
         Ok(rmcp::handler::server::wrapper::Json(ArticleCategoriesResponse { categories }))

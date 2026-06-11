@@ -259,9 +259,12 @@ impl GoogleSearchTrendsService {
         let mut all_qids: HashSet<u32> = article_qids.iter().copied().collect();
 
         for article_qid in &article_qids {
-            let category_qids =
+            let category_qids: Vec<u32> =
                 ArticleService::get_article_categories(Arc::clone(&state), wiki, *article_qid)
-                    .await?;
+                    .await?
+                    .into_iter()
+                    .map(|(qid, _)| qid)
+                    .collect();
             all_qids.extend(category_qids.iter().copied());
             article_categories_by_qid.insert(*article_qid, category_qids);
         }

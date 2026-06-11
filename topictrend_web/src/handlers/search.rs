@@ -101,7 +101,7 @@ pub async fn get_categories_trend_by_search_handler(
         state,
         &params.wiki,
         category_qids,
-        Some(1u32),
+        Some(0u32),
         params.start_date,
         params.end_date,
     )
@@ -164,6 +164,7 @@ pub async fn get_articles_in_category(
         params.wiki.as_str(),
         category_qid,
         0,
+        params.min_agreement.unwrap_or(1),
     )
     .await?;
 
@@ -263,25 +264,27 @@ pub async fn get_article_categories(
             .await?
     };
 
-    let category_qids = ArticleService::get_article_categories(
+    let ranked = ArticleService::get_article_categories(
         Arc::clone(&state),
         params.wiki.as_str(),
         article_qid,
     )
     .await?;
 
+    let category_qids: Vec<u32> = ranked.iter().map(|(qid, _)| *qid).collect();
     let titles_map =
         QidService::get_titles_by_qids(Arc::clone(&state), params.wiki.as_str(), &category_qids)
             .await?;
 
-    let categories: Vec<crate::models::CategoryInfo> = category_qids
+    let categories: Vec<crate::models::RankedCategoryInfo> = ranked
         .into_iter()
-        .map(|qid| crate::models::CategoryInfo {
+        .map(|(qid, wiki_count)| crate::models::RankedCategoryInfo {
             qid,
             title: titles_map
                 .get(&qid)
                 .cloned()
                 .unwrap_or_else(|| format!("Q{}", qid)),
+            wiki_count,
         })
         .collect();
 
