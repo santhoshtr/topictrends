@@ -562,6 +562,7 @@ Lists articles within a category.
 | `wiki` | String | Yes | Wikipedia edition |
 | `category` | String | No | Category name (title) |
 | `category_qid` | Integer | No | Category QID (numeric) |
+| `min_agreement` | Integer | No | Keep only members at least this many wikis agree on (default 1; meaningful on canonical topology) |
 | `limit` | Integer | No | Max results, default: 100, max: 10000 |
 
 **Note:** Either `category` (title) or `category_qid` must be provided.
@@ -860,7 +861,6 @@ For API versioning, prefix future versions with `/api/v2/`.
 For API issues:
 1. Check `/api/health` for component status
 2. Review logs: `RUST_LOG=debug ./topictrend_web`
-3. Verify MariaDB connectivity: `./target/release/topictrend_web --check-db`
 4. Test embedding service: `cd services/embedding && EMBEDDING_SERVER=localhost:50051 uv run python healthcheck.py`
 
 For deployment and operational questions, see [OPERATIONS.md](OPERATIONS.md).

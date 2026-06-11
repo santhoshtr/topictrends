@@ -17,7 +17,7 @@ This document covers deployment, configuration, data ingestion, and operational 
 ## Prerequisites
 
 - **Rust toolchain** (1.70+): Install from https://rustup.rs/
-- **MariaDB client tools**: For database access to Wikimedia SQL replicas
+- **MariaDB client tools**: For the ETL pipeline's replica queries (not needed to run the web server)
 - **Python 3.12+** (required): For running embedding service
 - **Access to Wikimedia infrastructure**: Required for data ingestion from SQL replicas and pageview dumps
 - **Network connectivity**: To https://dumps.wikimedia.org for pageview data
@@ -80,7 +80,7 @@ Runs via Makefile targets and system cron jobs. Fetches topology from Wikimedia 
 Loads topology at startup into memory (CSR graphs); loads time series (pageviews, pageedits, GSC) on demand per date into a bounded in-memory cache. Performs pure numeric operations on these structures.
 
 #### 3. Web Server (Axum)
-Thin translation layer. Handles HTTP requests, translates titles to QIDs via MariaDB, invokes core engine, translates results back to titles.
+Thin translation layer. Handles HTTP requests, translates titles to QIDs from the topology parquets, invokes core engine, translates results back to titles.
 
 #### 4. Semantic Search (Microservices)
 Optional component for semantic search:
@@ -112,10 +112,6 @@ Wikipedia SQL Replicas
 Create a `.env` file in the project root or set these environment variables before running:
 
 ```bash
-# Database credentials (REQUIRED)
-DB_USERNAME=<wikimedia replica user>
-DB_PASSWORD=<wikimedia replica password>
-
 # Embedding service endpoint (optional, only for semantic search)
 EMBEDDING_SERVER=http://localhost:50051
 
@@ -143,20 +139,21 @@ TOPICTREND_TOPOLOGY=canonical
 # Lower this on memory-constrained hosts; raise it (or set 0 = unlimited)
 # only if you know your workload fits in RAM.
 TOPICTREND_PAGEVIEW_CACHE_DAYS=120
-```
 
-**Required Variables:**
-- `DB_USERNAME` and `DB_PASSWORD` are required for database access to Wikimedia SQL replicas
-- Server will fail to start without these credentials
+# Maximum number of wikis whose title maps (articles + categories, both
+# directions) stay resident for title<->QID resolution (default 4; enwiki
+# costs ~1GB). FIFO eviction, reloaded from parquet on demand.
+TOPICTREND_TITLE_WIKIS=4
+```
 
 **Optional Variables:**
 - `EMBEDDING_SERVER` is only needed if using semantic search endpoints
 - `PORT` overrides default if needed
 - `TOPICTREND_PAGEVIEW_CACHE_DAYS` bounds the pageview engine's per-date cache to control RSS. The cap is per wiki; the cache evicts in FIFO insertion order when full. Setting it below the largest expected single-query range is safe — concurrent requests get an `Arc`-snapshot of their range, so mid-query eviction does not corrupt results, but recent dates may need to be re-loaded from disk more often.
 
-### Database Replica Access
+### Database Replica Access (ETL only)
 
-TopicTrends assumes access to Wikimedia's public SQL replicas. The system queries these replicas for:
+The ETL pipeline queries Wikimedia's public SQL replicas for:
 - Article metadata and QID mappings
 - Category metadata
 - Category graph structure
@@ -168,8 +165,10 @@ Queries are defined in `queries/` directory:
 - `category-graph.sql`: Fetch category parent relationships
 - `article-category.sql`: Fetch article-to-category assignments (hidden
   maintenance/tracking categories excluded)
-- `get_qid_by_title.sql`: Translate title to QID
-- `get_titles_by_qids.sql`: Batch translate QIDs to titles
+
+The web server itself never touches the database: title↔QID resolution reads
+the topology parquets (per-wiki bounded title stores) with the canonical
+`category_labels.parquet` as fallback for categories that have no local page.
 
 ### Makefile Configuration
 
@@ -393,6 +392,7 @@ make canonical DATE=2026-06-11
 # Or stage by stage:
 target/release/canonical-membership --date 2026-06-11 [--force] [wiki ...]
 target/release/canonical-projection --date 2026-06-11 [wiki ...]
+target/release/canonical-labels --date 2026-06-11 [wiki ...]
 ```
 
 **Stage 1 output** `data/canonical/<DATE>/article_category.parquet`, sorted by
@@ -421,6 +421,12 @@ the per-wiki topology):
 Expect the projection to be much wider than the local relation: a small wiki
 inherits every category any edition assigns to articles it has (mlwiki:
 206K local edges → 3.0M projected; 23K local categories → 522K).
+
+**Stage 3 output** `data/canonical/<DATE>/category_labels.parquet`
+`(qid: u32, label: str)`, sorted by qid — one label per category QID across
+all editions, enwiki-first then `wikipedia.list` order (~4.9M rows). The web
+server loads the latest snapshot's table lazily as the title fallback for
+categories that have no page in the requested wiki.
 
 **Manifest & sanity gate:** each snapshot also writes `manifest.tsv` (per-wiki
 input row counts). The next run compares its inputs against the most recent
@@ -470,10 +476,6 @@ make data/enwiki/category_graph.parquet --always-make
 ### Startup
 
 ```bash
-# Ensure environment variables are set
-export DB_USERNAME=<user>
-export DB_PASSWORD=<password>
-
 # Build and run
 make web
 
@@ -488,17 +490,17 @@ PORT=8000 ./target/release/topictrend_web
 The server:
 1. Loads topology from Parquet files into memory (CSR structure)
 2. Starts HTTP server on `0.0.0.0:8765` (or custom `PORT`)
-3. Establishes connection pool to MariaDB replica for title translation
+3. Loads each wiki's title maps from parquet on first use (bounded cache)
 
 Daily pageview, pageedit, and GSC Parquet files are not loaded at startup; each date is read on first request into a bounded FIFO cache.
 
 ### Dependencies
 
 The web server requires:
-- **MariaDB replica access** (hard requirement): Used for all title↔QID translation
+- **The `data/` tree** (topology parquets; canonical artifacts for v2 topology and label fallback)
 - **Embedding service** (optional): Only if using semantic search endpoints
 
-If MariaDB is unavailable, the server will fail to start. If the embedding service is unavailable, semantic search endpoints will return errors, but other APIs function normally.
+If the embedding service is unavailable, semantic search endpoints will return errors, but other APIs function normally. No database is needed.
 
 ### Health Checks
 
@@ -613,9 +615,6 @@ curl http://localhost:8765/health
 
 # Check topology loaded
 curl http://localhost:8765/api/stats
-
-# Check MariaDB connectivity
-curl http://localhost:8765/api/db-status
 ```
 
 ### Performance Baselines
@@ -643,37 +642,34 @@ RUST_LOG=info ./target/release/topictrend_web
 RUST_LOG=warn ./target/release/topictrend_web
 ```
 
-### Database Connection Pool
+### Title Store Memory
 
-The web server maintains a connection pool to MariaDB replica (default: 5-10 connections). Monitor these:
-
-```bash
-# From MariaDB:
-SHOW PROCESSLIST;
-
-# Look for connections from topictrend_web host
-```
-
-If pool is exhausted, increase pool size in configuration.
+Each wiki's title maps (articles + categories, both directions) load on first
+use and stay resident, FIFO-bounded by `TOPICTREND_TITLE_WIKIS` (default 4;
+enwiki ≈ 1GB). Lower the cap on memory-constrained hosts; titles for evicted
+wikis reload from parquet on the next request.
 
 ## Troubleshooting
 
 ### Issue: Web Server Won't Start
 
-**Symptom**: `Error connecting to database` or `Connection refused`
+**Symptom**: panic or missing-file errors at startup
 
 **Diagnosis**:
 ```bash
-# Test MariaDB connectivity
-mariadb --host enwiki.analytics.db.svc.wikimedia.cloud --user ... -e "SELECT 1"
+# Topology parquets present for the wikis you serve?
+ls data/enwiki/{articles,categories,article_category,category_graph}.parquet
+
+# Canonical artifacts present when running TOPICTREND_TOPOLOGY=canonical?
+ls data/enwiki/article_category_canonical.parquet data/canonical/
 
 # Check if embedding service is required
 grep -r "EMBEDDING_SERVER" src/
 ```
 
 **Solution**:
-- Verify MariaDB replica is accessible from your network
-- Check `.env` has correct database credentials
+- Re-run topology ETL for missing wikis (`make topology-refresh WIKIS=<wiki>` on the VPS)
+- Run `make canonical` before serving canonical topology
 - If embedding service is optional, ensure semantic search endpoints aren't required
 
 ### Issue: Semantic Search Returns Errors
@@ -785,9 +781,6 @@ curl http://localhost:8765/api/pageviews/category?qid=42&wiki=enwiki
 ```bash
 # Check server is healthy
 curl http://localhost:8765/health
-
-# Monitor database connections
-mariadb -e "SHOW PROCESSLIST" | grep topictrend
 
 # Check disk usage
 du -h data/
