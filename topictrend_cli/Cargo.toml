@@ -84,3 +84,7 @@ path = "src/canonical_membership.rs"
 [[bin]]
 name = "canonical-projection"
 path = "src/canonical_projection.rs"
+
+[[bin]]
+name = "canonical-labels"
+path = "src/canonical_labels.rs"

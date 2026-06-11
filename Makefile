@@ -257,6 +257,7 @@ coverage: init $(foreach w,$(WIKIS),$(DATA_DIR)/$(w)/coverage/$(DATE).parquet)
 canonical: init
 	DATA_DIR=$(DATA_DIR) $(CARGO_RELEASE)/canonical-membership --date $(DATE)
 	DATA_DIR=$(DATA_DIR) $(CARGO_RELEASE)/canonical-projection --date $(DATE)
+	DATA_DIR=$(DATA_DIR) $(CARGO_RELEASE)/canonical-labels --date $(DATE)
 
 # Clean target
 clean:
