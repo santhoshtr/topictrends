@@ -4,7 +4,6 @@ mod models;
 mod routes;
 mod services;
 mod templates;
-mod wiki;
 
 use crate::models::AppState;
 use crate::routes::app_router;

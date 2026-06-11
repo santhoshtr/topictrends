@@ -6,10 +6,11 @@ use std::{
 use chrono::NaiveDate;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sqlx::{MySql, Pool};
+use std::sync::OnceLock;
 use crate::services::core::coverage_service::{
     BoundedCache, CoverageSnapshot, GapRanking, coverage_cache_capacity, ranking_cache_capacity,
 };
+use crate::services::core::title_store::{CategoryLabelTable, WikiTitleStore, title_cache_capacity};
 use topictrend::google_search_engine::GoogleSearchEngine;
 use topictrend::pageedits_engine::PageEditsEngine;
 use topictrend::pageview_engine::PageViewEngine;
@@ -70,9 +71,11 @@ impl MetricEngine {
 
 pub struct AppState {
     pub engines: Arc<RwLock<HashMap<(String, MetricType), MetricEngine>>>,
-    pub db_pools: Arc<RwLock<HashMap<String, Pool<MySql>>>>,
-    pub db_username: String,
-    pub db_password: String,
+    // Title↔QID resolution: per-wiki parquet title maps (lazily loaded,
+    // FIFO-bounded) plus the once-loaded global category-label fallback
+    // (None = no canonical snapshot with labels on disk).
+    pub title_stores: Arc<RwLock<BoundedCache<String, WikiTitleStore>>>,
+    pub category_labels: Arc<OnceLock<Option<Arc<CategoryLabelTable>>>>,
     // Gap-discovery: per-wiki coverage snapshots and per-(reference,target)
     // sorted rankings, both lazily loaded and FIFO-bounded.
     pub coverage_snapshots: Arc<RwLock<BoundedCache<String, CoverageSnapshot>>>,
@@ -81,14 +84,10 @@ pub struct AppState {
 
 impl AppState {
     pub fn new() -> Self {
-        let db_username = std::env::var("DB_USERNAME").expect("DB_USERNAME must be set");
-        let db_password = std::env::var("DB_PASSWORD").expect("DB_PASSWORD must be set");
-
         Self {
             engines: Arc::new(RwLock::new(HashMap::new())),
-            db_pools: Arc::new(RwLock::new(HashMap::new())),
-            db_username,
-            db_password,
+            title_stores: Arc::new(RwLock::new(BoundedCache::new(title_cache_capacity()))),
+            category_labels: Arc::new(OnceLock::new()),
             coverage_snapshots: Arc::new(RwLock::new(BoundedCache::new(coverage_cache_capacity()))),
             gap_rankings: Arc::new(RwLock::new(BoundedCache::new(ranking_cache_capacity()))),
         }

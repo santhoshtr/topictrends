@@ -217,9 +217,6 @@ pub fn service_err(e: crate::services::ServiceError) -> ErrorData {
         crate::services::ServiceError::CoreError(CoreServiceError::NotFound) => {
             "Resource not found".to_string()
         }
-        crate::services::ServiceError::CoreError(CoreServiceError::DatabaseError(m)) => {
-            format!("Database error: {}", m)
-        }
         crate::services::ServiceError::CoreError(CoreServiceError::EngineError(m)) => {
             format!("Engine error: {}", m)
         }

@@ -1,32 +1,74 @@
+//! Title↔QID resolution over the topology parquets (no database).
+//!
+//! Primary source: the wiki's own title maps (`title_store::WikiTitleStore`,
+//! bounded per-wiki cache). Fallback for category QIDs with no local page:
+//! the global category-label table from the canonical snapshot. QIDs that
+//! resolve nowhere are simply absent from the returned maps — callers already
+//! degrade to `"Q{qid}"`.
+
 use super::CoreServiceError;
+use super::title_store::{CategoryLabelTable, WikiTitleStore, normalize_title};
 use crate::models::AppState;
-use crate::wiki::get_or_create_db_pool;
-use sqlx::Row;
 use std::{collections::HashMap, sync::Arc};
 
 pub struct QidService;
 
 impl QidService {
+    /// Get (and lazily load/cache) a wiki's title maps.
+    async fn store(state: &Arc<AppState>, wiki: &str) -> Result<Arc<WikiTitleStore>, CoreServiceError> {
+        if let Some(store) = state
+            .title_stores
+            .read()
+            .map_err(|_| CoreServiceError::InternalError("title_stores lock poisoned".into()))?
+            .get(&wiki.to_string())
+        {
+            return Ok(store);
+        }
+
+        let wiki_owned = wiki.to_string();
+        let loaded = tokio::task::spawn_blocking(move || WikiTitleStore::load(&wiki_owned))
+            .await
+            .map_err(|e| CoreServiceError::InternalError(format!("title store load join: {}", e)))?
+            .map_err(CoreServiceError::InternalError)?;
+
+        let store = Arc::new(loaded);
+        state
+            .title_stores
+            .write()
+            .map_err(|_| CoreServiceError::InternalError("title_stores lock poisoned".into()))?
+            .insert(wiki.to_string(), store.clone());
+        Ok(store)
+    }
+
+    /// The global category-label fallback, loaded once. `None` when no
+    /// canonical snapshot with labels exists.
+    async fn label_table(state: &Arc<AppState>) -> Option<Arc<CategoryLabelTable>> {
+        if let Some(slot) = state.category_labels.get() {
+            return slot.clone();
+        }
+        let loaded = tokio::task::spawn_blocking(CategoryLabelTable::load_latest)
+            .await
+            .ok()
+            .flatten()
+            .map(Arc::new);
+        if loaded.is_none() {
+            tracing::warn!("no canonical category_labels.parquet found; non-local category labels disabled");
+        }
+        // First writer wins; on a race, read back the stored slot.
+        let _ = state.category_labels.set(loaded.clone());
+        state.category_labels.get().cloned().unwrap_or(loaded)
+    }
+
     pub async fn get_qid_by_title(
         state: Arc<AppState>,
         wiki: &str,
         title: &str,
         namespace: i8,
     ) -> Result<u32, CoreServiceError> {
-        let pool = get_or_create_db_pool(state, wiki).await?;
-
-        let row = sqlx::query(include_str!("../../../../queries/get_qid_by_title.sql"))
-            .bind(title)
-            .bind(namespace)
-            .fetch_optional(&pool)
-            .await?;
-
-        if let Some(row) = row {
-            let qid: u32 = row.try_get("qid")?;
-            return Ok(qid);
-        }
-
-        Err(CoreServiceError::NotFound)
+        let store = Self::store(&state, wiki).await?;
+        store
+            .qid_of(&normalize_title(title), namespace)
+            .ok_or(CoreServiceError::NotFound)
     }
 
     pub async fn get_title_by_qid(
@@ -43,36 +85,30 @@ impl QidService {
         wiki: &str,
         qids: &Vec<u32>,
     ) -> Result<HashMap<u32, String>, CoreServiceError> {
-        let pool = get_or_create_db_pool(state, wiki).await?;
-
         if qids.is_empty() {
             return Ok(HashMap::new());
         }
+        let store = Self::store(&state, wiki).await?;
 
-        // Create placeholders for the IN clause
-        let placeholders: Vec<String> = qids.iter().map(|_| "?".to_string()).collect();
-        let placeholders_str = placeholders.join(",");
-
-        // Build the query with the placeholders
-        let query_template = include_str!("../../../../queries/get_titles_by_qids.sql");
-        let query = query_template.replace("{}", &placeholders_str);
-
-        let mut query_builder = sqlx::query(&query);
-
-        // Bind each QID
-        for qid in qids {
-            query_builder = query_builder.bind(format!("Q{}", qid));
+        let mut result = HashMap::with_capacity(qids.len());
+        let mut missing: Vec<u32> = Vec::new();
+        for &qid in qids {
+            match store.title_of(qid) {
+                Some(title) => {
+                    result.insert(qid, title.to_string());
+                }
+                None => missing.push(qid),
+            }
         }
 
-        let rows = query_builder.fetch_all(&pool).await?;
-
-        let mut result = HashMap::new();
-        for row in rows {
-            let qid: u32 = row.try_get("qid")?;
-            // Get page_title as Vec<u8> and convert to String
-            let title_bytes: Vec<u8> = row.try_get("page_title")?;
-            let title = String::from_utf8_lossy(&title_bytes).to_string();
-            result.insert(qid, title);
+        if !missing.is_empty()
+            && let Some(labels) = Self::label_table(&state).await
+        {
+            for qid in missing {
+                if let Some(label) = labels.get(qid) {
+                    result.insert(qid, label.to_string());
+                }
+            }
         }
 
         Ok(result)
@@ -84,40 +120,17 @@ impl QidService {
         titles: Vec<String>,
         namespace: i8,
     ) -> Result<HashMap<String, u32>, CoreServiceError> {
-        let pool = get_or_create_db_pool(state, wiki).await?;
-
         if titles.is_empty() {
             return Ok(HashMap::new());
         }
+        let store = Self::store(&state, wiki).await?;
 
-        let placeholders: Vec<String> = titles.iter().map(|_| "?".to_string()).collect();
-        let placeholders_str = placeholders.join(",");
-
-        let query = format!(
-            "SELECT page_title, qid FROM page p 
-             JOIN wb_items_per_site w ON p.page_id = w.ips_site_page 
-             WHERE p.page_title IN ({}) AND p.page_namespace = ?",
-            placeholders_str
-        );
-
-        let mut query_builder = sqlx::query(&query);
-
-        // Bind each title
-        for title in &titles {
-            query_builder = query_builder.bind(title);
+        let mut result = HashMap::with_capacity(titles.len());
+        for title in titles {
+            if let Some(qid) = store.qid_of(&normalize_title(&title), namespace) {
+                result.insert(title, qid);
+            }
         }
-        query_builder = query_builder.bind(namespace);
-
-        let rows = query_builder.fetch_all(&pool).await?;
-
-        let mut result = HashMap::new();
-        for row in rows {
-            let title_bytes: Vec<u8> = row.try_get("page_title")?;
-            let title = String::from_utf8_lossy(&title_bytes).to_string();
-            let qid: u32 = row.try_get("qid")?;
-            result.insert(title, qid);
-        }
-
         Ok(result)
     }
 }

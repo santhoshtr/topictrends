@@ -8,6 +8,7 @@ pub mod pageedit_service;
 pub mod pageview_service;
 pub mod qid_service;
 pub mod related_service;
+pub mod title_store;
 
 pub use article_service::ArticleService;
 pub use category_service::CategoryService;
@@ -21,14 +22,7 @@ pub use related_service::RelatedService;
 
 #[derive(Debug)]
 pub enum CoreServiceError {
-    DatabaseError(sqlx::Error),
     EngineError(String),
     NotFound,
     InternalError(String),
-}
-
-impl From<sqlx::Error> for CoreServiceError {
-    fn from(err: sqlx::Error) -> Self {
-        CoreServiceError::DatabaseError(err)
-    }
 }

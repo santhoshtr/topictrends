@@ -128,11 +128,11 @@ impl<K: Eq + Hash + Clone, V> BoundedCache<K, V> {
         }
     }
 
-    fn get(&self, key: &K) -> Option<Arc<V>> {
+    pub(crate) fn get(&self, key: &K) -> Option<Arc<V>> {
         self.map.get(key).cloned()
     }
 
-    fn insert(&mut self, key: K, value: Arc<V>) {
+    pub(crate) fn insert(&mut self, key: K, value: Arc<V>) {
         if self.map.contains_key(&key) {
             return;
         }
