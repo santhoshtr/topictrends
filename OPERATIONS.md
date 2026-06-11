@@ -373,20 +373,21 @@ systemctl list-timers topictrend-coverage.timer   # verify next run
 ### Canonical Article→Category Relation (cross-wiki union)
 
 **Frequency**: Monthly (systemd timer, after the coverage snapshot)
-**Runtime**: ~15 seconds for the union itself (inputs must already exist)
+**Runtime**: ~15 seconds for the union; minutes for the per-wiki projection
 **Operation**: Unions every wiki's `article_category.parquet` into one global
-relation. Articles and categories share Wikidata QIDs across editions, so the
-union carries a per-edge count of how many wikis assert each assignment — the
-categorization-consensus signal.
+relation, then projects it back onto each wiki. Articles and categories share
+Wikidata QIDs across editions, so the union carries a per-edge count of how
+many wikis assert each assignment — the categorization-consensus signal.
 
 ```bash
 make canonical DATE=2026-06-11
 
-# Or directly:
+# Or stage by stage:
 target/release/canonical-membership --date 2026-06-11 [--force] [wiki ...]
+target/release/canonical-projection --date 2026-06-11 [wiki ...]
 ```
 
-**Output** `data/canonical/<DATE>/article_category.parquet`, sorted by
+**Stage 1 output** `data/canonical/<DATE>/article_category.parquet`, sorted by
 `(article_qid, category_qid)`:
 
 | column       | type | notes                                          |
@@ -397,6 +398,21 @@ target/release/canonical-membership --date 2026-06-11 [--force] [wiki ...]
 
 (`wiki_count` is u32, not u16: Polars cannot scan UInt16 Parquet columns, and
 all downstream consumers read via Polars.)
+
+**Stage 2 outputs**, per wiki (not dated — refreshed in place like the rest of
+the per-wiki topology):
+
+- `data/<wiki>/article_category_canonical.parquet` — the canonical edges whose
+  article exists in this wiki; same columns as stage 1. The drop-in
+  alternative to `article_category.parquet` for graph building.
+- `data/<wiki>/categories_canonical.parquet` — `(qid: u32)`, sorted: the
+  wiki's category node universe under the canonical relation (local category
+  QIDs ∪ categories appearing in the projection). QIDs only — titles for
+  non-local categories resolve at the web edge.
+
+Expect the projection to be much wider than the local relation: a small wiki
+inherits every category any edition assigns to articles it has (mlwiki:
+206K local edges → 3.0M projected; 23K local categories → 522K).
 
 **Manifest & sanity gate:** each snapshot also writes `manifest.tsv` (per-wiki
 input row counts). The next run compares its inputs against the most recent

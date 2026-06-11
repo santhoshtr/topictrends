@@ -43,7 +43,8 @@ help:
 	@echo "  coverage         - Build the coverage matrix (depth-0 direct_coverage) for all"
 	@echo "                     wikis as a dated snapshot (data/<wiki>/coverage/<DATE>.parquet)"
 	@echo "  canonical        - Union all wikis' article_category into the canonical relation"
-	@echo "                     with per-edge wiki counts (data/canonical/<DATE>/)"
+	@echo "                     with per-edge wiki counts (data/canonical/<DATE>/), then project"
+	@echo "                     it per wiki (article_category_canonical + categories_canonical)"
 	@echo "  topology-refresh - Re-fetch topology (articles/categories/graph) from the replica"
 	@echo "                     for all wikis; scope with WIKIS=enwiki. Restart the server after."
 	@echo "  web              - Start the web server (no rebuild)"
@@ -246,12 +247,16 @@ coverage: init $(foreach w,$(WIKIS),$(DATA_DIR)/$(w)/coverage/$(DATE).parquet)
 	DATA_DIR=$(DATA_DIR) $(CARGO_RELEASE)/coverage-overlap --date $(DATE)
 
 # Canonical cross-wiki article->category relation, dated snapshot.
-# Unions every wiki's article_category.parquet with per-edge wiki counts into
-# data/canonical/$(DATE)/article_category.parquet (+ manifest.tsv, which gates
-# the next run against truncated inputs).
+# Stage 1 (canonical-membership) unions every wiki's article_category.parquet
+# with per-edge wiki counts into data/canonical/$(DATE)/article_category.parquet
+# (+ manifest.tsv, which gates the next run against truncated inputs).
+# Stage 2 (canonical-projection) intersects the union with each wiki's article
+# set, writing data/<wiki>/article_category_canonical.parquet and the category
+# node universe data/<wiki>/categories_canonical.parquet.
 # Usage: make canonical DATE=2026-06-11  (falls back to yesterday if DATE unset)
 canonical: init
 	DATA_DIR=$(DATA_DIR) $(CARGO_RELEASE)/canonical-membership --date $(DATE)
+	DATA_DIR=$(DATA_DIR) $(CARGO_RELEASE)/canonical-projection --date $(DATE)
 
 # Clean target
 clean:
