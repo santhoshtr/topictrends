@@ -72,3 +72,7 @@ roaring = { workspace = true }
 [[bin]]
 name = "coverage-gaps"
 path = "src/coverage_gaps.rs"
+
+[[bin]]
+name = "v2-study"
+path = "src/v2_study.rs"
