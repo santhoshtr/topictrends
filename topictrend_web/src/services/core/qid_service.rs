@@ -114,6 +114,24 @@ impl QidService {
         Ok(result)
     }
 
+    /// English labels for hover text. Empty when the display wiki is already
+    /// enwiki; otherwise resolves against enwiki's title store (articles and
+    /// categories) with the canonical label fallback. Errors degrade to an
+    /// empty map — hover text is an enhancement, never worth failing a
+    /// response over.
+    pub async fn get_english_titles(
+        state: Arc<AppState>,
+        wiki: &str,
+        qids: &[u32],
+    ) -> HashMap<u32, String> {
+        if wiki == "enwiki" || qids.is_empty() {
+            return HashMap::new();
+        }
+        Self::get_titles_by_qids(state, "enwiki", &qids.to_vec())
+            .await
+            .unwrap_or_default()
+    }
+
     pub async fn get_qids_by_titles(
         state: Arc<AppState>,
         wiki: &str,

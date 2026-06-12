@@ -67,10 +67,12 @@ impl TopicTrendMcpServer {
         let titles = QidService::get_titles_by_qids(
             Arc::clone(&self.state), &p.wiki, &article_qids,
         ).await.map_err(core_err)?;
+        let en =
+            QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &article_qids).await;
 
         let articles = article_qids.into_iter().map(|qid| {
             let title = titles.get(&qid).cloned().unwrap_or_else(|| format!("Q{}", qid));
-            ArticleItem { qid, title }
+            ArticleItem { qid, title, title_en: en.get(&qid).cloned() }
         }).collect();
 
         Ok(rmcp::handler::server::wrapper::Json(ArticlesInCategoryResponse { articles }))
@@ -135,10 +137,17 @@ impl TopicTrendMcpServer {
         let titles = QidService::get_titles_by_qids(
             Arc::clone(&self.state), &p.wiki, &category_qids,
         ).await.map_err(core_err)?;
+        let en =
+            QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &category_qids).await;
 
         let categories = ranked.into_iter().map(|(qid, wiki_count)| {
             let title = titles.get(&qid).cloned().unwrap_or_else(|| format!("Q{}", qid));
-            crate::models::RankedCategoryInfo { qid, title, wiki_count }
+            crate::models::RankedCategoryInfo {
+                qid,
+                title,
+                title_en: en.get(&qid).cloned(),
+                wiki_count,
+            }
         }).collect();
 
         Ok(rmcp::handler::server::wrapper::Json(ArticleCategoriesResponse { categories }))

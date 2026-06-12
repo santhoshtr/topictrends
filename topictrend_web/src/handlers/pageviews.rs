@@ -5,6 +5,7 @@ use axum::{
 use std::sync::Arc;
 
 use crate::services::PageViewsService;
+use crate::services::core::QidService;
 use crate::models::{
     AppState, ArticleTrendParams, ArticleTrendResponse, CategoryTrendParams,
     CategoryTrendResponse, DailyViews, SubCategoryParams, TopArticle, TopCategoriesParams,
@@ -19,7 +20,7 @@ pub async fn get_category_trend_handler(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<CategoryTrendResponse>, ApiError> {
     let result = PageViewsService::get_category_trend(
-        state,
+        Arc::clone(&state),
         &params.wiki,
         &params.category,
         params.category_qid,
@@ -27,6 +28,13 @@ pub async fn get_category_trend_handler(
         params.end_date,
     )
     .await?;
+
+    let mut en_qids: Vec<u32> = vec![result.qid];
+    for art in &result.top_articles {
+        en_qids.push(art.qid);
+        en_qids.extend(art.source_categories.iter().map(|(qid, _)| *qid));
+    }
+    let en = QidService::get_english_titles(state, &params.wiki, &en_qids).await;
 
     let daily_views: Vec<DailyViews> = result
         .views
@@ -39,16 +47,22 @@ pub async fn get_category_trend_handler(
         .into_iter()
         .map(|art| TopArticle {
             qid: art.qid,
+            title_en: en.get(&art.qid).cloned(),
             title: art.title,
             views: art.views,
             source_categories: art.source_categories.into_iter()
-                .map(|(qid, title)| TopArticleCategory { qid, title })
+                .map(|(qid, title)| TopArticleCategory {
+                    qid,
+                    title,
+                    title_en: en.get(&qid).cloned(),
+                })
                 .collect(),
         })
         .collect();
 
     Ok(Json(CategoryTrendResponse {
         qid: result.qid,
+        title_en: en.get(&result.qid).cloned(),
         title: result.title,
         views: daily_views,
         top_articles,
@@ -60,7 +74,7 @@ pub async fn get_article_trend_handler(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ArticleTrendResponse>, ApiError> {
     let result = PageViewsService::get_article_trend(
-        state,
+        Arc::clone(&state),
         &params.wiki,
         &params.article,
         params.article_qid,
@@ -68,6 +82,8 @@ pub async fn get_article_trend_handler(
         params.end_date,
     )
     .await?;
+
+    let en = QidService::get_english_titles(state, &params.wiki, &[result.qid]).await;
 
     let daily_views = result
         .views
@@ -77,6 +93,7 @@ pub async fn get_article_trend_handler(
 
     Ok(Json(ArticleTrendResponse {
         qid: result.qid,
+        title_en: en.get(&result.qid).cloned(),
         title: result.title,
         views: daily_views,
     }))
@@ -87,13 +104,20 @@ pub async fn get_topic_pageview_trend_handler(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<CategoryTrendResponse>, ApiError> {
     let result = PageViewsService::get_topic_trend(
-        state,
+        Arc::clone(&state),
         &params.wiki,
         &params.topic,
         params.start_date,
         params.end_date,
     )
     .await?;
+
+    let mut en_qids: Vec<u32> = Vec::new();
+    for art in &result.top_articles {
+        en_qids.push(art.qid);
+        en_qids.extend(art.source_categories.iter().map(|(qid, _)| *qid));
+    }
+    let en = QidService::get_english_titles(state, &params.wiki, &en_qids).await;
 
     let daily_views: Vec<DailyViews> = result
         .views
@@ -106,16 +130,22 @@ pub async fn get_topic_pageview_trend_handler(
         .into_iter()
         .map(|art| TopArticle {
             qid: art.qid,
+            title_en: en.get(&art.qid).cloned(),
             title: art.title,
             views: art.views,
             source_categories: art.source_categories.into_iter()
-                .map(|(qid, title)| TopArticleCategory { qid, title })
+                .map(|(qid, title)| TopArticleCategory {
+                    qid,
+                    title,
+                    title_en: en.get(&qid).cloned(),
+                })
                 .collect(),
         })
         .collect();
 
     Ok(Json(CategoryTrendResponse {
         qid: result.qid,
+        title_en: None,
         title: result.title,
         views: daily_views,
         top_articles,
@@ -142,13 +172,23 @@ pub async fn get_pageviews_top_categories_handler(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<CategoryRankResponse>, ApiError> {
     let categories = PageViewsService::get_top_categories(
-        state,
+        Arc::clone(&state),
         &params.wiki,
         params.start_date,
         params.end_date,
         params.top_n,
     )
     .await?;
+
+    let mut en_qids: Vec<u32> = Vec::new();
+    for cat in &categories {
+        en_qids.push(cat.qid);
+        for art in &cat.top_articles {
+            en_qids.push(art.qid);
+            en_qids.extend(art.source_categories.iter().map(|(qid, _)| *qid));
+        }
+    }
+    let en = QidService::get_english_titles(state, &params.wiki, &en_qids).await;
 
     let top_categories_with_titles: Vec<TopCategory> = categories
         .into_iter()
@@ -158,16 +198,22 @@ pub async fn get_pageviews_top_categories_handler(
                 .into_iter()
                 .map(|art| TopArticle {
                     qid: art.qid,
+                    title_en: en.get(&art.qid).cloned(),
                     title: art.title,
                     views: art.views,
                     source_categories: art.source_categories.into_iter()
-                        .map(|(qid, title)| TopArticleCategory { qid, title })
+                        .map(|(qid, title)| TopArticleCategory {
+                            qid,
+                            title,
+                            title_en: en.get(&qid).cloned(),
+                        })
                         .collect(),
                 })
                 .collect();
 
             TopCategory {
                 qid: cat.qid,
+                title_en: en.get(&cat.qid).cloned(),
                 title: cat.title,
                 views: cat.views,
                 top_articles,
@@ -187,7 +233,7 @@ pub async fn get_pageviews_top_articles_handler(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<PageViewTopArticlesResponse>, ApiError> {
     let articles = PageViewsService::get_top_articles_global(
-        state,
+        Arc::clone(&state),
         &params.wiki,
         params.start_date,
         params.end_date,
@@ -195,11 +241,19 @@ pub async fn get_pageviews_top_articles_handler(
     )
     .await?;
 
+    let mut en_qids: Vec<u32> = Vec::new();
+    for art in &articles {
+        en_qids.push(art.qid);
+        en_qids.extend(art.categories.iter().map(|c| c.qid));
+    }
+    let en = QidService::get_english_titles(state, &params.wiki, &en_qids).await;
+
     let response = PageViewTopArticlesResponse {
         articles: articles
             .into_iter()
             .map(|article| PageViewTopArticle {
                 qid: article.qid,
+                title_en: en.get(&article.qid).cloned(),
                 title: article.title,
                 views: article.views,
                 categories: article
@@ -207,6 +261,7 @@ pub async fn get_pageviews_top_articles_handler(
                     .into_iter()
                     .map(|category| TopArticleCategory {
                         qid: category.qid,
+                        title_en: en.get(&category.qid).cloned(),
                         title: category.title,
                     })
                     .collect(),

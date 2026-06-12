@@ -10,9 +10,9 @@ use crate::services::core::{CoreServiceError, QidService, RelatedService};
 use super::ApiError;
 
 /// Find articles related to the given article by shared-category overlap.
-/// Resolves the input title to a QID via MariaDB, runs the scatter on the
-/// shared in-memory graph, then resolves result QIDs back to titles and builds
-/// a Wikipedia URL for each — title, link, and overlap score.
+/// Resolves the input title to a QID from the wiki's title store, runs the
+/// scatter on the shared in-memory graph, then resolves result QIDs back to
+/// titles and builds a Wikipedia URL for each — title, link, and overlap score.
 pub async fn get_related_articles_handler(
     Query(params): Query<RelatedArticlesParams>,
     State(state): State<Arc<AppState>>,
@@ -43,6 +43,7 @@ pub async fn get_related_articles_handler(
     let qids: Vec<u32> = related.iter().map(|(qid, _)| *qid).collect();
     let titles_map =
         QidService::get_titles_by_qids(Arc::clone(&state), params.wiki.as_str(), &qids).await?;
+    let en = QidService::get_english_titles(Arc::clone(&state), &params.wiki, &qids).await;
 
     let host = wiki_to_host(&params.wiki);
     let articles: Vec<RelatedArticleItem> = related
@@ -51,6 +52,7 @@ pub async fn get_related_articles_handler(
             titles_map.get(&qid).map(|title| RelatedArticleItem {
                 qid,
                 title: title.clone(),
+                title_en: en.get(&qid).cloned(),
                 url: format!("https://{}/wiki/{}", host, title),
                 score,
             })

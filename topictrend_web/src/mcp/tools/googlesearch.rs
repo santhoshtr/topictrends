@@ -14,6 +14,8 @@ use crate::models::{
     TopArticleBySearch, TopArticleCategory, TopArticleGoogleSearch, TopCategoryBySearch,
 };
 use crate::services::composite::GoogleSearchTrendsService;
+use crate::services::core::QidService;
+use std::collections::HashMap;
 use crate::services::composite::google_search_service::{
     ArticleGoogleSearchRank, CategorySearchRankResult,
 };
@@ -37,8 +39,13 @@ impl TopicTrendMcpServer {
             Arc::clone(&self.state), &p.wiki, &p.category, p.category_qid, start, end,
         ).await.map_err(core_err)?;
 
+        let mut en_qids = article_search_rank_qids(&r.top_articles);
+        en_qids.push(r.qid);
+        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &en_qids).await;
+
         Ok(rmcp::handler::server::wrapper::Json(GoogleSearchCategoryTrendResponse {
             qid: r.qid,
+            title_en: en.get(&r.qid).cloned(),
             title: r.title,
             search: r.search.into_iter().map(|item| DailyGoogleSearch {
                 date: item.date,
@@ -47,7 +54,7 @@ impl TopicTrendMcpServer {
                 ctr: item.ctr,
                 position: item.position,
             }).collect(),
-            top_articles: build_top_article_search(r.top_articles),
+            top_articles: build_top_article_search(r.top_articles, &en),
         }))
     }
 
@@ -67,8 +74,12 @@ impl TopicTrendMcpServer {
             Arc::clone(&self.state), &p.wiki, &p.article, p.article_qid, start, end,
         ).await.map_err(core_err)?;
 
+        let en =
+            QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &[r.qid]).await;
+
         Ok(rmcp::handler::server::wrapper::Json(GoogleSearchArticleTrendResponse {
             qid: r.qid,
+            title_en: en.get(&r.qid).cloned(),
             title: r.title,
             search: r.search.into_iter().map(|item| DailyGoogleSearch {
                 date: item.date,
@@ -98,8 +109,12 @@ impl TopicTrendMcpServer {
             Arc::clone(&self.state), &p.wiki, &p.topic, start, end,
         ).await.map_err(core_err)?;
 
+        let en_qids = article_search_rank_qids(&r.top_articles);
+        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &en_qids).await;
+
         Ok(rmcp::handler::server::wrapper::Json(GoogleSearchCategoryTrendResponse {
             qid: r.qid,
+            title_en: None,
             title: r.title,
             search: r.search.into_iter().map(|item| DailyGoogleSearch {
                 date: item.date,
@@ -108,7 +123,7 @@ impl TopicTrendMcpServer {
                 ctr: item.ctr,
                 position: item.position,
             }).collect(),
-            top_articles: build_top_article_search(r.top_articles),
+            top_articles: build_top_article_search(r.top_articles, &en),
         }))
     }
 
@@ -128,8 +143,15 @@ impl TopicTrendMcpServer {
             Arc::clone(&self.state), &p.wiki, start, end, p.top_n,
         ).await.map_err(core_err)?;
 
+        let mut en_qids: Vec<u32> = Vec::new();
+        for cat in &cats {
+            en_qids.push(cat.qid);
+            en_qids.extend(cat.top_articles.iter().map(|a| a.qid));
+        }
+        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &en_qids).await;
+
         Ok(rmcp::handler::server::wrapper::Json(CategorySearchRankResponse {
-            categories: cats.into_iter().map(build_category_search_rank).collect(),
+            categories: cats.into_iter().map(|c| build_category_search_rank(c, &en)).collect(),
         }))
     }
 
@@ -149,47 +171,82 @@ impl TopicTrendMcpServer {
             Arc::clone(&self.state), &p.wiki, start, end, p.top_n,
         ).await.map_err(core_err)?;
 
+        let mut en_qids: Vec<u32> = Vec::new();
+        for art in &arts {
+            en_qids.push(art.qid);
+            en_qids.extend(art.categories.iter().map(|c| c.qid));
+        }
+        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &en_qids).await;
+
         Ok(rmcp::handler::server::wrapper::Json(GoogleSearchTopArticlesResponse {
             articles: arts.into_iter().map(|art| GoogleSearchTopArticle {
                 qid: art.qid,
+                title_en: en.get(&art.qid).cloned(),
                 title: art.title,
                 clicks: art.clicks,
                 impressions: art.impressions,
                 ctr: art.ctr,
                 categories: art.categories.into_iter()
-                    .map(|c| TopArticleCategory { qid: c.qid, title: c.title })
+                    .map(|c| TopArticleCategory {
+                        qid: c.qid,
+                        title_en: en.get(&c.qid).cloned(),
+                        title: c.title,
+                    })
                     .collect(),
             }).collect(),
         }))
     }
 }
 
-fn build_top_article_search(arts: Vec<ArticleGoogleSearchRank>) -> Vec<TopArticleGoogleSearch> {
+fn build_top_article_search(
+    arts: Vec<ArticleGoogleSearchRank>,
+    en: &HashMap<u32, String>,
+) -> Vec<TopArticleGoogleSearch> {
     arts.into_iter().map(|art| TopArticleGoogleSearch {
         qid: art.qid,
+        title_en: en.get(&art.qid).cloned(),
         title: art.title,
         clicks: art.clicks,
         impressions: art.impressions,
         ctr: art.ctr,
         source_categories: art.source_categories.into_iter()
-            .map(|(qid, title)| TopArticleCategory { qid, title })
+            .map(|(qid, title)| TopArticleCategory {
+                qid,
+                title,
+                title_en: en.get(&qid).cloned(),
+            })
             .collect(),
     }).collect()
 }
 
-fn build_category_search_rank(cat: CategorySearchRankResult) -> TopCategoryBySearch {
+fn build_category_search_rank(
+    cat: CategorySearchRankResult,
+    en: &HashMap<u32, String>,
+) -> TopCategoryBySearch {
     TopCategoryBySearch {
         qid: cat.qid,
+        title_en: en.get(&cat.qid).cloned(),
         title: cat.title,
         clicks: cat.clicks,
         impressions: cat.impressions,
         ctr: cat.ctr,
         top_articles: cat.top_articles.into_iter().map(|art| TopArticleBySearch {
             qid: art.qid,
+            title_en: en.get(&art.qid).cloned(),
             title: art.title,
             clicks: art.clicks,
             impressions: art.impressions,
             ctr: art.ctr,
         }).collect(),
     }
+}
+
+/// QIDs appearing in a list of ranked articles (articles + their source categories).
+fn article_search_rank_qids(arts: &[ArticleGoogleSearchRank]) -> Vec<u32> {
+    let mut qids = Vec::new();
+    for art in arts {
+        qids.push(art.qid);
+        qids.extend(art.source_categories.iter().map(|(qid, _)| *qid));
+    }
+    qids
 }

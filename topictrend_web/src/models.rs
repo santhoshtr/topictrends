@@ -235,6 +235,8 @@ pub struct DailyGoogleSearch {
 pub struct ArticleTrendResponse {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
     pub views: Vec<DailyViews>,
 }
 
@@ -242,6 +244,8 @@ pub struct ArticleTrendResponse {
 pub struct CategoryTrendResponse {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
     pub views: Vec<DailyViews>,
     pub top_articles: Vec<TopArticle>,
 }
@@ -257,6 +261,8 @@ pub struct CategoriesTrendResponse {
 pub struct ArticleEditTrendResponse {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
     pub edits: Vec<DailyEdits>,
 }
 
@@ -264,6 +270,8 @@ pub struct ArticleEditTrendResponse {
 pub struct CategoryEditTrendResponse {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
     pub edits: Vec<DailyEdits>,
     pub top_articles: Vec<TopArticleEdits>,
 }
@@ -272,12 +280,16 @@ pub struct CategoryEditTrendResponse {
 pub struct CategoryInfo {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
 }
 
 #[derive(Serialize, JsonSchema)]
 pub struct TopArticle {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
     pub views: u32,
     pub source_categories: Vec<TopArticleCategory>,
 }
@@ -286,6 +298,8 @@ pub struct TopArticle {
 pub struct TopArticleEdits {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
     pub edits: u64,
     pub source_categories: Vec<TopArticleCategory>,
 }
@@ -294,6 +308,8 @@ pub struct TopArticleEdits {
 pub struct TopCategory {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
     pub views: u32,
     pub top_articles: Vec<TopArticle>,
 }
@@ -307,12 +323,16 @@ pub struct CategoryRankResponse {
 pub struct TopArticleCategory {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
 }
 
 #[derive(Serialize, JsonSchema)]
 pub struct PageViewTopArticle {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
     pub views: u32,
     pub categories: Vec<TopArticleCategory>,
 }
@@ -326,6 +346,8 @@ pub struct PageViewTopArticlesResponse {
 pub struct PageEditTopArticle {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
     pub edits: u64,
     pub categories: Vec<TopArticleCategory>,
 }
@@ -339,6 +361,8 @@ pub struct PageEditTopArticlesResponse {
 pub struct TopArticleByEdits {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
     pub edits: u64,
 }
 
@@ -346,6 +370,8 @@ pub struct TopArticleByEdits {
 pub struct TopCategoryByEdits {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
     pub edits: u64,
     pub top_articles: Vec<TopArticleByEdits>,
 }
@@ -359,6 +385,8 @@ pub struct CategoryEditRankResponse {
 pub struct TopArticleBySearch {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
     pub clicks: u64,
     pub impressions: u64,
     pub ctr: f64,
@@ -368,6 +396,8 @@ pub struct TopArticleBySearch {
 pub struct TopCategoryBySearch {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
     pub clicks: u64,
     pub impressions: u64,
     pub ctr: f64,
@@ -383,6 +413,8 @@ pub struct CategorySearchRankResponse {
 pub struct GoogleSearchTopArticle {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
     pub clicks: u64,
     pub impressions: u64,
     pub ctr: f64,
@@ -398,6 +430,8 @@ pub struct GoogleSearchTopArticlesResponse {
 pub struct PageViewCategoryDeltaItemResponse {
     pub category_qid: u32,
     pub category_title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_title_en: Option<String>,
     pub baseline_views: u64,
     pub impact_views: u64,
     pub delta_percentage: f64,
@@ -415,6 +449,8 @@ pub struct PageViewCategoryDeltaResponse {
 pub struct PageViewArticleDeltaItemResponse {
     pub article_qid: u32,
     pub article_title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub article_title_en: Option<String>,
     pub baseline_views: u64,
     pub impact_views: u64,
     pub delta_percentage: f64,
@@ -426,6 +462,8 @@ pub struct PageViewArticleDeltaResponse {
     pub articles: Vec<PageViewArticleDeltaItemResponse>,
     pub category_qid: u32,
     pub category_title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_title_en: Option<String>,
     pub baseline_period: String,
     pub impact_period: String,
 }
@@ -434,6 +472,8 @@ pub struct PageViewArticleDeltaResponse {
 pub struct PageEditCategoryDeltaItemResponse {
     pub category_qid: u32,
     pub category_title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_title_en: Option<String>,
     pub baseline_edits: u64,
     pub impact_edits: u64,
     pub delta_percentage: f64,
@@ -451,6 +491,8 @@ pub struct PageEditCategoryDeltaResponse {
 pub struct PageEditArticleDeltaItemResponse {
     pub article_qid: u32,
     pub article_title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub article_title_en: Option<String>,
     pub baseline_edits: u64,
     pub impact_edits: u64,
     pub delta_percentage: f64,
@@ -462,6 +504,8 @@ pub struct PageEditArticleDeltaResponse {
     pub articles: Vec<PageEditArticleDeltaItemResponse>,
     pub category_qid: u32,
     pub category_title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_title_en: Option<String>,
     pub baseline_period: String,
     pub impact_period: String,
 }
@@ -470,6 +514,8 @@ pub struct PageEditArticleDeltaResponse {
 pub struct TopArticleGoogleSearch {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
     pub clicks: u64,
     pub impressions: u64,
     pub ctr: f64,
@@ -480,6 +526,8 @@ pub struct TopArticleGoogleSearch {
 pub struct GoogleSearchCategoryTrendResponse {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
     pub search: Vec<DailyGoogleSearch>,
     pub top_articles: Vec<TopArticleGoogleSearch>,
 }
@@ -488,6 +536,8 @@ pub struct GoogleSearchCategoryTrendResponse {
 pub struct GoogleSearchArticleTrendResponse {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
     pub search: Vec<DailyGoogleSearch>,
 }
 
@@ -495,6 +545,8 @@ pub struct GoogleSearchArticleTrendResponse {
 pub struct GoogleSearchCategoryDeltaItemResponse {
     pub category_qid: u32,
     pub category_title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_title_en: Option<String>,
     pub baseline_clicks: u64,
     pub impact_clicks: u64,
     pub baseline_impressions: u64,
@@ -514,6 +566,8 @@ pub struct GoogleSearchCategoryDeltaResponse {
 pub struct GoogleSearchArticleDeltaItemResponse {
     pub article_qid: u32,
     pub article_title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub article_title_en: Option<String>,
     pub baseline_clicks: u64,
     pub impact_clicks: u64,
     pub baseline_impressions: u64,
@@ -527,6 +581,8 @@ pub struct GoogleSearchArticleDeltaResponse {
     pub articles: Vec<GoogleSearchArticleDeltaItemResponse>,
     pub category_qid: u32,
     pub category_title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_title_en: Option<String>,
     pub baseline_period: String,
     pub impact_period: String,
 }
@@ -568,6 +624,8 @@ pub struct ListArticleCategoriesParams {
 pub struct RankedCategoryInfo {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
     pub wiki_count: u16,
 }
 
@@ -588,6 +646,8 @@ pub struct RelatedArticlesParams {
 pub struct RelatedArticleItem {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
     pub url: String,
     pub score: u32,
 }
@@ -634,6 +694,8 @@ pub struct GapDiscoveryParams {
 pub struct GapDiscoveryItemResponse {
     pub category_qid: u32,
     pub category_title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_title_en: Option<String>,
     pub direct_coverage_target: u32,
     pub overlap_target: u32,
     pub overlap_reference: u32,
@@ -665,6 +727,8 @@ pub struct ArticlesInCategoryResponse {
 pub struct ArticleItem {
     pub qid: u32,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_en: Option<String>,
 }
 
 #[derive(Serialize, JsonSchema)]

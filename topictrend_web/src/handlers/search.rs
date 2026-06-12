@@ -113,13 +113,20 @@ pub async fn get_categories_trend_by_search_handler(
         .collect();
 
     let result = PageViewsService::get_categories_trend(
-        state,
+        Arc::clone(&state),
         &params.wiki,
         category_qids,
         params.start_date,
         params.end_date,
     )
     .await?;
+
+    let mut en_qids: Vec<u32> = result.categories.iter().map(|c| c.qid).collect();
+    for art in &result.top_articles {
+        en_qids.push(art.qid);
+        en_qids.extend(art.source_categories.iter().map(|(qid, _)| *qid));
+    }
+    let en = QidService::get_english_titles(state, &params.wiki, &en_qids).await;
 
     let cumulative_views: Vec<DailyViews> = result
         .cumulative_views
@@ -132,10 +139,15 @@ pub async fn get_categories_trend_by_search_handler(
         .into_iter()
         .map(|art| TopArticle {
             qid: art.qid,
+            title_en: en.get(&art.qid).cloned(),
             title: art.title,
             views: art.views,
             source_categories: art.source_categories.into_iter()
-                .map(|(qid, title)| crate::models::TopArticleCategory { qid, title })
+                .map(|(qid, title)| crate::models::TopArticleCategory {
+                    qid,
+                    title,
+                    title_en: en.get(&qid).cloned(),
+                })
                 .collect(),
         })
         .collect();
@@ -145,6 +157,7 @@ pub async fn get_categories_trend_by_search_handler(
         .into_iter()
         .map(|cat| crate::models::CategoryInfo {
             qid: cat.qid,
+            title_en: en.get(&cat.qid).cloned(),
             title: cat.title,
         })
         .collect();
@@ -185,8 +198,8 @@ pub async fn get_articles_in_category(
     let titles_map =
         QidService::get_titles_by_qids(Arc::clone(&state), params.wiki.as_str(), &article_qids)
             .await?;
+    let en = QidService::get_english_titles(Arc::clone(&state), &params.wiki, &article_qids).await;
 
-    // Get view data for each article
     let mut articles_in_category = Vec::new();
 
     for article_qid in article_qids {
@@ -198,6 +211,7 @@ pub async fn get_articles_in_category(
         articles_in_category.push(ArticleItem {
             qid: article_qid,
             title,
+            title_en: en.get(&article_qid).cloned(),
         });
     }
     Ok(Json(ArticlesInCategoryResponse {
@@ -287,6 +301,7 @@ pub async fn get_article_categories(
     let titles_map =
         QidService::get_titles_by_qids(Arc::clone(&state), params.wiki.as_str(), &category_qids)
             .await?;
+    let en = QidService::get_english_titles(Arc::clone(&state), &params.wiki, &category_qids).await;
 
     let categories: Vec<crate::models::RankedCategoryInfo> = ranked
         .into_iter()
@@ -296,6 +311,7 @@ pub async fn get_article_categories(
                 .get(&qid)
                 .cloned()
                 .unwrap_or_else(|| format!("Q{}", qid)),
+            title_en: en.get(&qid).cloned(),
             wiki_count,
         })
         .collect();

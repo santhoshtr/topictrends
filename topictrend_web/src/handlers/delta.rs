@@ -37,11 +37,15 @@ pub async fn get_category_pageview_delta_handler(
     )
     .await?;
 
+    let en_qids: Vec<u32> = delta_items.iter().map(|i| i.category_qid).collect();
+    let en = QidService::get_english_titles(Arc::clone(&state), &params.wiki, &en_qids).await;
+
     let categories: Vec<crate::models::PageViewCategoryDeltaItemResponse> = delta_items
         .into_iter()
         .map(|item| crate::models::PageViewCategoryDeltaItemResponse {
             category_qid: item.category_qid,
             category_title: item.category_title,
+            category_title_en: en.get(&item.category_qid).cloned(),
             baseline_views: item.baseline_views,
             impact_views: item.impact_views,
             delta_percentage: item.delta_percentage,
@@ -80,11 +84,16 @@ pub async fn get_article_pageview_delta_handler(
     )
     .await?;
 
+    let mut en_qids: Vec<u32> = delta_items.iter().map(|i| i.article_qid).collect();
+    en_qids.push(params.category_qid);
+    let en = QidService::get_english_titles(Arc::clone(&state), &params.wiki, &en_qids).await;
+
     let articles: Vec<crate::models::PageViewArticleDeltaItemResponse> = delta_items
         .into_iter()
         .map(|item| crate::models::PageViewArticleDeltaItemResponse {
             article_qid: item.article_qid,
             article_title: item.article_title,
+            article_title_en: en.get(&item.article_qid).cloned(),
             baseline_views: item.baseline_views,
             impact_views: item.impact_views,
             delta_percentage: item.delta_percentage,
@@ -108,6 +117,7 @@ pub async fn get_article_pageview_delta_handler(
         articles,
         category_qid: params.category_qid,
         category_title,
+        category_title_en: en.get(&params.category_qid).cloned(),
         baseline_period,
         impact_period,
     }))
@@ -130,11 +140,15 @@ pub async fn get_category_pageedit_delta_handler(
     )
     .await?;
 
+    let en_qids: Vec<u32> = delta_items.iter().map(|i| i.category_qid).collect();
+    let en = QidService::get_english_titles(Arc::clone(&state), &params.wiki, &en_qids).await;
+
     let categories: Vec<crate::models::PageEditCategoryDeltaItemResponse> = delta_items
         .into_iter()
         .map(|item| crate::models::PageEditCategoryDeltaItemResponse {
             category_qid: item.category_qid,
             category_title: item.category_title,
+            category_title_en: en.get(&item.category_qid).cloned(),
             baseline_edits: item.baseline_edits,
             impact_edits: item.impact_edits,
             delta_percentage: item.delta_percentage,
@@ -173,11 +187,16 @@ pub async fn get_article_pageedit_delta_handler(
     )
     .await?;
 
+    let mut en_qids: Vec<u32> = delta_items.iter().map(|i| i.article_qid).collect();
+    en_qids.push(params.category_qid);
+    let en = QidService::get_english_titles(Arc::clone(&state), &params.wiki, &en_qids).await;
+
     let articles: Vec<crate::models::PageEditArticleDeltaItemResponse> = delta_items
         .into_iter()
         .map(|item| crate::models::PageEditArticleDeltaItemResponse {
             article_qid: item.article_qid,
             article_title: item.article_title,
+            article_title_en: en.get(&item.article_qid).cloned(),
             baseline_edits: item.baseline_edits,
             impact_edits: item.impact_edits,
             delta_percentage: item.delta_percentage,
@@ -201,6 +220,7 @@ pub async fn get_article_pageedit_delta_handler(
         articles,
         category_qid: params.category_qid,
         category_title,
+        category_title_en: en.get(&params.category_qid).cloned(),
         baseline_period,
         impact_period,
     }))
@@ -223,12 +243,16 @@ pub async fn get_category_google_search_delta_handler(
     )
     .await?;
 
+    let en_qids: Vec<u32> = delta_items.iter().map(|i| i.category_qid).collect();
+    let en = QidService::get_english_titles(Arc::clone(&state), &params.wiki, &en_qids).await;
+
     let categories: Vec<crate::models::GoogleSearchCategoryDeltaItemResponse> = delta_items
         .into_iter()
         .map(
             |item| crate::models::GoogleSearchCategoryDeltaItemResponse {
                 category_qid: item.category_qid,
                 category_title: item.category_title,
+                category_title_en: en.get(&item.category_qid).cloned(),
                 baseline_clicks: item.baseline_clicks,
                 impact_clicks: item.impact_clicks,
                 baseline_impressions: item.baseline_impressions,
@@ -270,11 +294,16 @@ pub async fn get_article_google_search_delta_handler(
     )
     .await?;
 
+    let mut en_qids: Vec<u32> = delta_items.iter().map(|i| i.article_qid).collect();
+    en_qids.push(params.category_qid);
+    let en = QidService::get_english_titles(Arc::clone(&state), &params.wiki, &en_qids).await;
+
     let articles: Vec<crate::models::GoogleSearchArticleDeltaItemResponse> = delta_items
         .into_iter()
         .map(|item| crate::models::GoogleSearchArticleDeltaItemResponse {
             article_qid: item.article_qid,
             article_title: item.article_title,
+            article_title_en: en.get(&item.article_qid).cloned(),
             baseline_clicks: item.baseline_clicks,
             impact_clicks: item.impact_clicks,
             baseline_impressions: item.baseline_impressions,
@@ -299,6 +328,7 @@ pub async fn get_article_google_search_delta_handler(
         articles,
         category_qid: params.category_qid,
         category_title,
+        category_title_en: en.get(&params.category_qid).cloned(),
         baseline_period,
         impact_period,
     }))
