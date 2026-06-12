@@ -8,10 +8,10 @@ members = [
 ]
 
 [workspace.dependencies]
-parquet = "57"
-parquet_derive = "57.0"
+parquet = "59"
+parquet_derive = "59.0"
 dotenv = "0.15"
-polars = { version = "0.53", features = [
+polars = { version = "0.54.4", features = [
   "lazy",
   "parquet",
   "strings",

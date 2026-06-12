@@ -90,13 +90,13 @@ pub fn get_daily_pageviews(wiki: &str, year: i16, month: i8, day: i8) -> Vec<(u3
         .unwrap()
         .u32()
         .unwrap()
-        .into_iter()
-        .zip(articles_df.column("qid").unwrap().u32().unwrap())
+        .iter()
+        .zip(articles_df.column("qid").unwrap().u32().unwrap().iter())
         .filter_map(|(id, qid)| Some((id?, qid?)))
         .collect();
 
     let mut pairs: Vec<(u32, u32)> = Vec::new();
-    for (opt_page_id, opt_views) in page_ids.into_iter().zip(daily_views) {
+    for (opt_page_id, opt_views) in page_ids.iter().zip(daily_views.iter()) {
         if let (Some(page_id), Some(views)) = (opt_page_id, opt_views)
             && views > 0
             && let Some(qid) = article_id_to_qid.get(page_id)

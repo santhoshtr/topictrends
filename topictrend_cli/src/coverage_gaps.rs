@@ -50,9 +50,9 @@ fn load_coverage(path: &str) -> Result<HashMap<u32, (u32, u32)>, Box<dyn std::er
     let c = df.column("category_qid")?.u32()?;
     let d = df.column("direct_coverage")?.u32()?;
     let o = df.column("qid_overlap_coverage")?.u32()?;
-    Ok(c.into_iter()
-        .zip(d)
-        .zip(o)
+    Ok(c.iter()
+        .zip(d.iter())
+        .zip(o.iter())
         .filter_map(|((c, d), o)| Some((c?, (d?, o?))))
         .collect())
 }
@@ -87,8 +87,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(cats
             .column("qid")?
             .u32()?
-            .into_iter()
-            .zip(cats.column("page_title")?.str()?)
+            .iter()
+            .zip(cats.column("page_title")?.str()?.iter())
             .filter_map(|(q, t)| Some((q?, t?.to_string())))
             .collect())
     };

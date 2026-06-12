@@ -54,7 +54,7 @@ impl NamespaceMaps {
 
         let mut title_by_qid = HashMap::with_capacity(df.height());
         let mut qid_by_title = HashMap::with_capacity(df.height());
-        for (q, t) in qids.into_iter().zip(titles) {
+        for (q, t) in qids.iter().zip(titles.iter()) {
             if let (Some(q), Some(t)) = (q, t) {
                 let t: Arc<str> = Arc::from(t);
                 title_by_qid.insert(q, t.clone());
@@ -125,8 +125,8 @@ impl CategoryLabelTable {
         let qids = df.column("qid").and_then(|c| c.u32()).ok()?;
         let labels = df.column("label").and_then(|c| c.str()).ok()?;
         let mut entries: Vec<(u32, Box<str>)> = qids
-            .into_iter()
-            .zip(labels)
+            .iter()
+            .zip(labels.iter())
             .filter_map(|(q, l)| Some((q?, Box::from(l?))))
             .collect();
         entries.sort_unstable_by_key(|(q, _)| *q); // written sorted; cheap insurance

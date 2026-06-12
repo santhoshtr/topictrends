@@ -135,7 +135,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let a = df.column("article_qid")?.u32()?;
         let c = df.column("category_qid")?.u32()?;
         let mut rows: u64 = 0;
-        for (oa, oc) in a.into_iter().zip(c) {
+        for (oa, oc) in a.iter().zip(c.iter()) {
             if let (Some(a), Some(c)) = (oa, oc) {
                 pairs.push(((a as u64) << 32) | c as u64);
                 rows += 1;

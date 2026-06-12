@@ -75,8 +75,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let title: HashMap<u32, String> = arts
         .column("qid")?
         .u32()?
-        .into_iter()
-        .zip(arts.column("page_title")?.str()?)
+        .iter()
+        .zip(arts.column("page_title")?.str()?.iter())
         .filter_map(|(q, t)| Some((q?, t?.to_string())))
         .collect();
     let target_qids: HashSet<u32> = title.keys().copied().collect();
@@ -91,7 +91,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .filter(col("category_qid").eq(lit(category)))
             .select([col("article_qid")])
             .collect()?;
-        for a in df.column("article_qid")?.u32()?.into_iter().flatten() {
+        for a in df.column("article_qid")?.u32()?.iter().flatten() {
             if target_qids.contains(&a) {
                 mapped.entry(a).or_default().push(wiki.clone());
             }

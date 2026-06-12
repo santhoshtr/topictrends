@@ -80,9 +80,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let overlap_col = merged.column("qid_overlap_coverage")?.u32()?;
 
     let records: Vec<CoverageRecord> = cat_col
-        .into_iter()
-        .zip(direct_col)
-        .zip(overlap_col)
+        .iter()
+        .zip(direct_col.iter())
+        .zip(overlap_col.iter())
         .filter_map(|((c, d), o)| {
             Some(CoverageRecord {
                 category_qid: c?,

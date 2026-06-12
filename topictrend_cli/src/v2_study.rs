@@ -71,7 +71,7 @@ fn histogram() -> Result<(), Box<dyn std::error::Error>> {
         let df = read_parquet(&path)?;
         let a = df.column("article_qid")?.u32()?;
         let c = df.column("category_qid")?.u32()?;
-        for (oa, oc) in a.into_iter().zip(c) {
+        for (oa, oc) in a.iter().zip(c.iter()) {
             if let (Some(a), Some(c)) = (oa, oc) {
                 pairs.push(((a as u64) << 32) | c as u64);
                 raw_total += 1;
@@ -148,8 +148,8 @@ fn compare(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     let title: HashMap<u32, String> = arts
         .column("qid")?
         .u32()?
-        .into_iter()
-        .zip(arts.column("page_title")?.str()?)
+        .iter()
+        .zip(arts.column("page_title")?.str()?.iter())
         .filter_map(|(q, t)| Some((q?, t?.replace('_', " "))))
         .collect();
 
@@ -162,7 +162,7 @@ fn compare(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
         let df = read_parquet(&path)?;
-        for (q, t) in df.column("qid")?.u32()?.into_iter().zip(df.column("page_title")?.str()?) {
+        for (q, t) in df.column("qid")?.u32()?.iter().zip(df.column("page_title")?.str()?.iter()) {
             if let (Some(q), Some(t)) = (q, t)
                 && needed.contains(&q)
                 && !cat_label.contains_key(&q)
@@ -193,7 +193,7 @@ fn compare(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
         let a = df.column("article_qid")?.u32()?;
         let c = df.column("category_qid")?.u32()?;
         let is_target = wiki == &target;
-        for (oa, oc) in a.into_iter().zip(c) {
+        for (oa, oc) in a.iter().zip(c.iter()) {
             if let (Some(a), Some(c)) = (oa, oc) {
                 let e = edges.entry((c, a)).or_insert(EdgeInfo { wiki_count: 0, in_target: false });
                 e.wiki_count += 1;

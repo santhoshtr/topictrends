@@ -52,7 +52,7 @@ fn read_parquet(path: &str) -> Result<DataFrame, Box<dyn std::error::Error>> {
 }
 
 fn u32_col(df: &DataFrame, name: &str) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
-    Ok(df.column(name)?.u32()?.into_iter().flatten().collect())
+    Ok(df.column(name)?.u32()?.iter().flatten().collect())
 }
 
 fn writer_props() -> Arc<WriterProperties> {

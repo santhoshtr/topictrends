@@ -73,7 +73,7 @@ impl GraphBuilder {
         let mut backward_edges: Vec<(u32, u32)> = Vec::with_capacity(p_col.len());
         // Iterate and populate adjacency lists
         // We use the HashMaps to convert Raw ID -> Dense ID on the fly
-        for (opt_p, opt_c) in p_col.into_iter().zip(c_col) {
+        for (opt_p, opt_c) in p_col.iter().zip(c_col.iter()) {
             if let (Some(p_raw), Some(c_raw)) = (opt_p, opt_c)
                 && let (Some(p_dense), Some(c_dense)) = (
                     cat_original_to_dense.get(p_raw),
@@ -119,7 +119,7 @@ impl GraphBuilder {
                 df_art_cat
                     .column("wiki_count")?
                     .u32()?
-                    .into_iter()
+                    .iter()
                     .map(|w| w.unwrap_or(1).min(u16::MAX as u32) as u16)
                     .collect(),
             )
@@ -127,7 +127,7 @@ impl GraphBuilder {
             None
         };
 
-        for (row, (opt_a, opt_c)) in a_col.into_iter().zip(c_col_ac).enumerate() {
+        for (row, (opt_a, opt_c)) in a_col.iter().zip(c_col_ac.iter()).enumerate() {
             if let (Some(a_raw), Some(c_raw)) = (opt_a, opt_c)
                 && let (Some(a_dense), Some(c_dense)) = (
                     art_original_to_dense.get(a_raw),
@@ -199,7 +199,7 @@ impl GraphBuilder {
 
         let mut dense_counter = 0;
 
-        for id in ids.into_iter().flatten() {
+        for id in ids.iter().flatten() {
             dense_to_original.push(id);
             mapper.insert(id, dense_counter);
             dense_counter += 1;

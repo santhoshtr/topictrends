@@ -87,7 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let df = read_parquet(&path)?;
         let qids = df.column("qid")?.u32()?;
         let titles = df.column("page_title")?.str()?;
-        for (q, t) in qids.into_iter().zip(titles) {
+        for (q, t) in qids.iter().zip(titles.iter()) {
             if let (Some(q), Some(t)) = (q, t) {
                 label.entry(q).or_insert_with(|| t.to_string());
             }

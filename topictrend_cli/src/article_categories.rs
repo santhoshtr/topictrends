@@ -74,7 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .filter(col("article_qid").eq(lit(qid)))
             .select([col("category_qid")])
             .collect()?;
-        let cats: HashSet<u32> = df.column("category_qid")?.u32()?.into_iter().flatten().collect();
+        let cats: HashSet<u32> = df.column("category_qid")?.u32()?.iter().flatten().collect();
         if cats.is_empty() {
             continue;
         }
@@ -110,7 +110,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .collect()?;
         let qids = df.column("qid")?.u32()?;
         let titles = df.column("page_title")?.str()?;
-        for (q, t) in qids.into_iter().zip(titles) {
+        for (q, t) in qids.iter().zip(titles.iter()) {
             if let (Some(q), Some(t)) = (q, t)
                 && needed.contains(&q)
                 && !label.contains_key(&q)
