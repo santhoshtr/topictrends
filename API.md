@@ -665,7 +665,10 @@ curl "http://localhost:8765/api/pageviews/categories?wiki=enwiki&category_query=
 
 ### 12. GET /api/content_gap/categories
 
-Compares topic coverage across multiple wikis by counting category articles and reporting overlaps and missing sets.
+Compares one category's coverage across multiple wikis. Each wiki's
+`article_count` is the category's `qid_overlap_coverage` from the monthly
+coverage snapshot — how many of the category's globally-known articles exist
+in that wiki — the same measure the gap-discovery ranking uses.
 
 **Parameters:**
 
@@ -674,9 +677,8 @@ Compares topic coverage across multiple wikis by counting category articles and 
 | `category` | String | No | Category title in enwiki (exact match) |
 | `category_qid` | Integer | No | Category QID (numeric) |
 | `wikis` | String | Yes | Comma-separated wiki list (e.g., `enwiki,mlwiki,tawiki`) |
-| `include_articles` | Boolean | No | Include article titles per wiki, default: false |
 
-**Note:** Either `category` or `category_qid` must be provided. `enwiki` is always used as the reference for gap calculations.
+**Note:** Either `category` or `category_qid` must be provided.
 
 **Example Request:**
 
@@ -693,23 +695,13 @@ curl "http://localhost:8765/api/content_gap/categories?category=Quantum_physics&
   "wikis": [
     {
       "wiki": "enwiki",
-      "article_count": 100,
-      "article_qids": [1, 2, 3]
+      "article_count": 100
     },
     {
       "wiki": "mlwiki",
-      "article_count": 2,
-      "article_qids": [1, 3]
+      "article_count": 2
     }
-  ],
-  "overlap_count": 2,
-  "overlap_article_qids": [1, 3],
-  "missing_from": {
-    "mlwiki": {
-      "count": 98,
-      "article_qids": [2, 4, 5]
-    }
-  }
+  ]
 }
 ```
 
@@ -717,6 +709,7 @@ curl "http://localhost:8765/api/content_gap/categories?category=Quantum_physics&
 
 - `404 Not Found`: Category does not exist in enwiki
 - `400 Bad Request`: Invalid parameters
+- `500 Internal Server Error`: No coverage snapshot for a requested wiki
 
 ---
 

@@ -1,11 +1,16 @@
 use crate::models::{AppState, ContentGapResult, ContentGapWikiResult};
-use crate::services::core::{CoreServiceError, EngineService};
+use crate::services::core::{CoreServiceError, CoverageService, EngineService};
 use crate::services::composite::taxonomy_search_category_qids;
 use std::sync::Arc;
 
 pub struct ContentGapService;
 
 impl ContentGapService {
+    /// Compare one category's coverage across wikis. Each wiki's count is
+    /// `qid_overlap_coverage` from its latest coverage snapshot — how many of
+    /// the category's globally-known articles exist in that wiki — the same
+    /// measure gap discovery ranks, served from the same artifact instead of
+    /// building a WikiGraph per compared wiki.
     pub async fn get_content_gap(
         state: Arc<AppState>,
         category_qid: u32,
@@ -15,15 +20,13 @@ impl ContentGapService {
         let mut results: Vec<ContentGapWikiResult> = Vec::new();
 
         for wiki in &wikis {
-            let graph = EngineService::get_or_build_graph_engine(Arc::clone(&state), wiki).await?;
-            let article_count = graph
-                .get_articles_in_category(category_qid, 0)
-                .map_err(CoreServiceError::EngineError)?
-                .len();
+            let snapshot =
+                CoverageService::get_or_load_snapshot(Arc::clone(&state), wiki).await?;
+            let (_direct, overlap) = snapshot.matrix.get(category_qid);
 
             results.push(ContentGapWikiResult {
                 wiki: wiki.clone(),
-                article_count,
+                article_count: overlap as usize,
             });
         }
 

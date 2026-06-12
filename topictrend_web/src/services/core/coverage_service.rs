@@ -241,6 +241,19 @@ impl CoverageService {
         Ok(ranking)
     }
 
+    /// Get (and lazily load/cache) the latest coverage snapshot for one wiki.
+    pub async fn get_or_load_snapshot(
+        state: Arc<AppState>,
+        wiki: &str,
+    ) -> Result<Arc<CoverageSnapshot>, CoreServiceError> {
+        let wiki = wiki.to_string();
+        tokio::task::spawn_blocking(move || Self::get_or_load_snapshot_blocking(&state, &wiki))
+            .await
+            .map_err(|_| {
+                CoreServiceError::InternalError("Failed to spawn blocking task".to_string())
+            })?
+    }
+
     fn get_or_load_snapshot_blocking(
         state: &AppState,
         wiki: &str,

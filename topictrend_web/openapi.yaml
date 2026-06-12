@@ -715,6 +715,35 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/content_gap/categories:
+    get:
+      operationId: getContentGapCategories
+      tags: [ContentGap]
+      summary: Content gap for one category across wikis
+      description: |
+        Compares one category's coverage across the requested wikis. Each
+        wiki's `article_count` is the category's `qid_overlap_coverage` from
+        the monthly coverage snapshot — how many of the category's
+        globally-known articles exist in that wiki — the same measure the
+        gap-discovery ranking uses.
+
+        Either `category` (an enwiki title) or `category_qid` must be provided.
+      parameters:
+        - $ref: "#/components/parameters/CategoryOptional"
+        - $ref: "#/components/parameters/CategoryQidOptional"
+        - $ref: "#/components/parameters/Wikis"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentGapResult"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/content_gap/topic:
     get:
       operationId: getContentGapTopic
