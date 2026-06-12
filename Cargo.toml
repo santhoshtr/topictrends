@@ -23,11 +23,6 @@ clap = { version = "4", features = ["derive"] }
 rayon = "1.11"
 chrono = "0.4"
 byteorder = "1.5"
-sqlx = { version = "0.8", features = [
-  "mysql",
-  "runtime-tokio-rustls",
-  "chrono",
-] }
 
 [profile.dev]
 # Faster compile times, slightly slower runtime
