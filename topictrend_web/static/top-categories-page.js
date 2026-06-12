@@ -5,7 +5,7 @@ import "./components/wiki-selector.js";
 
 const CONFIG = {
 	pageviews: {
-		endpoint: "https://topictrends.wmcloud.org/api/pageviews/top_categories",
+		endpoint: "/api/pageviews/top_categories",
 		categoryTrendPath: "/pageviews/trends",
 		articleTrendPath: "/pageviews/trends",
 		categoryMetricField: "views",
@@ -13,7 +13,7 @@ const CONFIG = {
 		metricLabel: "views",
 	},
 	pageedits: {
-		endpoint: "https://topictrends.wmcloud.org/api/pageedits/top_categories",
+		endpoint: "/api/pageedits/top_categories",
 		categoryTrendPath: "/pageedits/trends",
 		articleTrendPath: "/pageedits/trends",
 		categoryMetricField: "edits",
@@ -21,7 +21,7 @@ const CONFIG = {
 		metricLabel: "edits",
 	},
 	googlesearch: {
-		endpoint: "https://topictrends.wmcloud.org/api/googlesearch/top_categories",
+		endpoint: "/api/googlesearch/top_categories",
 		categoryTrendPath: "/googlesearch/trends",
 		articleTrendPath: "/googlesearch/trends",
 		categoryMetricField: "clicks",
@@ -71,7 +71,6 @@ document.addEventListener("DOMContentLoaded", () => {
 	) {
 		const params = new URLSearchParams({ type, wiki });
 		if (type === "category") {
-			params.set("depth", "4");
 			params.set("category", title);
 			if (qid) params.set("category_qid", qid.toString());
 		} else {
@@ -102,6 +101,9 @@ document.addEventListener("DOMContentLoaded", () => {
 			const title = document.createElement("span");
 			title.className = "category-name";
 			title.textContent = formatTitle(category.title);
+			if (category.title_en && category.title_en !== category.title) {
+				title.title = formatTitle(category.title_en);
+			}
 
 			const metricValue = document.createElement("span");
 			metricValue.className = "category-views";
@@ -143,6 +145,9 @@ document.addEventListener("DOMContentLoaded", () => {
 				articleLink.target = "_blank";
 				articleLink.rel = "noopener noreferrer";
 				articleLink.textContent = formatTitle(article.title);
+				if (article.title_en && article.title_en !== article.title) {
+					articleLink.title = formatTitle(article.title_en);
+				}
 
 				const articleMetric = document.createElement("span");
 				articleMetric.className = "article-views";

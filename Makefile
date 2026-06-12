@@ -29,7 +29,7 @@ WIKIS = $(shell cat $(DATA_DIR)/wikipedia.list 2>/dev/null)
 
 .DEFAULT_GOAL := run
 
-.PHONY: run init clean help monthly index-wiki index-clean embedding-server web gsc coverage _run-wikis topology-refresh
+.PHONY: run init clean help monthly index-wiki index-clean embedding-server web gsc coverage canonical _run-wikis topology-refresh
 
 # Help target
 help:
@@ -40,8 +40,12 @@ help:
 	@echo "  monthly          - Process all wikis for the calendar month containing END_DATE"
 	@echo "                     (1..LAST_DAY of that month, capped at END_DATE's day)"
 	@echo "  gsc              - Process Google Search Console data for all wikis (single DATE)"
-	@echo "  coverage         - Build the coverage matrix (depth-0 direct_coverage) for all"
-	@echo "                     wikis as a dated snapshot (data/<wiki>/coverage/<DATE>.parquet)"
+	@echo "  coverage         - Build the coverage matrix (direct_coverage + qid_overlap) for all"
+	@echo "                     wikis as a dated snapshot (data/<wiki>/coverage/<DATE>.parquet);"
+	@echo "                     needs the canonical projections, so run 'make canonical' first"
+	@echo "  canonical        - Union all wikis' article_category into the canonical relation"
+	@echo "                     with per-edge wiki counts (data/canonical/<DATE>/), then project"
+	@echo "                     it per wiki (article_category_canonical + categories_canonical)"
 	@echo "  topology-refresh - Re-fetch topology (articles/categories/graph) from the replica"
 	@echo "                     for all wikis; scope with WIKIS=enwiki. Restart the server after."
 	@echo "  web              - Start the web server (no rebuild)"
@@ -64,6 +68,7 @@ help:
 	@echo "  make gsc DATE=2026-03-03"
 	@echo "  make gsc DATE=2026-03-03 GSC_DIR=/mnt/gsc_data"
 	@echo "  make coverage DATE=2026-06-09                                   # coverage snapshot, all wikis"
+	@echo "  make canonical DATE=2026-06-11                                  # canonical relation snapshot"
 	@echo "  make data/mlwiki/pageedits/2026/05/26.parquet DATE=2026-05-26   # one wiki, one day (replica)"
 	@echo "  make topology-refresh WIKIS=enwiki                              # refresh one wiki's topology"
 
@@ -223,24 +228,34 @@ $(DATA_DIR)/%/gsc/$(YEAR)/$(MONTH)/$(DAY).parquet: $(DATA_DIR)/%/articles.parque
 # Falls back to yesterday if DATE is not set.
 gsc: init $(foreach w,$(WIKIS),$(DATA_DIR)/$(w)/gsc/$(YEAR)/$(MONTH)/$(DAY).parquet)
 
-# Coverage matrix (stage 1: depth-0 direct_coverage) for one wiki, dated snapshot.
-# Derived from topology (article_category.parquet), captured per snapshot date.
-# article_category is an order-only prerequisite (|): it must exist for the
-# derivation, but its mtime must not force a rebuild of an existing dated
+# Coverage matrix for one wiki, dated snapshot: depth-0 direct_coverage from
+# the local relation plus qid_overlap_coverage from the canonical projection
+# (article_category_canonical.parquet, produced by `make canonical` — run it
+# first against the same topology state).
+# Both inputs are order-only prerequisites (|): they must exist for the
+# derivation, but their mtimes must not force a rebuild of an existing dated
 # snapshot, keeping snapshots idempotent across topology refreshes.
-$(DATA_DIR)/%/coverage/$(DATE).parquet: | $(DATA_DIR)/%/article_category.parquet
+$(DATA_DIR)/%/coverage/$(DATE).parquet: | $(DATA_DIR)/%/article_category.parquet $(DATA_DIR)/%/article_category_canonical.parquet
 	@mkdir -p $(dir $@)
 	@echo "Building coverage matrix for $* ($(DATE)) -> $@"
-	$(CARGO_RELEASE)/coverage-matrix $(DATA_DIR)/$*/article_category.parquet $@
+	$(CARGO_RELEASE)/coverage-matrix $(DATA_DIR)/$*/article_category.parquet $(DATA_DIR)/$*/article_category_canonical.parquet $@
 
 # Build the full coverage matrix for all wikis as a dated snapshot.
-# Stage 1 (per-wiki direct_coverage) runs via the prerequisites; stage 2 then
-# runs once over all wikis to enrich each snapshot with qid_overlap_coverage
-# (it needs every wiki's article_category at once to build canonical membership).
 # Usage: make coverage DATE=2026-06-09  (falls back to yesterday if DATE unset)
 coverage: init $(foreach w,$(WIKIS),$(DATA_DIR)/$(w)/coverage/$(DATE).parquet)
-	@echo "Enriching coverage snapshots with qid_overlap (cross-wiki pass)..."
-	DATA_DIR=$(DATA_DIR) $(CARGO_RELEASE)/coverage-overlap --date $(DATE)
+
+# Canonical cross-wiki article->category relation, dated snapshot.
+# Stage 1 (canonical-membership) unions every wiki's article_category.parquet
+# with per-edge wiki counts into data/canonical/$(DATE)/article_category.parquet
+# (+ manifest.tsv, which gates the next run against truncated inputs).
+# Stage 2 (canonical-projection) intersects the union with each wiki's article
+# set, writing data/<wiki>/article_category_canonical.parquet and the category
+# node universe data/<wiki>/categories_canonical.parquet.
+# Usage: make canonical DATE=2026-06-11  (falls back to yesterday if DATE unset)
+canonical: init
+	DATA_DIR=$(DATA_DIR) $(CARGO_RELEASE)/canonical-membership --date $(DATE)
+	DATA_DIR=$(DATA_DIR) $(CARGO_RELEASE)/canonical-projection --date $(DATE)
+	DATA_DIR=$(DATA_DIR) $(CARGO_RELEASE)/canonical-labels --date $(DATE)
 
 # Clean target
 clean:
@@ -250,11 +265,15 @@ clean:
 
 # Run the web server. Depends only on the wiki list so that starting the server
 # does not re-invoke cargo build; build the binary explicitly via `make init`
-# when needed.
+# when needed. The embedding server is optional: without it only the semantic
+# topic-search endpoints fail, so its absence is a warning, not a refusal.
 web: $(DATA_DIR)/wikipedia.list
 	@echo "Checking embedding server at $(EMBEDDING_SERVER)..."
-	@(cd services/embedding && EMBEDDING_SERVER=$(EMBEDDING_SERVER) uv run python healthcheck.py)
-	@echo "Embedding server OK"
+	@if (cd services/embedding && EMBEDDING_SERVER=$(EMBEDDING_SERVER) uv run python healthcheck.py); then \
+		echo "Embedding server OK"; \
+	else \
+		echo "WARNING: embedding server unreachable; topic search will be unavailable" >&2; \
+	fi
 	$(CARGO_RELEASE)/topictrend_web
 
 # Start the embedding gRPC server from the project root so DATA_DIR and

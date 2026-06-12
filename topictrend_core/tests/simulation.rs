@@ -12,6 +12,9 @@ fn set_data_dir(path: &str) {
     // critical section.
     unsafe {
         std::env::set_var("DATA_DIR", path);
+        // The fixtures model a wiki's own relation, not the canonical
+        // projection (the default topology).
+        std::env::set_var("TOPICTREND_TOPOLOGY", "local");
     }
 }
 

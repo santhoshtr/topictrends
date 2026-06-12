@@ -20,13 +20,13 @@ See [DESIGN.md](DESIGN.md#why-a-single-english-embedding-model) for the full rat
 
 ### Vector Database: zvec with HNSW
 
-TopicTrends stores 2.5 million 384-dimensional embeddings (one per English Wikipedia category) in zvec. zvec implements Hierarchical Navigable Small World (HNSW) indexing, an approximate nearest-neighbor algorithm that achieves O(log N) query complexity while returning the true top-k results with high probability.
+TopicTrends stores 2.3 million 384-dimensional embeddings (one per English Wikipedia category) in zvec. zvec implements Hierarchical Navigable Small World (HNSW) indexing, an approximate nearest-neighbor algorithm that achieves O(log N) query complexity while returning the true top-k results with high probability.
 
 Key parameters:
 - **Dimensionality**: 384 (model: `sentence-transformers/all-MiniLM-L12-v2`)
 - **Distance metric**: Cosine similarity — invariant to vector magnitude, so verbosity differences don't affect relevance
 - **Storage**: On-disk vectors with quantized data in RAM, balancing memory efficiency with search speed
-- **Index size**: ~9.6 GB on disk for 2.5M English category embeddings
+- **Index size**: ~3.8 GB on disk for 2.3M English category embeddings
 
 ### Indexing Pipeline
 
@@ -46,7 +46,7 @@ When a semantic search request arrives (e.g., `query=machine learning`, `wiki=fr
 
 1. **Encode**: The English query string is sent to the embedding service and converted to a 384-dimensional vector.
 2. **Search**: The vector is searched against the `enwiki-categories` zvec collection, returning the top-k results with cosine similarity scores.
-3. **Translate** (if target wiki ≠ enwiki): For each result QID, look up the corresponding category title in the target Wikipedia via MariaDB. Results with no title in the target wiki are filtered out.
+3. **Filter & translate** (if target wiki ≠ enwiki): Results are kept only if the category is populated in the target wiki's canonical graph (`qid_overlap > 0` in its coverage snapshot) — a local category page is not required, since the canonical projection populates categories the wiki never created. Titles resolve from the target wiki's parquet title store, falling back to the canonical label table (usually the English label) for categories with no local page.
 4. **Return**: Results include both the English title (from embeddings) and the translated title, plus the similarity score.
 
 **Example** — query "machine learning", target `frwiki`:
@@ -86,5 +86,5 @@ The semantic understanding comes from the English embedding model; the cross-lin
 |---|---|
 | Query encoding (embedding service) | 10–50 ms |
 | HNSW nearest-neighbor search (zvec) | 5–20 ms |
-| QID→title translation (MariaDB) | 5–15 ms |
+| Coverage filter + QID→title translation (parquet stores, in-memory after first load) | 1–5 ms |
 | **Total** | **50–150 ms** |

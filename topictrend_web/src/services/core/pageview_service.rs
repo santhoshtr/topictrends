@@ -1,4 +1,4 @@
-use super::{CoreServiceError, EngineService};
+use super::{CoreServiceError, EngineService, excluded_categories};
 use crate::models::AppState;
 use chrono::NaiveDate;
 use std::sync::Arc;
@@ -25,7 +25,6 @@ impl PageViewService {
         category_qid: u32,
         start_date: NaiveDate,
         end_date: NaiveDate,
-        depth: u32,
     ) -> Result<Vec<(NaiveDate, u64)>, CoreServiceError> {
         let engine = EngineService::get_or_build_pageview_engine(state, wiki).await?;
 
@@ -34,7 +33,29 @@ impl PageViewService {
                 CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
             })?;
 
-            engine_lock.get_category_trend(category_qid, depth, start_date, end_date)
+            engine_lock.get_category_trend(category_qid, 0, start_date, end_date)
+        };
+
+        Ok(raw_data)
+    }
+
+    /// Combined daily views over the union of several categories' article
+    /// sets — articles in more than one category are counted once.
+    pub async fn get_categories_views(
+        state: Arc<AppState>,
+        wiki: &str,
+        category_qids: Vec<u32>,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+    ) -> Result<Vec<(NaiveDate, u64)>, CoreServiceError> {
+        let engine = EngineService::get_or_build_pageview_engine(state, wiki).await?;
+
+        let raw_data = {
+            let engine_lock = engine.read().map_err(|e| {
+                CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
+            })?;
+
+            engine_lock.get_categories_trend(&category_qids, 0, start_date, end_date)
         };
 
         Ok(raw_data)
@@ -66,7 +87,6 @@ impl PageViewService {
         category_qid: u32,
         start_date: NaiveDate,
         end_date: NaiveDate,
-        depth: u32,
         limit: usize,
     ) -> Result<Vec<ArticleViews>, CoreServiceError> {
         let engine = EngineService::get_or_build_pageview_engine(state, wiki).await?;
@@ -77,7 +97,7 @@ impl PageViewService {
             })?;
 
             engine_lock
-                .get_top_articles_in_category(category_qid, start_date, end_date, depth, limit)
+                .get_top_articles_in_category(category_qid, start_date, end_date, 0, limit)
                 .map_err(|e| {
                     CoreServiceError::EngineError(format!("Failed to get top articles: {}", e))
                 })?
@@ -136,13 +156,14 @@ impl PageViewService {
     ) -> Result<Vec<CategoryViews>, CoreServiceError> {
         let engine = EngineService::get_or_build_pageview_engine(state, wiki).await?;
 
+        // Oversample so dropping denylisted categories cannot shrink the page.
         let categories = {
             let engine_lock = engine.read().map_err(|e| {
                 CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
             })?;
 
             engine_lock
-                .get_top_categories(start_date, end_date, limit)
+                .get_top_categories(start_date, end_date, excluded_categories::oversampled(limit))
                 .map_err(|e| {
                     CoreServiceError::EngineError(format!("Failed to get top categories: {}", e))
                 })?
@@ -150,6 +171,8 @@ impl PageViewService {
 
         let raw_categories: Vec<CategoryViews> = categories
             .into_iter()
+            .filter(|cat| !excluded_categories::EXCLUDED_CATEGORY_QIDS.contains(&cat.category_qid))
+            .take(limit)
             .map(|cat| {
                 let top_articles: Vec<ArticleViews> = cat
                     .top_articles

@@ -1,16 +1,25 @@
-// Stage 1 of the coverage matrix ETL: per-wiki depth-0 `direct_coverage`.
+// Coverage matrix ETL: per-wiki depth-0 coverage, both measures in one pass.
 //
 // `direct_coverage(C)` = number of distinct articles filed *directly* under
-// category C in this wiki. Because `article_category.parquet` is already
-// filtered to valid article/category QIDs (see get-article_category), this is a
-// faithful group-by on that file — no need to build the full WikiGraph.
+// category C in this wiki — a group-by on the local `article_category.parquet`
+// (already filtered to valid article/category QIDs, see get-article_category).
 //
-// Output: a Parquet of (category_qid, direct_coverage), sorted by category_qid.
-// The wiki is implied by the partition path (data/{wiki}/coverage/{date}.parquet),
-// so it is not stored as a column, mirroring the pageview/pageedit layout.
+// `qid_overlap_coverage(C)` = number of C's globally-known articles that exist
+// as articles in this wiki, independent of how (or whether) this wiki
+// categorises them — the pure *content* measure. The canonical projection
+// `article_category_canonical.parquet` already materializes exactly that
+// intersection (canonical_set(C) ∩ articles(W), built by canonical-projection
+// from the gated canonical snapshot), so this too is a plain group-by.
 //
-// qid_overlap_coverage (the cross-wiki content measure) is a separate stage that
-// joins all wikis' direct-member sets; it is not produced here.
+// Every local direct edge is also a canonical edge over this wiki's articles,
+// so direct_coverage ≤ qid_overlap_coverage per category and the overlap key
+// set covers the direct key set: merging is a left join, zero-filling
+// direct_coverage where the wiki has articles for C but no local category.
+//
+// Output: Parquet of (category_qid, direct_coverage, qid_overlap_coverage),
+// sorted by category_qid. The wiki is implied by the partition path
+// (data/{wiki}/coverage/{date}.parquet), so it is not stored as a column,
+// mirroring the pageview/pageedit layout.
 
 use parquet::file::writer::SerializedFileWriter;
 use parquet::{file::properties::WriterProperties, record::RecordWriter as _};
@@ -24,34 +33,61 @@ use std::sync::Arc;
 struct CoverageRecord {
     category_qid: u32,
     direct_coverage: u32,
+    qid_overlap_coverage: u32,
+}
+
+fn count_per_category(path: &str, out_name: &str) -> Result<LazyFrame, Box<dyn std::error::Error>> {
+    let p = PlRefPath::try_from_path(Path::new(path))?;
+    Ok(LazyFrame::scan_parquet(p, Default::default())?
+        .group_by([col("category_qid")])
+        .agg([col("article_qid").n_unique().alias(out_name)]))
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
-    if args.len() < 3 {
-        eprintln!("Usage: {} <article_category.parquet> <output_file>", args[0]);
+    if args.len() < 4 {
+        eprintln!(
+            "Usage: {} <article_category.parquet> <article_category_canonical.parquet> <output_file>",
+            args[0]
+        );
         std::process::exit(1);
     }
-    let input = &args[1];
-    let output_file = &args[2];
+    let local_input = &args[1];
+    let canonical_input = &args[2];
+    let output_file = &args[3];
 
-    let path = PlRefPath::try_from_path(Path::new(input))?;
-    let grouped = LazyFrame::scan_parquet(path, Default::default())?
-        .group_by([col("category_qid")])
-        .agg([col("article_qid").n_unique().alias("direct_coverage")])
+    let overlap = count_per_category(canonical_input, "qid_overlap_coverage")?;
+    let direct = count_per_category(local_input, "direct_coverage")?;
+
+    let merged = overlap
+        .join(
+            direct,
+            [col("category_qid")],
+            [col("category_qid")],
+            JoinArgs::new(JoinType::Left),
+        )
+        .with_column(col("direct_coverage").fill_null(0))
+        .select([
+            col("category_qid").cast(DataType::UInt32),
+            col("direct_coverage").cast(DataType::UInt32),
+            col("qid_overlap_coverage").cast(DataType::UInt32),
+        ])
         .sort(["category_qid"], Default::default())
         .collect()?;
 
-    let cat_col = grouped.column("category_qid")?.u32()?;
-    let cov_col = grouped.column("direct_coverage")?.u32()?;
+    let cat_col = merged.column("category_qid")?.u32()?;
+    let direct_col = merged.column("direct_coverage")?.u32()?;
+    let overlap_col = merged.column("qid_overlap_coverage")?.u32()?;
 
     let records: Vec<CoverageRecord> = cat_col
         .into_iter()
-        .zip(cov_col)
-        .filter_map(|(c, n)| {
+        .zip(direct_col)
+        .zip(overlap_col)
+        .filter_map(|((c, d), o)| {
             Some(CoverageRecord {
                 category_qid: c?,
-                direct_coverage: n?,
+                direct_coverage: d?,
+                qid_overlap_coverage: o?,
             })
         })
         .collect();

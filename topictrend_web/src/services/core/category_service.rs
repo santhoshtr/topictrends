@@ -55,7 +55,7 @@ impl CategoryService {
         state: Arc<AppState>,
         wiki: &str,
         category_qid: u32,
-        depth: u32,
+        min_agreement: u16,
     ) -> Result<Vec<u32>, CoreServiceError> {
         let engine = EngineService::get_or_build_pageview_engine(state, wiki).await?;
 
@@ -66,7 +66,7 @@ impl CategoryService {
 
             engine_lock
                 .get_wikigraph()
-                .get_articles_in_category(category_qid, depth)
+                .get_articles_in_category_filtered(category_qid, 0, min_agreement)
                 .map_err(|e| {
                     CoreServiceError::EngineError(format!(
                         "Failed to get articles in category: {}",

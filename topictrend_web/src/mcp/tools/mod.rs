@@ -25,8 +25,6 @@ pub struct CategoryTrendInput {
     pub category: String,
     /// Wikidata QID as a plain integer (e.g. 42 for Q42). Optional; resolved from title if omitted.
     pub category_qid: Option<u32>,
-    /// Subcategory traversal depth. 0 = direct members only (default).
-    pub depth: Option<u32>,
     /// Start date inclusive, YYYY-MM-DD. Defaults to 30 days ago.
     pub start_date: Option<String>,
     /// End date inclusive, YYYY-MM-DD. Defaults to today.
@@ -55,8 +53,6 @@ pub struct TopicTrendInput {
     pub wiki: String,
     /// Plain-language topic query. Does not need to match an exact category title.
     pub topic: String,
-    /// Subcategory traversal depth. 0 = direct members only (default).
-    pub depth: Option<u32>,
     /// Start date inclusive, YYYY-MM-DD. Defaults to 30 days ago.
     pub start_date: Option<String>,
     /// End date inclusive, YYYY-MM-DD. Defaults to today.
@@ -91,8 +87,6 @@ pub struct CategoryDeltaInput {
     pub impact_end_date: String,
     /// Maximum number of categories to return.
     pub limit: Option<u32>,
-    /// Subcategory traversal depth. 0 = direct members only (default).
-    pub depth: Option<u32>,
 }
 
 /// Input for article-level delta queries within a specific category.
@@ -112,8 +106,6 @@ pub struct ArticleDeltaInput {
     pub impact_end_date: String,
     /// Maximum number of articles to return.
     pub limit: Option<u32>,
-    /// Subcategory traversal depth. 0 = direct members only (default).
-    pub depth: Option<u32>,
 }
 
 /// Input for semantic category search.
@@ -166,6 +158,8 @@ pub struct ListArticlesInput {
     pub category: Option<String>,
     /// Wikidata QID as a plain integer. At least one of category or category_qid required.
     pub category_qid: Option<u32>,
+    /// Keep only members at least this many wikis agree on (default 1).
+    pub min_agreement: Option<u16>,
 }
 
 /// Input for content gap analysis by semantic topic.
@@ -175,8 +169,6 @@ pub struct ContentGapTopicInput {
     pub topic: String,
     /// Comma-separated list of Wikipedia edition database names (e.g. "enwiki,frwiki,dewiki").
     pub wikis: String,
-    /// Subcategory traversal depth. 0 = direct members only (default).
-    pub depth: Option<u32>,
 }
 
 /// Input for listing categories an article belongs to.
@@ -216,9 +208,6 @@ pub fn service_err(e: crate::services::ServiceError) -> ErrorData {
     let msg = match e {
         crate::services::ServiceError::CoreError(CoreServiceError::NotFound) => {
             "Resource not found".to_string()
-        }
-        crate::services::ServiceError::CoreError(CoreServiceError::DatabaseError(m)) => {
-            format!("Database error: {}", m)
         }
         crate::services::ServiceError::CoreError(CoreServiceError::EngineError(m)) => {
             format!("Engine error: {}", m)

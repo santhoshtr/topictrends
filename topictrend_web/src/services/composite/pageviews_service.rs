@@ -72,11 +72,9 @@ impl PageViewsService {
         wiki: &str,
         category: &str,
         category_qid: Option<u32>,
-        depth: Option<u32>,
         start_date: Option<NaiveDate>,
         end_date: Option<NaiveDate>,
     ) -> Result<CategoryTrendResult, ServiceError> {
-        let depth = depth.unwrap_or(0);
         let start = start_date
             .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
         let end = end_date.unwrap_or_else(|| chrono::Local::now().date_naive());
@@ -94,7 +92,6 @@ impl PageViewsService {
             category_qid,
             start,
             end,
-            depth,
         )
         .await?;
 
@@ -105,7 +102,6 @@ impl PageViewsService {
             category_qid,
             start,
             end,
-            depth,
             10,
         )
         .await?;
@@ -145,11 +141,9 @@ impl PageViewsService {
         state: Arc<AppState>,
         wiki: &str,
         category_qids: Vec<u32>,
-        depth: Option<u32>,
         start_date: Option<NaiveDate>,
         end_date: Option<NaiveDate>,
     ) -> Result<CategoriesTrendResult, ServiceError> {
-        let depth = depth.unwrap_or(0);
         let start = start_date
             .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
         let end = end_date.unwrap_or_else(|| chrono::Local::now().date_naive());
@@ -159,56 +153,45 @@ impl PageViewsService {
             QidService::get_titles_by_qids(Arc::clone(&state), wiki, &category_qids).await?;
         let category_qid_set: HashSet<u32> = category_qids.iter().copied().collect();
 
-        // Collect all view data and top articles from all categories
-        let mut all_views_by_date: HashMap<NaiveDate, u64> = HashMap::new();
+        // Daily totals over the union of the categories' article sets —
+        // an article in several matched categories is counted once per day.
+        let cumulative_views = PageViewService::get_categories_views(
+            Arc::clone(&state),
+            wiki,
+            category_qids.clone(),
+            start,
+            end,
+        )
+        .await?;
+
+        // Collect top articles from all categories. An article's total_views
+        // is an article-level metric (the same value from every category that
+        // surfaces it), so assignment is idempotent — never summed.
         let mut all_articles: HashMap<u32, (u64, u64, u32)> = HashMap::new();
 
         for category_qid in &category_qids {
-            // Get views for this category
-            let category_views = PageViewService::get_category_views(
-                Arc::clone(&state),
-                wiki,
-                *category_qid,
-                start,
-                end,
-                depth,
-            )
-            .await?;
-
-            // Aggregate views by date
-            for (date, views) in category_views {
-                *all_views_by_date.entry(date).or_insert(0) += views;
-            }
-
-            // Get top articles for this category
             let top_articles = PageViewService::get_top_articles(
                 Arc::clone(&state),
                 wiki,
                 *category_qid,
                 start,
                 end,
-                depth,
                 50, // Get more articles per category to ensure good global top
             )
             .await?;
 
-            // Aggregate article views
             for article in top_articles {
                 let entry =
                     all_articles
                         .entry(article.article_qid)
                         .or_insert((0, 0, *category_qid));
-                entry.0 += article.total_views;
+                entry.0 = article.total_views;
                 if article.total_views > entry.1 {
                     entry.1 = article.total_views;
                     entry.2 = *category_qid;
                 }
             }
         }
-
-        // Sort views by date
-        let mut cumulative_views: Vec<(NaiveDate, u64)> = all_views_by_date.into_iter().collect();
-        cumulative_views.sort_by_key(|(date, _)| *date);
 
         // Get top 10 articles overall
         let mut article_vec: Vec<(u32, (u64, u64, u32))> = all_articles.into_iter().collect();
@@ -319,7 +302,6 @@ impl PageViewsService {
         state: Arc<AppState>,
         wiki: &str,
         topic: &str,
-        depth: Option<u32>,
         start_date: Option<NaiveDate>,
         end_date: Option<NaiveDate>,
     ) -> Result<CategoryTrendResult, ServiceError> {
@@ -328,7 +310,6 @@ impl PageViewsService {
             Arc::clone(&state),
             wiki,
             category_qids,
-            Some(depth.unwrap_or(1)),
             start_date,
             end_date,
         )
@@ -442,9 +423,12 @@ impl PageViewsService {
         let mut all_qids: HashSet<u32> = article_qids.iter().copied().collect();
 
         for article_qid in &article_qids {
-            let category_qids =
+            let category_qids: Vec<u32> =
                 ArticleService::get_article_categories(Arc::clone(&state), wiki, *article_qid)
-                    .await?;
+                    .await?
+                    .into_iter()
+                    .map(|(qid, _)| qid)
+                    .collect();
             all_qids.extend(category_qids.iter().copied());
             article_categories_by_qid.insert(*article_qid, category_qids);
         }
@@ -530,7 +514,7 @@ impl PageViewsService {
 
         // Get all articles in the category (depth 0 = direct members only)
         let article_qids =
-            CategoryService::get_category_articles(Arc::clone(&state), wiki, category_qid, 0)
+            CategoryService::get_category_articles(Arc::clone(&state), wiki, category_qid, 1)
                 .await?;
 
         // Get titles for all articles

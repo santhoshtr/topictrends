@@ -5,19 +5,37 @@ import "./components/wiki-selector.js";
 document.addEventListener("DOMContentLoaded", () => {
 	document.getElementById("delta-form").addEventListener("submit", onSubmit);
 
-	document.getElementById("delta-form").addEventListener("form-fill-complete", () => {
-		onSubmit(new Event("submit"));
-	});
+	document
+		.getElementById("delta-form")
+		.addEventListener("form-fill-complete", () => {
+			onSubmit(new Event("submit"));
+		});
 
 	if (!window.location.search) {
 		document.querySelector(".examples").hidden = false;
 		const now = new Date();
-		const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-		const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
-		document.getElementById("impact_end_date").value = now.toISOString().slice(0, 10);
-		document.getElementById("baseline_start_date").value = twoMonthsAgo.toISOString().slice(0, 10);
-		document.getElementById("baseline_end_date").value = oneMonthAgo.toISOString().slice(0, 10);
-		document.getElementById("impact_start_date").value = oneMonthAgo.toISOString().slice(0, 10);
+		const oneMonthAgo = new Date(
+			now.getFullYear(),
+			now.getMonth() - 1,
+			now.getDate(),
+		);
+		const twoMonthsAgo = new Date(
+			now.getFullYear(),
+			now.getMonth() - 2,
+			now.getDate(),
+		);
+		document.getElementById("impact_end_date").value = now
+			.toISOString()
+			.slice(0, 10);
+		document.getElementById("baseline_start_date").value = twoMonthsAgo
+			.toISOString()
+			.slice(0, 10);
+		document.getElementById("baseline_end_date").value = oneMonthAgo
+			.toISOString()
+			.slice(0, 10);
+		document.getElementById("impact_start_date").value = oneMonthAgo
+			.toISOString()
+			.slice(0, 10);
 	}
 });
 
@@ -32,7 +50,6 @@ async function onSubmit(event) {
 	const baselineEndDate = document.getElementById("baseline_end_date").value;
 	const impactStartDate = document.getElementById("impact_start_date").value;
 	const impactEndDate = document.getElementById("impact_end_date").value;
-	const depth = document.getElementById("depth").value;
 	const limit = document.getElementById("limit").value;
 
 	const params = new URLSearchParams({
@@ -41,7 +58,6 @@ async function onSubmit(event) {
 		baseline_end_date: baselineEndDate,
 		impact_start_date: impactStartDate,
 		impact_end_date: impactEndDate,
-		depth,
 		limit,
 	});
 
@@ -68,7 +84,7 @@ async function onSubmit(event) {
 }
 
 async function fetchCategoryDeltaData(params) {
-	const url = `https://topictrends.wmcloud.org/api/googlesearch/delta/categories?${params.toString()}`;
+	const url = `/api/googlesearch/delta/categories?${params.toString()}`;
 	try {
 		showProgress();
 		const response = await fetch(url);
@@ -92,7 +108,6 @@ async function fetchArticleDeltaData(
 	baselineEndDate,
 	impactStartDate,
 	impactEndDate,
-	depth,
 	limit,
 ) {
 	const params = new URLSearchParams({
@@ -102,11 +117,10 @@ async function fetchArticleDeltaData(
 		baseline_end_date: baselineEndDate,
 		impact_start_date: impactStartDate,
 		impact_end_date: impactEndDate,
-		depth: depth || 0,
 		limit: limit || 100,
 	});
 
-	const url = `https://topictrends.wmcloud.org/api/googlesearch/delta/articles?${params.toString()}`;
+	const url = `/api/googlesearch/delta/articles?${params.toString()}`;
 	const response = await fetch(url);
 	if (!response.ok) {
 		throw new Error(`HTTP error! status: ${response.status}`);
@@ -166,6 +180,12 @@ function createCategoryAccordion(category, accordionName) {
 	const nameSpan = document.createElement("span");
 	nameSpan.className = "category-name";
 	nameSpan.textContent = category.category_title.replace(/_/g, " ");
+	if (
+		category.category_title_en &&
+		category.category_title_en !== category.category_title
+	) {
+		nameSpan.title = category.category_title_en.replace(/_/g, " ");
+	}
 
 	const deltaDiv = document.createElement("div");
 	const type = category.delta_percentage >= 0 ? "positive" : "negative";
@@ -182,13 +202,12 @@ function createCategoryAccordion(category, accordionName) {
 	plotLink.rel = "noopener noreferrer";
 
 	const wiki = document.getElementById("wiki").value;
-	const depth = document.getElementById("depth").value || "0";
 	const endDate = new Date();
 	endDate.setDate(endDate.getDate() - 1);
 	const startDate = new Date();
 	startDate.setMonth(startDate.getMonth() - 1);
 	const formatDate = (date) => date.toISOString().split("T")[0];
-	plotLink.href = `/googlesearch/trends?type=category&wiki=${wiki}&start_date=${formatDate(startDate)}&end_date=${formatDate(endDate)}&depth=${depth}&category=${category.category_title}`;
+	plotLink.href = `/googlesearch/trends?type=category&wiki=${wiki}&start_date=${formatDate(startDate)}&end_date=${formatDate(endDate)}&category=${category.category_title}`;
 
 	plotLink.addEventListener("click", (event) => {
 		event.stopPropagation();
@@ -226,7 +245,6 @@ async function handleAccordionToggle(event) {
 		const baselineEndDate = document.getElementById("baseline_end_date").value;
 		const impactStartDate = document.getElementById("impact_start_date").value;
 		const impactEndDate = document.getElementById("impact_end_date").value;
-		const depth = document.getElementById("depth").value;
 
 		const articlesData = await fetchArticleDeltaData(
 			wiki,
@@ -235,7 +253,6 @@ async function handleAccordionToggle(event) {
 			baselineEndDate,
 			impactStartDate,
 			impactEndDate,
-			depth,
 			100,
 		);
 
@@ -306,7 +323,14 @@ function renderArticles(container, articles, wiki, summaryMetrics) {
 
 	const thead = document.createElement("thead");
 	const headerRow = document.createElement("tr");
-	for (const label of ["Article", "Info", "Clicks", "Impressions", "Delta", "Plot"]) {
+	for (const label of [
+		"Article",
+		"Info",
+		"Clicks",
+		"Impressions",
+		"Delta",
+		"Plot",
+	]) {
 		const th = document.createElement("th");
 		th.textContent = label;
 		headerRow.appendChild(th);
@@ -322,6 +346,12 @@ function renderArticles(container, articles, wiki, summaryMetrics) {
 		const titleLink = document.createElement("a");
 		titleLink.className = "article-title";
 		titleLink.textContent = article.article_title.replace(/_/g, " ");
+		if (
+			article.article_title_en &&
+			article.article_title_en !== article.article_title
+		) {
+			titleLink.title = article.article_title_en.replace(/_/g, " ");
+		}
 		titleLink.href = `https://${wiki.replace("wiki", "")}.wikipedia.org/wiki/${encodeURIComponent(article.article_title)}`;
 		titleLink.target = "_blank";
 		titleLink.rel = "noopener noreferrer";

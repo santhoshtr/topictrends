@@ -14,6 +14,8 @@ use crate::models::{
     TopCategory, CategoryInfo,
 };
 use crate::services::PageViewsService;
+use crate::services::core::QidService;
+use std::collections::HashMap;
 use crate::services::composite::pageviews_service::{ArticleRank, CategoryRank};
 
 impl TopicTrendMcpServer {
@@ -23,7 +25,7 @@ impl TopicTrendMcpServer {
     /// Use `depth` to include subcategory articles (0 = direct members only).
     #[tool(
         name = "topictrends_get_category_pageview_trend",
-        description = "Daily Wikipedia pageviews for a category, with top articles. Use depth>0 to include subcategories.",
+        description = "Daily Wikipedia pageviews for a category (direct members), with top articles.",
         annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = true)
     )]
     pub async fn get_category_pageview_trend(
@@ -33,14 +35,19 @@ impl TopicTrendMcpServer {
         let start = parse_date_opt(p.start_date)?;
         let end = parse_date_opt(p.end_date)?;
         let r = PageViewsService::get_category_trend(
-            Arc::clone(&self.state), &p.wiki, &p.category, p.category_qid, p.depth, start, end,
+            Arc::clone(&self.state), &p.wiki, &p.category, p.category_qid, start, end,
         ).await.map_err(service_err)?;
+
+        let mut en_qids = article_rank_qids(&r.top_articles);
+        en_qids.push(r.qid);
+        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &en_qids).await;
 
         Ok(rmcp::handler::server::wrapper::Json(CategoryTrendResponse {
             qid: r.qid,
+            title_en: en.get(&r.qid).cloned(),
             title: r.title,
             views: r.views.into_iter().map(|(date, views)| DailyViews { date, views }).collect(),
-            top_articles: build_top_articles(r.top_articles),
+            top_articles: build_top_articles(r.top_articles, &en),
         }))
     }
 
@@ -60,8 +67,12 @@ impl TopicTrendMcpServer {
             Arc::clone(&self.state), &p.wiki, &p.article, p.article_qid, start, end,
         ).await.map_err(service_err)?;
 
+        let en =
+            QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &[r.qid]).await;
+
         Ok(rmcp::handler::server::wrapper::Json(ArticleTrendResponse {
             qid: r.qid,
+            title_en: en.get(&r.qid).cloned(),
             title: r.title,
             views: r.views.into_iter().map(|(date, views)| DailyViews { date, views }).collect(),
         }))
@@ -84,14 +95,18 @@ impl TopicTrendMcpServer {
         let start = parse_date_opt(p.start_date)?;
         let end = parse_date_opt(p.end_date)?;
         let r = PageViewsService::get_topic_trend(
-            Arc::clone(&self.state), &p.wiki, &p.topic, p.depth, start, end,
+            Arc::clone(&self.state), &p.wiki, &p.topic, start, end,
         ).await.map_err(service_err)?;
+
+        let en_qids = article_rank_qids(&r.top_articles);
+        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &en_qids).await;
 
         Ok(rmcp::handler::server::wrapper::Json(CategoryTrendResponse {
             qid: r.qid,
+            title_en: None,
             title: r.title,
             views: r.views.into_iter().map(|(date, views)| DailyViews { date, views }).collect(),
-            top_articles: build_top_articles(r.top_articles),
+            top_articles: build_top_articles(r.top_articles, &en),
         }))
     }
 
@@ -111,8 +126,15 @@ impl TopicTrendMcpServer {
             Arc::clone(&self.state), &p.wiki, start, end, p.top_n,
         ).await.map_err(service_err)?;
 
+        let mut en_qids: Vec<u32> = Vec::new();
+        for cat in &cats {
+            en_qids.push(cat.qid);
+            en_qids.extend(article_rank_qids(&cat.top_articles));
+        }
+        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &en_qids).await;
+
         Ok(rmcp::handler::server::wrapper::Json(CategoryRankResponse {
-            categories: cats.into_iter().map(build_top_category).collect(),
+            categories: cats.into_iter().map(|c| build_top_category(c, &en)).collect(),
         }))
     }
 
@@ -132,13 +154,25 @@ impl TopicTrendMcpServer {
             Arc::clone(&self.state), &p.wiki, start, end, p.top_n,
         ).await.map_err(service_err)?;
 
+        let mut en_qids: Vec<u32> = Vec::new();
+        for art in &arts {
+            en_qids.push(art.qid);
+            en_qids.extend(art.categories.iter().map(|c| c.qid));
+        }
+        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &en_qids).await;
+
         Ok(rmcp::handler::server::wrapper::Json(PageViewTopArticlesResponse {
             articles: arts.into_iter().map(|art| PageViewTopArticle {
                 qid: art.qid,
+                title_en: en.get(&art.qid).cloned(),
                 title: art.title,
                 views: art.views,
                 categories: art.categories.into_iter()
-                    .map(|c| TopArticleCategory { qid: c.qid, title: c.title })
+                    .map(|c| TopArticleCategory {
+                        qid: c.qid,
+                        title_en: en.get(&c.qid).cloned(),
+                        title: c.title,
+                    })
                     .collect(),
             }).collect(),
         }))
@@ -169,37 +203,61 @@ impl TopicTrendMcpServer {
         let qids: Vec<u32> = search_results.into_iter().map(|r| r.qid).collect();
 
         let r = PageViewsService::get_categories_trend(
-            Arc::clone(&self.state), &p.wiki, qids, Some(1), start, end,
+            Arc::clone(&self.state), &p.wiki, qids, start, end,
         ).await.map_err(service_err)?;
+
+        let mut en_qids: Vec<u32> = r.categories.iter().map(|c| c.qid).collect();
+        en_qids.extend(article_rank_qids(&r.top_articles));
+        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &en_qids).await;
 
         Ok(rmcp::handler::server::wrapper::Json(CategoriesTrendResponse {
             categories: r.categories.into_iter()
-                .map(|c| CategoryInfo { qid: c.qid, title: c.title })
+                .map(|c| CategoryInfo {
+                    qid: c.qid,
+                    title_en: en.get(&c.qid).cloned(),
+                    title: c.title,
+                })
                 .collect(),
             cumulative_views: r.cumulative_views.into_iter()
                 .map(|(date, views)| DailyViews { date, views })
                 .collect(),
-            top_articles: build_top_articles(r.top_articles),
+            top_articles: build_top_articles(r.top_articles, &en),
         }))
     }
 }
 
-fn build_top_articles(arts: Vec<ArticleRank>) -> Vec<TopArticle> {
+fn build_top_articles(arts: Vec<ArticleRank>, en: &HashMap<u32, String>) -> Vec<TopArticle> {
     arts.into_iter().map(|art| TopArticle {
         qid: art.qid,
+        title_en: en.get(&art.qid).cloned(),
         title: art.title,
         views: art.views,
         source_categories: art.source_categories.into_iter()
-            .map(|(qid, title)| TopArticleCategory { qid, title })
+            .map(|(qid, title)| TopArticleCategory {
+                qid,
+                title,
+                title_en: en.get(&qid).cloned(),
+            })
             .collect(),
     }).collect()
 }
 
-fn build_top_category(cat: CategoryRank) -> TopCategory {
+fn build_top_category(cat: CategoryRank, en: &HashMap<u32, String>) -> TopCategory {
     TopCategory {
         qid: cat.qid,
+        title_en: en.get(&cat.qid).cloned(),
         title: cat.title,
         views: cat.views,
-        top_articles: build_top_articles(cat.top_articles),
+        top_articles: build_top_articles(cat.top_articles, en),
     }
+}
+
+/// QIDs appearing in a list of ranked articles (articles + their source categories).
+fn article_rank_qids(arts: &[ArticleRank]) -> Vec<u32> {
+    let mut qids = Vec::new();
+    for art in arts {
+        qids.push(art.qid);
+        qids.extend(art.source_categories.iter().map(|(qid, _)| *qid));
+    }
+    qids
 }

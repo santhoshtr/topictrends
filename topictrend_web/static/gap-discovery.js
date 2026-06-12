@@ -66,7 +66,8 @@ function structureToHasCategory(value) {
 function readForm() {
 	state.reference = referenceSelect.value;
 	state.target = targetSelect.value;
-	const struct = form.querySelector('input[name="structure"]:checked')?.value ?? "all";
+	const struct =
+		form.querySelector('input[name="structure"]:checked')?.value ?? "all";
 	state.hasCategory = structureToHasCategory(struct);
 }
 
@@ -85,10 +86,13 @@ function applyUrlParams() {
 	const p = new URLSearchParams(window.location.search);
 	if (p.has("reference")) state.reference = p.get("reference");
 	if (p.has("target")) state.target = p.get("target");
-	if (p.has("skip")) state.offset = Math.max(0, Number.parseInt(p.get("skip"), 10) || 0);
+	if (p.has("skip"))
+		state.offset = Math.max(0, Number.parseInt(p.get("skip"), 10) || 0);
 	const struct = p.get("structure");
-	if (struct === "missing") document.getElementById("struct-missing").checked = true;
-	else if (struct === "under") document.getElementById("struct-under").checked = true;
+	if (struct === "missing")
+		document.getElementById("struct-missing").checked = true;
+	else if (struct === "under")
+		document.getElementById("struct-under").checked = true;
 	return p.has("reference") && p.has("target");
 }
 
@@ -103,7 +107,8 @@ async function fetchAndRender() {
 		offset: String(state.offset),
 		limit: String(state.limit),
 	});
-	if (state.hasCategory != null) params.set("has_category", String(state.hasCategory));
+	if (state.hasCategory != null)
+		params.set("has_category", String(state.hasCategory));
 
 	showProgress();
 	statusEl.textContent = "";
@@ -133,9 +138,10 @@ function renderResults(data) {
 	h2.innerHTML = `Gaps: <em>${data.target}</em> vs <em>${data.reference}</em>`;
 	const meta = document.createElement("p");
 	meta.className = "results-meta";
-	meta.textContent = `snapshot ${data.target_date} · ${data.total.toLocaleString()} gaps `
-		+ `(${data.without_category.toLocaleString()} missing category, `
-		+ `${data.with_category.toLocaleString()} under-populated)`;
+	meta.textContent =
+		`snapshot ${data.target_date} · ${data.total.toLocaleString()} gaps ` +
+		`(${data.without_category.toLocaleString()} missing category, ` +
+		`${data.with_category.toLocaleString()} under-populated)`;
 	resultsHeader.append(h2, meta);
 
 	if (data.categories.length === 0) {
@@ -162,6 +168,10 @@ function renderResults(data) {
 		const rank = data.offset + i + 1;
 		const cov = c.coverage_pct * 100;
 		const title = c.category_title.replace(/_/g, " ");
+		const enHover =
+			c.category_title_en && c.category_title_en !== c.category_title
+				? ` title="${c.category_title_en.replace(/_/g, " ")}"`
+				: "";
 		const articlesNote = `${data.target} files ${c.direct_coverage_target.toLocaleString()} articles directly under this category`;
 		const badge = c.has_category
 			? `<span class="structure-badge exists">Present<span class="badge-sub" title="${articlesNote}">${c.direct_coverage_target.toLocaleString()} articles</span></span>`
@@ -170,7 +180,7 @@ function renderResults(data) {
 		tr.innerHTML = `
 			<td class="num rank">${rank}</td>
 			<td class="cat">
-				<a href="${categoryUrl(data.reference, c.category_title)}" target="_blank" rel="noopener noreferrer">${title}</a>
+				<a href="${categoryUrl(data.reference, c.category_title)}" target="_blank" rel="noopener noreferrer"${enHover}>${title}</a>
 				<a class="qid-sub" href="${wikidataUrl(c.category_qid)}" target="_blank" rel="noopener noreferrer">Q${c.category_qid}</a>
 			</td>
 			<td class="num">${c.overlap_reference.toLocaleString()}</td>

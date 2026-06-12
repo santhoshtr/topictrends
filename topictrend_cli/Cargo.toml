@@ -45,10 +45,6 @@ name = "coverage-matrix"
 path = "src/coverage_matrix.rs"
 
 [[bin]]
-name = "coverage-overlap"
-path = "src/coverage_overlap.rs"
-
-[[bin]]
 name = "coverage-articles"
 path = "src/coverage_articles.rs"
 
@@ -72,3 +68,19 @@ roaring = { workspace = true }
 [[bin]]
 name = "coverage-gaps"
 path = "src/coverage_gaps.rs"
+
+[[bin]]
+name = "v2-study"
+path = "src/v2_study.rs"
+
+[[bin]]
+name = "canonical-membership"
+path = "src/canonical_membership.rs"
+
+[[bin]]
+name = "canonical-projection"
+path = "src/canonical_projection.rs"
+
+[[bin]]
+name = "canonical-labels"
+path = "src/canonical_labels.rs"

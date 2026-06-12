@@ -40,6 +40,10 @@ The API accepts titles as input (human-readable) and translates them to QIDs int
 
 **Example:** Query "Physics" (title) → internal translation to QID `42` → processing → response with both `category_qid: 42` and `category_title: "Physics"`
 
+### English Labels (`title_en`)
+
+When the requested wiki is not `enwiki`, every title-bearing response item also carries an optional English companion label (`title_en`, or `category_title_en` / `article_title_en` next to the matching display field), resolved from English Wikipedia with the canonical-label fallback. The field is omitted for `enwiki` requests and for QIDs with no English label. The web UI uses it for hover text; API and MCP consumers get it in the same payload.
+
 ## Endpoints
 
 ### 1. GET /api/pageviews/category
@@ -380,7 +384,6 @@ Compares pageview trends between two time periods to identify categories with si
 | `impact_start_date` | String | Yes | Impact period start (ISO 8601) |
 | `impact_end_date` | String | Yes | Impact period end (ISO 8601) |
 | `limit` | Integer | No | Max results, default: 100, max: 1000 |
-| `depth` | Integer | No | Category tree depth, default: unlimited |
 
 **Example Request:**
 
@@ -473,7 +476,6 @@ Compares page edit activity in categories between two time periods.
 | `impact_start_date` | String | Yes | Impact period start |
 | `impact_end_date` | String | Yes | Impact period end |
 | `limit` | Integer | No | Max results, default: 100 |
-| `depth` | Integer | No | Category tree depth |
 
 **Example Request:**
 
@@ -562,6 +564,7 @@ Lists articles within a category.
 | `wiki` | String | Yes | Wikipedia edition |
 | `category` | String | No | Category name (title) |
 | `category_qid` | Integer | No | Category QID (numeric) |
+| `min_agreement` | Integer | No | Keep only members at least this many wikis agree on (default 1; meaningful on canonical topology) |
 | `limit` | Integer | No | Max results, default: 100, max: 10000 |
 
 **Note:** Either `category` (title) or `category_qid` must be provided.
@@ -666,7 +669,10 @@ curl "http://localhost:8765/api/pageviews/categories?wiki=enwiki&category_query=
 
 ### 12. GET /api/content_gap/categories
 
-Compares topic coverage across multiple wikis by counting category articles and reporting overlaps and missing sets.
+Compares one category's coverage across multiple wikis. Each wiki's
+`article_count` is the category's `qid_overlap_coverage` from the monthly
+coverage snapshot — how many of the category's globally-known articles exist
+in that wiki — the same measure the gap-discovery ranking uses.
 
 **Parameters:**
 
@@ -675,15 +681,13 @@ Compares topic coverage across multiple wikis by counting category articles and 
 | `category` | String | No | Category title in enwiki (exact match) |
 | `category_qid` | Integer | No | Category QID (numeric) |
 | `wikis` | String | Yes | Comma-separated wiki list (e.g., `enwiki,mlwiki,tawiki`) |
-| `depth` | Integer | No | Category traversal depth, default: 0 |
-| `include_articles` | Boolean | No | Include article titles per wiki, default: false |
 
-**Note:** Either `category` or `category_qid` must be provided. `enwiki` is always used as the reference for gap calculations.
+**Note:** Either `category` or `category_qid` must be provided.
 
 **Example Request:**
 
 ```bash
-curl "http://localhost:8765/api/content_gap/categories?category=Quantum_physics&wikis=enwiki,mlwiki,tawiki&depth=2"
+curl "http://localhost:8765/api/content_gap/categories?category=Quantum_physics&wikis=enwiki,mlwiki,tawiki"
 ```
 
 **Response:**
@@ -692,27 +696,16 @@ curl "http://localhost:8765/api/content_gap/categories?category=Quantum_physics&
 {
   "category": "Quantum_physics",
   "category_qid": 49833,
-  "depth": 2,
   "wikis": [
     {
       "wiki": "enwiki",
-      "article_count": 100,
-      "article_qids": [1, 2, 3]
+      "article_count": 100
     },
     {
       "wiki": "mlwiki",
-      "article_count": 2,
-      "article_qids": [1, 3]
+      "article_count": 2
     }
-  ],
-  "overlap_count": 2,
-  "overlap_article_qids": [1, 3],
-  "missing_from": {
-    "mlwiki": {
-      "count": 98,
-      "article_qids": [2, 4, 5]
-    }
-  }
+  ]
 }
 ```
 
@@ -720,6 +713,7 @@ curl "http://localhost:8765/api/content_gap/categories?category=Quantum_physics&
 
 - `404 Not Found`: Category does not exist in enwiki
 - `400 Bad Request`: Invalid parameters
+- `500 Internal Server Error`: No coverage snapshot for a requested wiki
 
 ---
 
@@ -860,7 +854,6 @@ For API versioning, prefix future versions with `/api/v2/`.
 For API issues:
 1. Check `/api/health` for component status
 2. Review logs: `RUST_LOG=debug ./topictrend_web`
-3. Verify MariaDB connectivity: `./target/release/topictrend_web --check-db`
 4. Test embedding service: `cd services/embedding && EMBEDDING_SERVER=localhost:50051 uv run python healthcheck.py`
 
 For deployment and operational questions, see [OPERATIONS.md](OPERATIONS.md).

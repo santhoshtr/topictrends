@@ -9,17 +9,17 @@ import "./components/wiki-selector.js";
 
 const CONFIG = {
 	pageviews: {
-		endpoint: "https://topictrends.wmcloud.org/api/pageviews/top_articles",
+		endpoint: "/api/pageviews/top_articles",
 		render: renderPageviewsTopArticles,
 		metricLabel: "views",
 	},
 	pageedits: {
-		endpoint: "https://topictrends.wmcloud.org/api/pageedits/top_articles",
+		endpoint: "/api/pageedits/top_articles",
 		render: renderPageeditsTopArticles,
 		metricLabel: "edits",
 	},
 	googlesearch: {
-		endpoint: "https://topictrends.wmcloud.org/api/googlesearch/top_articles",
+		endpoint: "/api/googlesearch/top_articles",
 		render: renderGoogleSearchTopArticles,
 		metricLabel: "clicks",
 	},

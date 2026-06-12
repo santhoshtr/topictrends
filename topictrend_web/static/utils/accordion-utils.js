@@ -84,15 +84,14 @@ function createPlotButton(category, trendsUrl) {
 	plotLink.target = "_blank";
 	plotLink.rel = "noopener noreferrer";
 
-	// Get wiki and depth from form
+	// Get wiki from form
 	const wiki = document.getElementById("wiki").value;
-	const depth = document.getElementById("depth").value || "0";
 
 	// Build plot URL with date range (1 month ago to yesterday)
 	const endDate = getYesterday();
 	const startDate = getMonthsAgo(1);
 
-	plotLink.href = `${trendsUrl}?type=category&wiki=${wiki}&start_date=${formatDateToISO(startDate)}&end_date=${formatDateToISO(endDate)}&depth=${depth}&category=${category.category_title}`;
+	plotLink.href = `${trendsUrl}?type=category&wiki=${wiki}&start_date=${formatDateToISO(startDate)}&end_date=${formatDateToISO(endDate)}&category=${category.category_title}`;
 
 	// Prevent accordion toggle when clicking plot button
 	plotLink.addEventListener("click", (e) => {
@@ -200,7 +199,6 @@ export function createAccordionToggleHandler(
 				const impactStartDate =
 					document.getElementById("impact_start_date").value;
 				const impactEndDate = document.getElementById("impact_end_date").value;
-				const depth = document.getElementById("depth").value;
 
 				const articlesData = await fetchArticlesFn(
 					wiki,
@@ -209,7 +207,6 @@ export function createAccordionToggleHandler(
 					baselineEndDate,
 					impactStartDate,
 					impactEndDate,
-					depth,
 					MAX_ACCORDION_ITEMS,
 				);
 

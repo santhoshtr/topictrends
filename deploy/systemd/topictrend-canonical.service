@@ -1,5 +1,5 @@
 [Unit]
-Description=TopicTrends coverage matrix snapshot (direct + qid_overlap, all wikis)
+Description=TopicTrends canonical relation + coverage matrix snapshot (all wikis)
 After=network.target
 
 [Service]
@@ -10,6 +10,8 @@ User=topictrend
 WorkingDirectory=/srv/topictrend
 # DATE defaults to "yesterday"; for a 1st-of-month firing that labels the
 # snapshot with the last day of the previous month. Override DATE= to pin it.
-ExecStart=/usr/bin/make coverage
+# coverage consumes the canonical projections, so the two run chained: if the
+# canonical manifest gate aborts, coverage never runs against truncated inputs.
+ExecStart=/usr/bin/make canonical coverage
 Nice=10
 IOSchedulingClass=idle

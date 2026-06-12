@@ -13,26 +13,34 @@ use crate::services::core::{CategoryService, QidService, ArticleService};
 impl TopicTrendMcpServer {
     /// List direct subcategories of a Wikipedia category.
     ///
-    /// Returns a map of Wikidata QID → category title for all immediate children.
+    /// Returns QID, local title and English label for all immediate children.
     #[tool(
         name = "topictrends_list_subcategories",
-        description = "List direct subcategories of a Wikipedia category, returning QID→title pairs.",
+        description = "List direct subcategories of a Wikipedia category (QID, title and English label for each).",
         annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = true)
     )]
     pub async fn list_subcategories(
         &self,
         Parameters(p): Parameters<SubCategoriesInput>,
-    ) -> Result<rmcp::handler::server::wrapper::Json<HashMap<String, String>>, ErrorData> {
+    ) -> Result<rmcp::handler::server::wrapper::Json<Vec<crate::models::CategoryInfo>>, ErrorData>
+    {
         let map = PageViewsService::get_sub_categories(
             Arc::clone(&self.state), &p.wiki, &p.category, p.category_qid,
         ).await.map_err(crate::mcp::tools::service_err)?;
 
-        // Convert u32 keys to strings as the OpenAPI spec uses string keys
-        let string_map: HashMap<String, String> = map.into_iter()
-            .map(|(qid, title)| (qid.to_string(), title))
-            .collect();
+        let qids: Vec<u32> = map.keys().copied().collect();
+        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &qids).await;
 
-        Ok(rmcp::handler::server::wrapper::Json(string_map))
+        let mut categories: Vec<crate::models::CategoryInfo> = map.into_iter()
+            .map(|(qid, title)| crate::models::CategoryInfo {
+                qid,
+                title_en: en.get(&qid).cloned(),
+                title,
+            })
+            .collect();
+        categories.sort_by(|a, b| a.title.cmp(&b.title));
+
+        Ok(rmcp::handler::server::wrapper::Json(categories))
     }
 
     /// List articles that are direct members of a Wikipedia category.
@@ -61,16 +69,18 @@ impl TopicTrendMcpServer {
         };
 
         let article_qids = CategoryService::get_category_articles(
-            Arc::clone(&self.state), &p.wiki, category_qid, 0,
+            Arc::clone(&self.state), &p.wiki, category_qid, p.min_agreement.unwrap_or(1),
         ).await.map_err(core_err)?;
 
         let titles = QidService::get_titles_by_qids(
             Arc::clone(&self.state), &p.wiki, &article_qids,
         ).await.map_err(core_err)?;
+        let en =
+            QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &article_qids).await;
 
         let articles = article_qids.into_iter().map(|qid| {
             let title = titles.get(&qid).cloned().unwrap_or_else(|| format!("Q{}", qid));
-            ArticleItem { qid, title }
+            ArticleItem { qid, title, title_en: en.get(&qid).cloned() }
         }).collect();
 
         Ok(rmcp::handler::server::wrapper::Json(ArticlesInCategoryResponse { articles }))
@@ -96,7 +106,7 @@ impl TopicTrendMcpServer {
             .collect();
 
         let result = ContentGapService::get_topic_content_gap(
-            Arc::clone(&self.state), &p.topic, wikis, p.depth,
+            Arc::clone(&self.state), &p.topic, wikis,
         ).await.map_err(core_err)?;
 
         Ok(rmcp::handler::server::wrapper::Json(result))
@@ -127,17 +137,25 @@ impl TopicTrendMcpServer {
                 .await.map_err(core_err)?
         };
 
-        let category_qids = ArticleService::get_article_categories(
+        let ranked = ArticleService::get_article_categories(
             Arc::clone(&self.state), &p.wiki, article_qid,
         ).await.map_err(core_err)?;
 
+        let category_qids: Vec<u32> = ranked.iter().map(|(qid, _)| *qid).collect();
         let titles = QidService::get_titles_by_qids(
             Arc::clone(&self.state), &p.wiki, &category_qids,
         ).await.map_err(core_err)?;
+        let en =
+            QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &category_qids).await;
 
-        let categories = category_qids.into_iter().map(|qid| {
+        let categories = ranked.into_iter().map(|(qid, wiki_count)| {
             let title = titles.get(&qid).cloned().unwrap_or_else(|| format!("Q{}", qid));
-            crate::models::CategoryInfo { qid, title }
+            crate::models::RankedCategoryInfo {
+                qid,
+                title,
+                title_en: en.get(&qid).cloned(),
+                wiki_count,
+            }
         }).collect();
 
         Ok(rmcp::handler::server::wrapper::Json(ArticleCategoriesResponse { categories }))

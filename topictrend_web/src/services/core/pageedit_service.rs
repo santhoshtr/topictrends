@@ -1,4 +1,4 @@
-use super::{CoreServiceError, EngineService};
+use super::{CoreServiceError, EngineService, excluded_categories};
 use crate::models::AppState;
 use chrono::NaiveDate;
 use std::sync::Arc;
@@ -25,7 +25,6 @@ impl PageEditService {
         category_qid: u32,
         start_date: NaiveDate,
         end_date: NaiveDate,
-        depth: u32,
     ) -> Result<Vec<(NaiveDate, u64)>, CoreServiceError> {
         let engine = EngineService::get_or_build_pageedit_engine(state, wiki).await?;
 
@@ -34,7 +33,7 @@ impl PageEditService {
                 CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
             })?;
 
-            engine_lock.get_category_trend(category_qid, depth, start_date, end_date)
+            engine_lock.get_category_trend(category_qid, 0, start_date, end_date)
         };
 
         Ok(raw_data)
@@ -66,7 +65,6 @@ impl PageEditService {
         category_qid: u32,
         start_date: NaiveDate,
         end_date: NaiveDate,
-        depth: u32,
         limit: usize,
     ) -> Result<Vec<ArticleEdits>, CoreServiceError> {
         let engine = EngineService::get_or_build_pageedit_engine(state, wiki).await?;
@@ -77,7 +75,7 @@ impl PageEditService {
             })?;
 
             engine_lock
-                .get_top_articles_in_category(category_qid, start_date, end_date, depth, limit)
+                .get_top_articles_in_category(category_qid, start_date, end_date, 0, limit)
                 .map_err(|e| {
                     CoreServiceError::EngineError(format!("Failed to get top articles: {}", e))
                 })?
@@ -104,13 +102,14 @@ impl PageEditService {
     ) -> Result<Vec<CategoryEdits>, CoreServiceError> {
         let engine = EngineService::get_or_build_pageedit_engine(state, wiki).await?;
 
+        // Oversample so dropping denylisted categories cannot shrink the page.
         let categories = {
             let engine_lock = engine.read().map_err(|e| {
                 CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
             })?;
 
             engine_lock
-                .get_top_categories(start_date, end_date, limit)
+                .get_top_categories(start_date, end_date, excluded_categories::oversampled(limit))
                 .map_err(|e| {
                     CoreServiceError::EngineError(format!("Failed to get top categories: {}", e))
                 })?
@@ -118,6 +117,8 @@ impl PageEditService {
 
         let raw_categories: Vec<CategoryEdits> = categories
             .into_iter()
+            .filter(|cat| !excluded_categories::EXCLUDED_CATEGORY_QIDS.contains(&cat.category_qid))
+            .take(limit)
             .map(|cat| {
                 let top_articles: Vec<ArticleEdits> = cat
                     .top_articles

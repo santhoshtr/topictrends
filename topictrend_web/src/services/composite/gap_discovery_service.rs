@@ -52,7 +52,7 @@ impl GapDiscoveryService {
         let window = ranking.window(min_ref, has_category, offset, limit);
 
         // Resolve titles for just this page, from the reference wiki. Degrade to
-        // "Q{qid}" if the replica is unavailable rather than failing the request.
+        // "Q{qid}" if a title is unresolvable rather than failing the request.
         let qids: Vec<u32> = window.rows.iter().map(|r| r.category_qid).collect();
         let titles = QidService::get_titles_by_qids(Arc::clone(&state), reference, &qids)
             .await

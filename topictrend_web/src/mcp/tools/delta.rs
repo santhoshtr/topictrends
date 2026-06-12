@@ -16,6 +16,7 @@ use crate::models::{
 use crate::services::composite::{
     GoogleSearchDeltaService, PageEditDeltaService, PageViewDeltaService,
 };
+use crate::services::core::QidService;
 
 impl TopicTrendMcpServer {
     /// Compare Wikipedia category pageviews between a baseline period and an impact period.
@@ -36,13 +37,15 @@ impl TopicTrendMcpServer {
         let impact_start   = parse_date(&p.impact_start_date)?;
         let impact_end     = parse_date(&p.impact_end_date)?;
         let limit = p.limit.unwrap_or(100) as usize;
-        let depth = p.depth.unwrap_or(0);
 
         let items = PageViewDeltaService::get_category_delta(
             Arc::clone(&self.state), &p.wiki,
             baseline_start, baseline_end, impact_start, impact_end,
-            limit, depth,
+            limit,
         ).await.map_err(core_err)?;
+
+        let en_qids: Vec<u32> = items.iter().map(|i| i.category_qid).collect();
+        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &en_qids).await;
 
         Ok(rmcp::handler::server::wrapper::Json(PageViewCategoryDeltaResponse {
             baseline_period: format!("{} to {}", baseline_start, baseline_end),
@@ -50,6 +53,7 @@ impl TopicTrendMcpServer {
             categories: items.into_iter().map(|item| PageViewCategoryDeltaItemResponse {
                 category_qid: item.category_qid,
                 category_title: item.category_title,
+                category_title_en: en.get(&item.category_qid).cloned(),
                 baseline_views: item.baseline_views,
                 impact_views: item.impact_views,
                 delta_percentage: item.delta_percentage,
@@ -73,22 +77,27 @@ impl TopicTrendMcpServer {
         let impact_start   = parse_date(&p.impact_start_date)?;
         let impact_end     = parse_date(&p.impact_end_date)?;
         let limit = p.limit.unwrap_or(100) as usize;
-        let depth = p.depth.unwrap_or(0);
 
         let items = PageViewDeltaService::get_article_delta(
             Arc::clone(&self.state), &p.wiki, p.category_qid,
             baseline_start, baseline_end, impact_start, impact_end,
-            limit, depth,
+            limit,
         ).await.map_err(core_err)?;
+
+        let mut en_qids: Vec<u32> = items.iter().map(|i| i.article_qid).collect();
+        en_qids.push(p.category_qid);
+        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &en_qids).await;
 
         Ok(rmcp::handler::server::wrapper::Json(PageViewArticleDeltaResponse {
             category_qid: p.category_qid,
             category_title: String::new(),
+            category_title_en: en.get(&p.category_qid).cloned(),
             baseline_period: format!("{} to {}", baseline_start, baseline_end),
             impact_period: format!("{} to {}", impact_start, impact_end),
             articles: items.into_iter().map(|item| PageViewArticleDeltaItemResponse {
                 article_qid: item.article_qid,
                 article_title: item.article_title,
+                article_title_en: en.get(&item.article_qid).cloned(),
                 baseline_views: item.baseline_views,
                 impact_views: item.impact_views,
                 delta_percentage: item.delta_percentage,
@@ -112,13 +121,15 @@ impl TopicTrendMcpServer {
         let impact_start   = parse_date(&p.impact_start_date)?;
         let impact_end     = parse_date(&p.impact_end_date)?;
         let limit = p.limit.unwrap_or(100) as usize;
-        let depth = p.depth.unwrap_or(0);
 
         let items = PageEditDeltaService::get_category_delta(
             Arc::clone(&self.state), &p.wiki,
             baseline_start, baseline_end, impact_start, impact_end,
-            limit, depth,
+            limit,
         ).await.map_err(core_err)?;
+
+        let en_qids: Vec<u32> = items.iter().map(|i| i.category_qid).collect();
+        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &en_qids).await;
 
         Ok(rmcp::handler::server::wrapper::Json(PageEditCategoryDeltaResponse {
             baseline_period: format!("{} to {}", baseline_start, baseline_end),
@@ -126,6 +137,7 @@ impl TopicTrendMcpServer {
             categories: items.into_iter().map(|item| PageEditCategoryDeltaItemResponse {
                 category_qid: item.category_qid,
                 category_title: item.category_title,
+                category_title_en: en.get(&item.category_qid).cloned(),
                 baseline_edits: item.baseline_edits,
                 impact_edits: item.impact_edits,
                 delta_percentage: item.delta_percentage,
@@ -149,22 +161,27 @@ impl TopicTrendMcpServer {
         let impact_start   = parse_date(&p.impact_start_date)?;
         let impact_end     = parse_date(&p.impact_end_date)?;
         let limit = p.limit.unwrap_or(100) as usize;
-        let depth = p.depth.unwrap_or(0);
 
         let items = PageEditDeltaService::get_article_delta(
             Arc::clone(&self.state), &p.wiki, p.category_qid,
             baseline_start, baseline_end, impact_start, impact_end,
-            limit, depth,
+            limit,
         ).await.map_err(core_err)?;
+
+        let mut en_qids: Vec<u32> = items.iter().map(|i| i.article_qid).collect();
+        en_qids.push(p.category_qid);
+        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &en_qids).await;
 
         Ok(rmcp::handler::server::wrapper::Json(PageEditArticleDeltaResponse {
             category_qid: p.category_qid,
             category_title: String::new(),
+            category_title_en: en.get(&p.category_qid).cloned(),
             baseline_period: format!("{} to {}", baseline_start, baseline_end),
             impact_period: format!("{} to {}", impact_start, impact_end),
             articles: items.into_iter().map(|item| PageEditArticleDeltaItemResponse {
                 article_qid: item.article_qid,
                 article_title: item.article_title,
+                article_title_en: en.get(&item.article_qid).cloned(),
                 baseline_edits: item.baseline_edits,
                 impact_edits: item.impact_edits,
                 delta_percentage: item.delta_percentage,
@@ -188,13 +205,15 @@ impl TopicTrendMcpServer {
         let impact_start   = parse_date(&p.impact_start_date)?;
         let impact_end     = parse_date(&p.impact_end_date)?;
         let limit = p.limit.unwrap_or(100) as usize;
-        let depth = p.depth.unwrap_or(0);
 
         let items = GoogleSearchDeltaService::get_category_delta(
             Arc::clone(&self.state), &p.wiki,
             baseline_start, baseline_end, impact_start, impact_end,
-            limit, depth,
+            limit,
         ).await.map_err(core_err)?;
+
+        let en_qids: Vec<u32> = items.iter().map(|i| i.category_qid).collect();
+        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &en_qids).await;
 
         Ok(rmcp::handler::server::wrapper::Json(GoogleSearchCategoryDeltaResponse {
             baseline_period: format!("{} to {}", baseline_start, baseline_end),
@@ -202,6 +221,7 @@ impl TopicTrendMcpServer {
             categories: items.into_iter().map(|item| GoogleSearchCategoryDeltaItemResponse {
                 category_qid: item.category_qid,
                 category_title: item.category_title,
+                category_title_en: en.get(&item.category_qid).cloned(),
                 baseline_clicks: item.baseline_clicks,
                 impact_clicks: item.impact_clicks,
                 baseline_impressions: item.baseline_impressions,
@@ -227,22 +247,27 @@ impl TopicTrendMcpServer {
         let impact_start   = parse_date(&p.impact_start_date)?;
         let impact_end     = parse_date(&p.impact_end_date)?;
         let limit = p.limit.unwrap_or(100) as usize;
-        let depth = p.depth.unwrap_or(0);
 
         let items = GoogleSearchDeltaService::get_article_delta(
             Arc::clone(&self.state), &p.wiki, p.category_qid,
             baseline_start, baseline_end, impact_start, impact_end,
-            limit, depth,
+            limit,
         ).await.map_err(core_err)?;
+
+        let mut en_qids: Vec<u32> = items.iter().map(|i| i.article_qid).collect();
+        en_qids.push(p.category_qid);
+        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &en_qids).await;
 
         Ok(rmcp::handler::server::wrapper::Json(GoogleSearchArticleDeltaResponse {
             category_qid: p.category_qid,
             category_title: String::new(),
+            category_title_en: en.get(&p.category_qid).cloned(),
             baseline_period: format!("{} to {}", baseline_start, baseline_end),
             impact_period: format!("{} to {}", impact_start, impact_end),
             articles: items.into_iter().map(|item| GoogleSearchArticleDeltaItemResponse {
                 article_qid: item.article_qid,
                 article_title: item.article_title,
+                article_title_en: en.get(&item.article_qid).cloned(),
                 baseline_clicks: item.baseline_clicks,
                 impact_clicks: item.impact_clicks,
                 baseline_impressions: item.baseline_impressions,

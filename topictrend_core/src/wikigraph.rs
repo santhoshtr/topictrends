@@ -10,6 +10,10 @@ pub struct WikiGraph {
     pub parents: CsrAdjacency,
     pub cat_articles: Vec<RoaringBitmap>,
     pub article_cats: CsrAdjacency,
+    /// Per-edge cross-wiki agreement counts, parallel to `article_cats`'
+    /// flattened edge array (slice via `article_cats.edge_range`). Empty when
+    /// the graph was built from the local relation, which carries no weights.
+    pub article_cat_weights: Vec<u16>,
     pub cat_dense_to_original: Vec<u32>,  // Dense -> QID
     pub cat_original_to_dense: DirectMap, // QID -> Dense
     pub art_dense_to_original: Vec<u32>,
@@ -72,6 +76,26 @@ impl WikiGraph {
             }
         }
         Ok(articles_dense)
+    }
+
+    /// Union of several categories' article sets, as dense IDs. An article
+    /// filed under more than one of the input categories appears once, so
+    /// aggregations over the result never double-count. Categories absent
+    /// from this wiki's graph contribute nothing — callers pass QID lists
+    /// from cross-wiki sources (e.g. topic search) where partial coverage is
+    /// normal.
+    pub fn get_articles_in_categories_as_dense(
+        &self,
+        category_qids: &[u32],
+        max_depth: u32,
+    ) -> RoaringBitmap {
+        let mut union = RoaringBitmap::new();
+        for &qid in category_qids {
+            if let Ok(mask) = self.get_articles_in_category_as_dense(qid, max_depth) {
+                union |= mask;
+            }
+        }
+        union
     }
 
     /// Get immediate subcategories (Depth 1)
@@ -174,6 +198,107 @@ impl WikiGraph {
                 self.cat_dense_to_original[idx]
             })
             .collect())
+    }
+
+    /// Articles in a category, keeping only direct members whose membership
+    /// edge has at least `min_agreement` wikis asserting it. Articles reached
+    /// through depth>0 subcategory traversal are independent membership paths
+    /// and pass through unfiltered. Graphs built from the local relation carry
+    /// no weights — every edge counts as 1 — so `min_agreement > 1` drops all
+    /// direct members there.
+    pub fn get_articles_in_category_filtered(
+        &self,
+        category_qid: u32,
+        max_depth: u32,
+        min_agreement: u16,
+    ) -> Result<Vec<u32>, String> {
+        if min_agreement <= 1 {
+            return self.get_articles_in_category(category_qid, max_depth);
+        }
+        let start_node = match self.cat_original_to_dense.get(category_qid) {
+            Some(id) => id,
+            None => return Ok(Vec::new()),
+        };
+
+        // BFS as in get_articles_in_category_as_dense, but keep the start
+        // node's direct members separate from the subtree's.
+        let mut subtree = RoaringBitmap::new();
+        let mut visited = RoaringBitmap::new();
+        let mut queue = VecDeque::new();
+        queue.push_back((start_node, 0u32));
+        visited.insert(start_node);
+        while let Some((curr, depth)) = queue.pop_front() {
+            if curr != start_node
+                && let Some(articles) = self.cat_articles.get(curr as usize)
+            {
+                subtree |= articles;
+            }
+            if depth < max_depth {
+                for &child in self.children.get(curr) {
+                    if !visited.contains(child) {
+                        visited.insert(child);
+                        queue.push_back((child, depth + 1));
+                    }
+                }
+            }
+        }
+
+        let mut result = subtree;
+        if let Some(direct) = self.cat_articles.get(start_node as usize) {
+            for art_dense in direct {
+                if self.article_cat_weight(art_dense, start_node) >= min_agreement {
+                    result.insert(art_dense);
+                }
+            }
+        }
+
+        Ok(result
+            .iter()
+            .map(|dense| self.art_dense_to_original[dense as usize])
+            .collect())
+    }
+
+    /// Cross-wiki agreement count of the (article, category) edge, in dense
+    /// IDs. 1 when the graph carries no weights or the edge does not exist.
+    fn article_cat_weight(&self, art_dense: u32, cat_dense: u32) -> u16 {
+        if self.article_cat_weights.is_empty() {
+            return 1;
+        }
+        let range = self.article_cats.edge_range(art_dense);
+        for (i, &c) in self.article_cats.get(art_dense).iter().enumerate() {
+            if c == cat_dense {
+                return self.article_cat_weights[range.start + i];
+            }
+        }
+        1
+    }
+
+    /// Categories for an article ranked by cross-wiki agreement, highest
+    /// first (ties broken by category QID for stable output). Returns
+    /// `(category_qid, weight)` pairs. Weight is 1 for every edge when the
+    /// graph was built from the local relation (no weights loaded).
+    pub fn get_categories_for_article_ranked(&self, article_qid: u32) -> Vec<(u32, u16)> {
+        let dense = match self.art_original_to_dense.get(article_qid) {
+            Some(id) => id,
+            None => return Vec::new(),
+        };
+
+        let cats = self.article_cats.get(dense);
+        let range = self.article_cats.edge_range(dense);
+        let mut ranked: Vec<(u32, u16)> = cats
+            .iter()
+            .enumerate()
+            .map(|(i, &cat_dense)| {
+                let weight = if self.article_cat_weights.is_empty() {
+                    1
+                } else {
+                    self.article_cat_weights[range.start + i]
+                };
+                (self.cat_dense_to_original[cat_dense as usize], weight)
+            })
+            .collect();
+        ranked.sort_unstable_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        ranked
     }
 
     /// Find articles most related to `article_qid` by shared-category overlap.
@@ -287,5 +412,67 @@ impl WikiGraph {
         let unreachable = num_cats as u32 - visited_count;
 
         (max_depth, avg_depth, histogram, unreachable)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::csr_adjacency::CsrAdjacency;
+
+    /// Two categories C0 (QID 100) and C1 (QID 101, child of C0); three
+    /// articles A0..A2 (QIDs 10..12). Direct members of C0: A0 (weight 3),
+    /// A1 (weight 1). Member of C1: A1 (weight 5). A2 is uncategorized.
+    fn weighted_graph() -> WikiGraph {
+        let children = CsrAdjacency::from_pairs(2, &[(0, 1)]);
+        let parents = CsrAdjacency::from_pairs(2, &[(1, 0)]);
+        let mut c0 = RoaringBitmap::new();
+        c0.insert(0);
+        c0.insert(1);
+        let mut c1 = RoaringBitmap::new();
+        c1.insert(1);
+        let (article_cats, article_cat_weights) =
+            CsrAdjacency::from_pairs_with_weights(3, &[(0, 0), (1, 0), (1, 1)], &[3, 1, 5]);
+        WikiGraph {
+            children,
+            parents,
+            cat_articles: vec![c0, c1],
+            article_cats,
+            article_cat_weights,
+            cat_dense_to_original: vec![100, 101],
+            cat_original_to_dense: [(100, 0), (101, 1)].into_iter().collect(),
+            art_dense_to_original: vec![10, 11, 12],
+            art_original_to_dense: [(10, 0), (11, 1), (12, 2)].into_iter().collect(),
+        }
+    }
+
+    #[test]
+    fn filtered_membership_drops_weak_direct_edges() {
+        let g = weighted_graph();
+        // depth 0: A1's direct edge to C0 has weight 1 < 2 -> dropped.
+        let mut got = g.get_articles_in_category_filtered(100, 0, 2).unwrap();
+        got.sort_unstable();
+        assert_eq!(got, vec![10]);
+        // min_agreement=1 keeps everything (delegates to unfiltered path).
+        let mut got = g.get_articles_in_category_filtered(100, 0, 1).unwrap();
+        got.sort_unstable();
+        assert_eq!(got, vec![10, 11]);
+    }
+
+    #[test]
+    fn filtered_membership_keeps_subtree_paths() {
+        let g = weighted_graph();
+        // depth 1: A1 is reachable via C1, so it survives even though its
+        // direct edge to C0 is below the threshold.
+        let mut got = g.get_articles_in_category_filtered(100, 1, 2).unwrap();
+        got.sort_unstable();
+        assert_eq!(got, vec![10, 11]);
+    }
+
+    #[test]
+    fn ranked_categories_order_and_weights() {
+        let g = weighted_graph();
+        assert_eq!(g.get_categories_for_article_ranked(11), vec![(101, 5), (100, 1)]);
+        assert_eq!(g.get_categories_for_article_ranked(12), vec![]);
     }
 }

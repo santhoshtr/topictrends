@@ -71,6 +71,43 @@ impl CsrAdjacency {
 
         CsrAdjacency { offsets, targets }
     }
+
+    /// Like [`CsrAdjacency::from_pairs`], but also distributes a per-edge
+    /// weight (parallel to `pairs`) into an array aligned with the internal
+    /// targets layout. Use [`CsrAdjacency::edge_range`] to slice the returned
+    /// weights for a node.
+    pub fn from_pairs_with_weights(
+        num_nodes: usize,
+        pairs: &[(u32, u32)],
+        weights: &[u16],
+    ) -> (Self, Vec<u16>) {
+        assert_eq!(pairs.len(), weights.len());
+        let csr = Self::from_pairs(num_nodes, pairs);
+
+        let mut edge_weights = vec![0u16; csr.targets.len()];
+        let mut write_cursors: Vec<usize> = csr.offsets[..num_nodes].to_vec();
+        for (&(src, _), &w) in pairs.iter().zip(weights) {
+            if (src as usize) < num_nodes {
+                let pos = write_cursors[src as usize];
+                edge_weights[pos] = w;
+                write_cursors[src as usize] += 1;
+            }
+        }
+
+        (csr, edge_weights)
+    }
+
+    /// Index range of `id`'s edges in the flattened targets array. Lets
+    /// callers keep per-edge attribute vectors parallel to this CSR.
+    #[inline(always)]
+    pub fn edge_range(&self, id: u32) -> std::ops::Range<usize> {
+        let idx = id as usize;
+        if idx + 1 < self.offsets.len() {
+            self.offsets[idx]..self.offsets[idx + 1]
+        } else {
+            0..0
+        }
+    }
 }
 
 #[cfg(test)]
@@ -149,5 +186,19 @@ mod tests {
         let csr = CsrAdjacency::from_pairs(2, &pairs);
         assert_eq!(csr.get(0), &[100]);
         assert_eq!(csr.get(1), &[200]);
+    }
+
+    #[test]
+    fn test_weights_stay_parallel_to_targets() {
+        let pairs = vec![(1, 20), (0, 10), (1, 21), (2, 30)];
+        let weights = vec![5, 9, 7, 3];
+        let (csr, w) = CsrAdjacency::from_pairs_with_weights(3, &pairs, &weights);
+
+        for (node, expected) in [(0u32, vec![(10, 9)]), (1, vec![(20, 5), (21, 7)]), (2, vec![(30, 3)])] {
+            let r = csr.edge_range(node);
+            let got: Vec<(u32, u16)> = csr.get(node).iter().copied().zip(w[r].iter().copied()).collect();
+            assert_eq!(got, expected);
+        }
+        assert_eq!(csr.edge_range(99), 0..0);
     }
 }

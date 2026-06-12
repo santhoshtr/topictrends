@@ -110,7 +110,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .long("depth")
                         .short('d')
                         .default_value("0")
-                        .value_parser(clap::value_parser!(u8))
+                        .value_parser(clap::value_parser!(u32))
                         .help("Depth for recursive queries"),
                 )
                 .arg(
@@ -339,19 +339,23 @@ fn handle_get_article_categories(
 ) {
     let article_qid: &u32 = matches.get_one::<u32>("article-qid").unwrap();
 
-    let categories = match graph.get_categories_for_article(*article_qid) {
-        Ok(categories) => categories,
-        Err(err) => {
-            eprintln!("Error: {}", err);
-            std::process::exit(1);
-        }
-    };
+    let ranked = graph.get_categories_for_article_ranked(*article_qid);
+    let weighted = !graph.article_cat_weights.is_empty();
 
     let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "data".to_string());
     let art_titles = load_qid_title_map(&format!("{}/{}/articles.parquet", data_dir, wiki_id))
         .unwrap_or_default();
-    let cat_titles = load_qid_title_map(&format!("{}/{}/categories.parquet", data_dir, wiki_id))
+    let mut cat_titles = load_qid_title_map(&format!("{}/{}/categories.parquet", data_dir, wiki_id))
         .unwrap_or_default();
+    // The canonical relation surfaces categories with no local page; fall
+    // back to English labels for those.
+    if weighted && wiki_id != "enwiki" {
+        for (qid, title) in
+            load_qid_title_map(&format!("{}/enwiki/categories.parquet", data_dir)).unwrap_or_default()
+        {
+            cat_titles.entry(qid).or_insert(title);
+        }
+    }
 
     let article_title = art_titles
         .get(article_qid)
@@ -359,14 +363,18 @@ fn handle_get_article_categories(
         .unwrap_or("?");
     println!(
         "Found {} categories for article {} ({}).",
-        categories.len(),
+        ranked.len(),
         article_title,
         article_qid
     );
 
-    for id in categories {
+    for (id, weight) in ranked {
         let title = cat_titles.get(&id).map(String::as_str).unwrap_or("?");
-        println!(" - {} ({})", title, id);
+        if weighted {
+            println!(" - {} ({}) [{} wikis]", title, id, weight);
+        } else {
+            println!(" - {} ({})", title, id);
+        }
     }
 }
 

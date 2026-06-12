@@ -28,10 +28,6 @@ impl IntoResponse for ApiError {
         let (status, error_message) = match self {
             ApiError::ServiceError(e) => match e {
                 crate::services::ServiceError::CoreError(core_err) => match core_err {
-                    crate::services::core::CoreServiceError::DatabaseError(e) => (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        format!("Database error: {}", e),
-                    ),
                     crate::services::core::CoreServiceError::EngineError(e) => (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         format!("Engine error: {}", e),
@@ -46,10 +42,6 @@ impl IntoResponse for ApiError {
                 },
             },
             ApiError::DeltaError(core_err) => match core_err {
-                crate::services::core::CoreServiceError::DatabaseError(e) => (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Database error: {}", e),
-                ),
                 crate::services::core::CoreServiceError::EngineError(e) => (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     format!("Engine error: {}", e),

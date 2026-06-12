@@ -71,13 +71,11 @@ async function onSubmit(event) {
 	const endDate = document.getElementById("end_date").value;
 	const category_qid = document.getElementById("category_qid").value;
 	const article_qid = document.getElementById("article_qid").value;
-	const depth = document.getElementById("depth").value;
 
 	params.append("type", type);
 	params.append("wiki", wiki);
 	params.append("start_date", startDate);
 	params.append("end_date", endDate);
-	params.append("depth", depth);
 	if (category_qid) {
 		params.append("category_qid", category_qid);
 	}
@@ -103,8 +101,8 @@ async function onSubmit(event) {
 			const newUrl = `${window.location.pathname}?${params.toString()}`;
 			window.history.pushState({}, "", newUrl);
 
-			await fetchCategoryPageviews(wiki, category, startDate, endDate, depth);
-			await renderSubCategories(wiki, category, depth);
+			await fetchCategoryPageviews(wiki, category, startDate, endDate);
+			await renderSubCategories(wiki, category);
 		} else if (type === "article") {
 			const article = document
 				.getElementById("article")
@@ -136,9 +134,9 @@ function updateChartWithData(data, label) {
 	updateChart(chartInstance, data, label);
 }
 
-async function renderSubCategories(wiki, category, depth = 4) {
+async function renderSubCategories(wiki, category) {
 	const categoryListContainer = document.getElementById("category-list");
-	const apiUrl = `https://topictrends.wmcloud.org/api/list/sub_categories?wiki=${wiki}&category=${category}`;
+	const apiUrl = `/api/list/sub_categories?wiki=${wiki}&category=${category}`;
 
 	showProgress();
 	const response = await fetch(apiUrl);
@@ -155,12 +153,16 @@ async function renderSubCategories(wiki, category, depth = 4) {
 	categoryListContainer.appendChild(subheading);
 
 	const ul = document.createElement("ul");
-	Object.entries(subcategories).forEach(([qid, title]) => {
+	subcategories.forEach((cat) => {
+		const { qid, title, title_en } = cat;
 		const li = document.createElement("li");
 		li.id = qid;
 
 		const wikiCategory = document.createElement("wiki-category");
 		wikiCategory.setAttribute("title", title);
+		if (title_en && title_en !== title) {
+			wikiCategory.setAttribute("title-en", title_en);
+		}
 		wikiCategory.setAttribute("qid", qid);
 		wikiCategory.setAttribute("views", "0");
 
@@ -179,7 +181,7 @@ async function renderSubCategories(wiki, category, depth = 4) {
 			const startDate = document.getElementById("start_date").value;
 			const endDate = document.getElementById("end_date").value;
 
-			fetchCategoryPageviews(wiki, title, startDate, endDate, depth);
+			fetchCategoryPageviews(wiki, title, startDate, endDate);
 		});
 
 		li.appendChild(wikiCategory);
@@ -220,10 +222,10 @@ document.addEventListener("DOMContentLoaded", () => {
 	startDatePicker.value = `${year}-${month}-${day}`;
 });
 
-async function fetchTopicPageviews(wiki, topic, startDate, endDate, depth) {
+async function fetchTopicPageviews(wiki, topic, startDate, endDate) {
 	showSection("chart-with-articles");
 
-	const apiUrl = `https://topictrends.wmcloud.org/api/pageviews/topic?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&topic=${encodeURIComponent(
+	const apiUrl = `/api/pageviews/topic?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&topic=${encodeURIComponent(
 		topic,
 	)}`;
 	const label = `Topic: ${wiki} - ${topic.replaceAll("_", " ")}`;
@@ -253,16 +255,10 @@ async function fetchTopicPageviews(wiki, topic, startDate, endDate, depth) {
 	}
 }
 
-async function fetchCategoryPageviews(
-	wiki,
-	category,
-	startDate,
-	endDate,
-	depth,
-) {
+async function fetchCategoryPageviews(wiki, category, startDate, endDate) {
 	showSection("chart-with-articles");
 
-	const apiUrl = `https://topictrends.wmcloud.org/api/pageviews/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&category=${encodeURIComponent(
+	const apiUrl = `/api/pageviews/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&category=${encodeURIComponent(
 		category,
 	)}`;
 	const label = `Category: ${wiki} - ${category.replaceAll("_", " ")}`;
@@ -295,7 +291,7 @@ async function fetchCategoryPageviews(
 async function fetchArticlePageviews(wiki, article, startDate, endDate) {
 	showSection("chart");
 
-	const apiUrl = `https://topictrends.wmcloud.org/api/pageviews/article?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&article=${encodeURIComponent(
+	const apiUrl = `/api/pageviews/article?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&article=${encodeURIComponent(
 		article,
 	)}`;
 	const label = `Article: ${wiki} - ${article.replaceAll("_", " ")}`;

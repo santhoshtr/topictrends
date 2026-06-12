@@ -42,7 +42,6 @@ paths:
         - $ref: "#/components/parameters/Wiki"
         - $ref: "#/components/parameters/Category"
         - $ref: "#/components/parameters/CategoryQidOptional"
-        - $ref: "#/components/parameters/DepthOptional"
         - $ref: "#/components/parameters/StartDateOptional"
         - $ref: "#/components/parameters/EndDateOptional"
       responses:
@@ -91,7 +90,6 @@ paths:
         - $ref: "#/components/parameters/Wiki"
         - $ref: "#/components/parameters/Category"
         - $ref: "#/components/parameters/CategoryQidOptional"
-        - $ref: "#/components/parameters/DepthOptional"
         - $ref: "#/components/parameters/StartDateOptional"
         - $ref: "#/components/parameters/EndDateOptional"
       responses:
@@ -140,7 +138,6 @@ paths:
         - $ref: "#/components/parameters/Wiki"
         - $ref: "#/components/parameters/Category"
         - $ref: "#/components/parameters/CategoryQidOptional"
-        - $ref: "#/components/parameters/DepthOptional"
         - $ref: "#/components/parameters/StartDateOptional"
         - $ref: "#/components/parameters/EndDateOptional"
       responses:
@@ -195,7 +192,6 @@ paths:
       parameters:
         - $ref: "#/components/parameters/Wiki"
         - $ref: "#/components/parameters/Topic"
-        - $ref: "#/components/parameters/DepthOptional"
         - $ref: "#/components/parameters/StartDateOptional"
         - $ref: "#/components/parameters/EndDateOptional"
       responses:
@@ -221,7 +217,6 @@ paths:
       parameters:
         - $ref: "#/components/parameters/Wiki"
         - $ref: "#/components/parameters/Topic"
-        - $ref: "#/components/parameters/DepthOptional"
         - $ref: "#/components/parameters/StartDateOptional"
         - $ref: "#/components/parameters/EndDateOptional"
       responses:
@@ -248,7 +243,6 @@ paths:
       parameters:
         - $ref: "#/components/parameters/Wiki"
         - $ref: "#/components/parameters/Topic"
-        - $ref: "#/components/parameters/DepthOptional"
         - $ref: "#/components/parameters/StartDateOptional"
         - $ref: "#/components/parameters/EndDateOptional"
       responses:
@@ -269,9 +263,8 @@ paths:
       tags: [Lists]
       summary: List subcategories
       description: |
-        Returns subcategories for a category.
-
-        The response is a JSON object mapping category QID (as string key) to title.
+        Returns subcategories for a category, sorted by title — QID, local
+        title and (for non-English wikis) the English label for each.
       parameters:
         - $ref: "#/components/parameters/Wiki"
         - $ref: "#/components/parameters/Category"
@@ -282,7 +275,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/QidTitleMap"
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategoryInfo"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
@@ -439,7 +434,6 @@ paths:
         - $ref: "#/components/parameters/ImpactStartDate"
         - $ref: "#/components/parameters/ImpactEndDate"
         - $ref: "#/components/parameters/LimitOptional"
-        - $ref: "#/components/parameters/DepthOptional"
       responses:
         "200":
           description: OK
@@ -466,7 +460,6 @@ paths:
         - $ref: "#/components/parameters/ImpactStartDate"
         - $ref: "#/components/parameters/ImpactEndDate"
         - $ref: "#/components/parameters/LimitOptional"
-        - $ref: "#/components/parameters/DepthOptional"
       responses:
         "200":
           description: OK
@@ -492,7 +485,6 @@ paths:
         - $ref: "#/components/parameters/ImpactStartDate"
         - $ref: "#/components/parameters/ImpactEndDate"
         - $ref: "#/components/parameters/LimitOptional"
-        - $ref: "#/components/parameters/DepthOptional"
       responses:
         "200":
           description: OK
@@ -519,7 +511,6 @@ paths:
         - $ref: "#/components/parameters/ImpactStartDate"
         - $ref: "#/components/parameters/ImpactEndDate"
         - $ref: "#/components/parameters/LimitOptional"
-        - $ref: "#/components/parameters/DepthOptional"
       responses:
         "200":
           description: OK
@@ -545,7 +536,6 @@ paths:
         - $ref: "#/components/parameters/ImpactStartDate"
         - $ref: "#/components/parameters/ImpactEndDate"
         - $ref: "#/components/parameters/LimitOptional"
-        - $ref: "#/components/parameters/DepthOptional"
       responses:
         "200":
           description: OK
@@ -572,7 +562,6 @@ paths:
         - $ref: "#/components/parameters/ImpactStartDate"
         - $ref: "#/components/parameters/ImpactEndDate"
         - $ref: "#/components/parameters/LimitOptional"
-        - $ref: "#/components/parameters/DepthOptional"
       responses:
         "200":
           description: OK
@@ -619,6 +608,19 @@ paths:
         - $ref: "#/components/parameters/Wiki"
         - $ref: "#/components/parameters/CategoryOptional"
         - $ref: "#/components/parameters/CategoryQidOptional"
+        - name: min_agreement
+          in: query
+          required: false
+          description: >
+            Keep only members whose direct membership edge is asserted by at
+            least this many Wikipedia editions (default 1). Meaningful when the
+            server runs on the canonical cross-wiki topology; on local topology
+            every edge counts as 1.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            default: 1
       responses:
         "200":
           description: OK
@@ -714,6 +716,35 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/content_gap/categories:
+    get:
+      operationId: getContentGapCategories
+      tags: [ContentGap]
+      summary: Content gap for one category across wikis
+      description: |
+        Compares one category's coverage across the requested wikis. Each
+        wiki's `article_count` is the category's `qid_overlap_coverage` from
+        the monthly coverage snapshot — how many of the category's
+        globally-known articles exist in that wiki — the same measure the
+        gap-discovery ranking uses.
+
+        Either `category` (an enwiki title) or `category_qid` must be provided.
+      parameters:
+        - $ref: "#/components/parameters/CategoryOptional"
+        - $ref: "#/components/parameters/CategoryQidOptional"
+        - $ref: "#/components/parameters/Wikis"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentGapResult"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/content_gap/topic:
     get:
       operationId: getContentGapTopic
@@ -728,7 +759,6 @@ paths:
       parameters:
         - $ref: "#/components/parameters/Topic"
         - $ref: "#/components/parameters/Wikis"
-        - $ref: "#/components/parameters/DepthOptional"
       responses:
         "200":
           description: OK
@@ -902,16 +932,6 @@ components:
       in: query
       required: false
       description: Wikidata QID as a numeric ID (e.g., `42` for Q42).
-      schema:
-        type: integer
-        format: int32
-        minimum: 0
-
-    DepthOptional:
-      name: depth
-      in: query
-      required: false
-      description: Traversal depth (0 = direct members only).
       schema:
         type: integer
         format: int32
@@ -1103,6 +1123,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         views:
           type: integer
           format: int32
@@ -1122,6 +1145,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         edits:
           type: integer
           format: int64
@@ -1141,6 +1167,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         clicks:
           type: integer
           format: int64
@@ -1168,6 +1197,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         views:
           type: array
           items:
@@ -1183,6 +1215,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         views:
           type: array
           items:
@@ -1202,6 +1237,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         edits:
           type: array
           items:
@@ -1217,6 +1255,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         edits:
           type: array
           items:
@@ -1236,6 +1277,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         search:
           type: array
           items:
@@ -1251,6 +1295,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         search:
           type: array
           items:
@@ -1270,6 +1317,28 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
+
+    RankedCategoryInfo:
+      type: object
+      required: [qid, title, wiki_count]
+      properties:
+        qid:
+          type: integer
+          format: int32
+          minimum: 0
+        title:
+          type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
+        wiki_count:
+          type: integer
+          format: int32
+          minimum: 1
+          description: Number of Wikipedia editions asserting this assignment.
 
     CategoriesTrendResponse:
       type: object
@@ -1298,6 +1367,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         views:
           type: integer
           format: int32
@@ -1326,6 +1398,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
 
     PageViewTopArticle:
       type: object
@@ -1337,6 +1412,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         views:
           type: integer
           format: int32
@@ -1365,6 +1443,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         edits:
           type: integer
           format: int64
@@ -1380,6 +1461,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         edits:
           type: integer
           format: int64
@@ -1408,6 +1492,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         edits:
           type: integer
           format: int64
@@ -1436,6 +1523,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         clicks:
           type: integer
           format: int64
@@ -1458,6 +1548,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         clicks:
           type: integer
           format: int64
@@ -1493,6 +1586,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         clicks:
           type: integer
           format: int64
@@ -1529,6 +1625,9 @@ components:
           minimum: 0
         category_title:
           type: string
+        category_title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         baseline_views:
           type: integer
           format: int64
@@ -1566,6 +1665,9 @@ components:
           minimum: 0
         article_title:
           type: string
+        article_title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         baseline_views:
           type: integer
           format: int64
@@ -1593,6 +1695,9 @@ components:
           minimum: 0
         category_title:
           type: string
+        category_title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         baseline_period:
           type: string
         impact_period:
@@ -1609,6 +1714,9 @@ components:
           minimum: 0
         category_title:
           type: string
+        category_title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         baseline_edits:
           type: integer
           format: int64
@@ -1646,6 +1754,9 @@ components:
           minimum: 0
         article_title:
           type: string
+        article_title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         baseline_edits:
           type: integer
           format: int64
@@ -1673,6 +1784,9 @@ components:
           minimum: 0
         category_title:
           type: string
+        category_title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         baseline_period:
           type: string
         impact_period:
@@ -1689,6 +1803,9 @@ components:
           minimum: 0
         category_title:
           type: string
+        category_title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         baseline_clicks:
           type: integer
           format: int64
@@ -1732,6 +1849,9 @@ components:
           minimum: 0
         article_title:
           type: string
+        article_title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         baseline_clicks:
           type: integer
           format: int64
@@ -1765,6 +1885,9 @@ components:
           minimum: 0
         category_title:
           type: string
+        category_title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         baseline_period:
           type: string
         impact_period:
@@ -1805,6 +1928,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
 
     ArticlesInCategoryResponse:
       type: object
@@ -1818,11 +1944,15 @@ components:
     ArticleCategoriesResponse:
       type: object
       required: [categories]
+      description: >
+        Categories ordered by cross-wiki agreement (highest first). Ties at the
+        same wiki_count are common for articles existing in few editions —
+        consumers should read the count, not trust the order alone.
       properties:
         categories:
           type: array
           items:
-            $ref: "#/components/schemas/CategoryInfo"
+            $ref: "#/components/schemas/RankedCategoryInfo"
 
     RelatedArticleItem:
       type: object
@@ -1834,6 +1964,9 @@ components:
           minimum: 0
         title:
           type: string
+        title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
         url:
           type: string
           description: Constructed Wikipedia article URL.
@@ -1867,7 +2000,7 @@ components:
 
     ContentGapResult:
       type: object
-      required: [category, category_qid, depth, wikis]
+      required: [category, category_qid, wikis]
       properties:
         category:
           type: string
@@ -1877,11 +2010,6 @@ components:
           format: int32
           minimum: 0
           description: Wikidata QID (0 for topic searches)
-        depth:
-          type: integer
-          format: int32
-          minimum: 0
-          description: Traversal depth used in the query
         wikis:
           type: array
           items:
@@ -1897,6 +2025,9 @@ components:
           format: int32
         category_title:
           type: string
+        category_title_en:
+          type: string
+          description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
           description: Category title resolved from the reference wiki (or `Q<id>` fallback)
         direct_coverage_target:
           type: integer
@@ -1954,7 +2085,3 @@ components:
           items:
             $ref: "#/components/schemas/GapDiscoveryItem"
 
-    QidTitleMap:
-      type: object
-      additionalProperties:
-        type: string

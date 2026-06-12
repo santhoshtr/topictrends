@@ -22,13 +22,29 @@ impl GraphBuilder {
     pub fn build(&self) -> Result<WikiGraph> {
         let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "data".to_string());
 
-        println!("Starting Graph Build for {}...", self.wiki);
+        // The article->category relation (and the category node universe)
+        // come from the cross-wiki canonical projection produced by
+        // `make canonical` — the default. TOPICTREND_TOPOLOGY=local selects
+        // the wiki's own relation instead (rollback path). Articles and the
+        // category hierarchy are local in both modes.
+        let canonical = !std::env::var("TOPICTREND_TOPOLOGY").is_ok_and(|v| v == "local");
+
+        println!(
+            "Starting Graph Build for {} ({} topology)...",
+            self.wiki,
+            if canonical { "canonical" } else { "local" }
+        );
         let start = Instant::now();
 
         // A. Load Categories & Create Mapping
         print!("  Loading Categories...");
+        let categories_file = if canonical {
+            "categories_canonical.parquet"
+        } else {
+            "categories.parquet"
+        };
         let (cat_dense_to_original, cat_original_to_dense) =
-            Self::load_nodes(format!("{}/{}/categories.parquet", data_dir, self.wiki))?;
+            Self::load_nodes(format!("{}/{}/{}", data_dir, self.wiki, categories_file))?;
 
         let num_cats = cat_dense_to_original.len();
         println!("\r  Loaded {} categories.", num_cats);
@@ -81,29 +97,75 @@ impl GraphBuilder {
         println!("\r  Loaded Category Hierarchy");
         // Load Article -> Category
         print!("  Loading Article-Category definitions...");
+        let relation_file = if canonical {
+            "article_category_canonical.parquet"
+        } else {
+            "article_category.parquet"
+        };
         let path: PlRefPath = PlRefPath::try_from_path(Path::new(
-            format!("{}/{}/article_category.parquet", data_dir, self.wiki).as_str(),
+            format!("{}/{}/{}", data_dir, self.wiki, relation_file).as_str(),
         ))?;
-        let mut cat_articles = vec![RoaringBitmap::new(); num_cats];
         let mut article_cats_vec: Vec<(u32, u32)> = Vec::with_capacity(num_arts);
+        let mut weights_vec: Vec<u16> = Vec::new();
 
         let df_art_cat = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
         let a_col = df_art_cat.column("article_qid")?.u32()?;
         let c_col_ac = df_art_cat.column("category_qid")?.u32()?;
+        // The canonical relation carries a per-edge cross-wiki agreement
+        // count; collected parallel to the row order so filtering below keeps
+        // pairs and weights aligned.
+        let w_by_row: Option<Vec<u16>> = if canonical {
+            Some(
+                df_art_cat
+                    .column("wiki_count")?
+                    .u32()?
+                    .into_iter()
+                    .map(|w| w.unwrap_or(1).min(u16::MAX as u32) as u16)
+                    .collect(),
+            )
+        } else {
+            None
+        };
 
-        for (opt_a, opt_c) in a_col.into_iter().zip(c_col_ac) {
+        for (row, (opt_a, opt_c)) in a_col.into_iter().zip(c_col_ac).enumerate() {
             if let (Some(a_raw), Some(c_raw)) = (opt_a, opt_c)
                 && let (Some(a_dense), Some(c_dense)) = (
                     art_original_to_dense.get(a_raw),
                     cat_original_to_dense.get(c_raw),
                 )
             {
-                // Populate RoaringBitmap for Category
-                cat_articles[c_dense as usize].insert(a_dense);
                 article_cats_vec.push((a_dense, c_dense));
+                if let Some(w) = &w_by_row {
+                    weights_vec.push(w[row]);
+                }
             }
         }
-        let article_cats = CsrAdjacency::from_pairs(num_arts, &article_cats_vec);
+
+        // Fill the category->articles bitmaps in ascending dense-id order per
+        // category (roaring's append fast path). The canonical relation is
+        // sorted by article QID — random in dense-id space — and unsorted
+        // roaring inserts are ~25x slower at enwiki scale (112s vs 4s).
+        let mut by_cat: Vec<u64> = article_cats_vec
+            .iter()
+            .map(|&(a_dense, c_dense)| ((c_dense as u64) << 32) | a_dense as u64)
+            .collect();
+        by_cat.sort_unstable();
+        let mut cat_articles = vec![RoaringBitmap::new(); num_cats];
+        for &packed in &by_cat {
+            // Err means the value is not strictly greater than the bitmap's
+            // max — a duplicate edge; insert() would have absorbed it too.
+            let _ = cat_articles[(packed >> 32) as usize].try_push(packed as u32);
+        }
+        drop(by_cat);
+
+        let (article_cats, article_cat_weights) = if canonical {
+            CsrAdjacency::from_pairs_with_weights(num_arts, &article_cats_vec, &weights_vec)
+        } else {
+            (
+                CsrAdjacency::from_pairs(num_arts, &article_cats_vec),
+                Vec::new(),
+            )
+        };
 
         println!("\r  Loaded Article-Category definitions");
         println!(
@@ -117,6 +179,7 @@ impl GraphBuilder {
             parents,
             cat_articles,
             article_cats,
+            article_cat_weights,
             cat_dense_to_original,
             cat_original_to_dense,
             art_dense_to_original,
