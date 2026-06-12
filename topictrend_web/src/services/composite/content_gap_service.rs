@@ -48,18 +48,15 @@ impl ContentGapService {
 
         for wiki in &wikis {
             let graph = EngineService::get_or_build_graph_engine(Arc::clone(&state), wiki).await?;
-            let mut total_article_count = 0;
-
-            for qid in &category_qids {
-                let articles = graph
-                    .get_articles_in_category(*qid, 0)
-                    .map_err(CoreServiceError::EngineError)?;
-                total_article_count += articles.len();
-            }
+            // Union across the matched categories — an article filed under
+            // several of them is counted once.
+            let article_count = graph
+                .get_articles_in_categories_as_dense(&category_qids, 0)
+                .len() as usize;
 
             results.push(ContentGapWikiResult {
                 wiki: wiki.clone(),
-                article_count: total_article_count,
+                article_count,
             });
         }
 

@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use crate::services::{
     ContentGapService, PageViewsService,
-    core::{QidService, CategoryService, CoreServiceError, ArticleService},
+    core::{QidService, CategoryService, CoreServiceError, CoverageService, ArticleService},
 };
 use crate::models::{
     AppState, CategorySearchParams, CategorySearchResponse, CategorySearchItemResponse,
@@ -49,21 +49,36 @@ pub async fn search_categories(
         .collect();
 
     if params.wiki != "enwiki" {
-        let qids: Vec<u32> = categories.iter().map(|cat| cat.category_qid).collect();
+        // Keep only categories actually populated in the target wiki's
+        // canonical graph (qid_overlap > 0 in its coverage snapshot). A
+        // local category *page* is not required — the canonical projection
+        // populates categories the wiki never created. If no snapshot
+        // exists, serve the matches unfiltered rather than failing.
+        match CoverageService::get_or_load_snapshot(Arc::clone(&state), &params.wiki).await {
+            Ok(snapshot) => {
+                categories.retain(|c| snapshot.matrix.get(c.category_qid).1 > 0);
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "no coverage snapshot for {}: {:?}; serving unfiltered category matches",
+                    params.wiki,
+                    e
+                );
+            }
+        }
 
+        let qids: Vec<u32> = categories.iter().map(|cat| cat.category_qid).collect();
         let titles_in_target_wiki =
             QidService::get_titles_by_qids(Arc::clone(&state), &params.wiki, &qids)
                 .await
                 .unwrap_or_default();
 
-        categories.retain_mut(|category| {
-            if let Some(title) = titles_in_target_wiki.get(&category.category_qid) {
-                category.category_title = title.clone();
-                true
-            } else {
-                false
-            }
-        });
+        for category in &mut categories {
+            category.category_title = titles_in_target_wiki
+                .get(&category.category_qid)
+                .cloned()
+                .unwrap_or_else(|| category.category_title_en.clone());
+        }
     } else {
         for category in &mut categories {
             category.category_title = category.category_title_en.clone();

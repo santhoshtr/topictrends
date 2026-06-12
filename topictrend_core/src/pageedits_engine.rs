@@ -461,33 +461,38 @@ impl PageEditsEngine {
         start_date: NaiveDate,
         end_date: NaiveDate,
     ) -> Vec<(NaiveDate, u64)> {
+        self.get_categories_trend(&[category_qid], depth, start_date, end_date)
+    }
+
+    /// Combined daily edits over the union of several categories' article
+    /// sets. An article in more than one category is counted once per day.
+    pub fn get_categories_trend(
+        &self,
+        category_qids: &[u32],
+        depth: u32,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+    ) -> Vec<(NaiveDate, u64)> {
         let mut results = Vec::new();
 
-        let article_mask = match self
+        let article_mask = self
             .wikigraph
-            .get_articles_in_category_as_dense(category_qid, depth)
-        {
-            Ok(mask) => mask,
-            Err(err) => {
-                eprintln!("Error: {}", err);
-                return vec![];
-            }
-        };
+            .get_articles_in_categories_as_dense(category_qids, depth);
 
         // Optimization: If mask is empty, return early
         if article_mask.is_empty() {
             eprintln!(
-                "Could not find articles in category: {}/{}",
-                self.wiki, category_qid
+                "Could not find articles in categories: {}/{:?}",
+                self.wiki, category_qids
             );
             return vec![];
         }
 
         println!(
-            "Found {} articles in category {}/{} at depth {}",
+            "Found {} articles in {} categories ({}) at depth {}",
             article_mask.len(),
+            category_qids.len(),
             self.wiki,
-            category_qid,
             depth
         );
 

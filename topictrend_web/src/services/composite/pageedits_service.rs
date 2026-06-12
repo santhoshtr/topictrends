@@ -321,11 +321,11 @@ impl PageEditsService {
 
         let category_qids = taxonomy_search_category_qids(topic).await?;
         let category_qid_set: HashSet<u32> = category_qids.iter().copied().collect();
-        let mut all_edits_by_date: HashMap<NaiveDate, u64> = HashMap::new();
         let mut all_articles: HashMap<u32, (u64, u64, u32)> = HashMap::new();
         let category_titles =
             QidService::get_titles_by_qids(Arc::clone(&state), wiki, &category_qids).await?;
 
+        let edits;
         {
             let engine =
                 EngineService::get_or_build_pageedit_engine(Arc::clone(&state), wiki).await?;
@@ -333,12 +333,14 @@ impl PageEditsService {
                 CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
             })?;
 
-            for qid in &category_qids {
-                let edits_data = engine_lock.get_category_trend(*qid, 0, start, end);
-                for (date, edits) in edits_data {
-                    *all_edits_by_date.entry(date).or_insert(0) += edits;
-                }
+            // Daily totals over the union of the categories' article sets —
+            // an article in several matched categories is counted once per day.
+            edits = engine_lock.get_categories_trend(&category_qids, 0, start, end);
 
+            // An article's total_edits is an article-level metric (the same
+            // value from every category that surfaces it), so assignment is
+            // idempotent — never summed.
+            for qid in &category_qids {
                 let top_articles = engine_lock
                     .get_top_articles_in_category(*qid, start, end, 0, 50)
                     .map_err(|e| {
@@ -350,7 +352,7 @@ impl PageEditsService {
                     let entry = all_articles
                         .entry(article.article_qid)
                         .or_insert((0, 0, *qid));
-                    entry.0 += article.total_edits;
+                    entry.0 = article.total_edits;
                     if article.total_edits > entry.1 {
                         entry.1 = article.total_edits;
                         entry.2 = *qid;
@@ -358,9 +360,6 @@ impl PageEditsService {
                 }
             }
         }
-
-        let mut edits: Vec<(NaiveDate, u64)> = all_edits_by_date.into_iter().collect();
-        edits.sort_by_key(|(date, _)| *date);
 
         let mut article_totals: Vec<(u32, (u64, u64, u32))> = all_articles.into_iter().collect();
         article_totals.sort_by_key(|b| std::cmp::Reverse(b.1.0));

@@ -78,6 +78,26 @@ impl WikiGraph {
         Ok(articles_dense)
     }
 
+    /// Union of several categories' article sets, as dense IDs. An article
+    /// filed under more than one of the input categories appears once, so
+    /// aggregations over the result never double-count. Categories absent
+    /// from this wiki's graph contribute nothing — callers pass QID lists
+    /// from cross-wiki sources (e.g. topic search) where partial coverage is
+    /// normal.
+    pub fn get_articles_in_categories_as_dense(
+        &self,
+        category_qids: &[u32],
+        max_depth: u32,
+    ) -> RoaringBitmap {
+        let mut union = RoaringBitmap::new();
+        for &qid in category_qids {
+            if let Ok(mask) = self.get_articles_in_category_as_dense(qid, max_depth) {
+                union |= mask;
+            }
+        }
+        union
+    }
+
     /// Get immediate subcategories (Depth 1)
     /// Returns a vector of category_qids: Original_Wiki_ID
     pub fn get_child_categories(&self, category_qid: u32) -> Result<Vec<u32>, String> {

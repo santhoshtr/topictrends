@@ -153,27 +153,23 @@ impl PageViewsService {
             QidService::get_titles_by_qids(Arc::clone(&state), wiki, &category_qids).await?;
         let category_qid_set: HashSet<u32> = category_qids.iter().copied().collect();
 
-        // Collect all view data and top articles from all categories
-        let mut all_views_by_date: HashMap<NaiveDate, u64> = HashMap::new();
+        // Daily totals over the union of the categories' article sets —
+        // an article in several matched categories is counted once per day.
+        let cumulative_views = PageViewService::get_categories_views(
+            Arc::clone(&state),
+            wiki,
+            category_qids.clone(),
+            start,
+            end,
+        )
+        .await?;
+
+        // Collect top articles from all categories. An article's total_views
+        // is an article-level metric (the same value from every category that
+        // surfaces it), so assignment is idempotent — never summed.
         let mut all_articles: HashMap<u32, (u64, u64, u32)> = HashMap::new();
 
         for category_qid in &category_qids {
-            // Get views for this category
-            let category_views = PageViewService::get_category_views(
-                Arc::clone(&state),
-                wiki,
-                *category_qid,
-                start,
-                end,
-            )
-            .await?;
-
-            // Aggregate views by date
-            for (date, views) in category_views {
-                *all_views_by_date.entry(date).or_insert(0) += views;
-            }
-
-            // Get top articles for this category
             let top_articles = PageViewService::get_top_articles(
                 Arc::clone(&state),
                 wiki,
@@ -184,23 +180,18 @@ impl PageViewsService {
             )
             .await?;
 
-            // Aggregate article views
             for article in top_articles {
                 let entry =
                     all_articles
                         .entry(article.article_qid)
                         .or_insert((0, 0, *category_qid));
-                entry.0 += article.total_views;
+                entry.0 = article.total_views;
                 if article.total_views > entry.1 {
                     entry.1 = article.total_views;
                     entry.2 = *category_qid;
                 }
             }
         }
-
-        // Sort views by date
-        let mut cumulative_views: Vec<(NaiveDate, u64)> = all_views_by_date.into_iter().collect();
-        cumulative_views.sort_by_key(|(date, _)| *date);
 
         // Get top 10 articles overall
         let mut article_vec: Vec<(u32, (u64, u64, u32))> = all_articles.into_iter().collect();

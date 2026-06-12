@@ -366,11 +366,11 @@ impl GoogleSearchTrendsService {
 
         let category_qids = taxonomy_search_category_qids(topic).await?;
         let category_qid_set: HashSet<u32> = category_qids.iter().copied().collect();
-        let mut all_search_by_date: HashMap<NaiveDate, (u64, u64, f64)> = HashMap::new();
         let mut all_articles: HashMap<u32, (u64, u64, u64, u32)> = HashMap::new();
         let category_titles =
             QidService::get_titles_by_qids(Arc::clone(&state), wiki, &category_qids).await?;
 
+        let search_data;
         {
             let engine =
                 EngineService::get_or_build_google_search_engine(Arc::clone(&state), wiki).await?;
@@ -378,15 +378,14 @@ impl GoogleSearchTrendsService {
                 CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
             })?;
 
-            for qid in &category_qids {
-                let search_data = engine_lock.get_category_trend(*qid, 0, start, end);
-                for (date, metrics) in search_data {
-                    let entry = all_search_by_date.entry(date).or_insert((0, 0, 0.0));
-                    entry.0 += metrics.clicks;
-                    entry.1 += metrics.impressions;
-                    entry.2 += metrics.position * metrics.impressions as f64;
-                }
+            // Daily totals over the union of the categories' article sets —
+            // an article in several matched categories is counted once per day.
+            search_data = engine_lock.get_categories_trend(&category_qids, 0, start, end);
 
+            // An article's totals are article-level metrics (the same values
+            // from every category that surfaces it), so assignment is
+            // idempotent — never summed.
+            for qid in &category_qids {
                 let top_articles = engine_lock
                     .get_top_articles_in_category(*qid, start, end, 0, 50)
                     .map_err(|e| {
@@ -398,8 +397,8 @@ impl GoogleSearchTrendsService {
                     let entry = all_articles
                         .entry(article.article_qid)
                         .or_insert((0, 0, 0, *qid));
-                    entry.0 += article.total_clicks;
-                    entry.1 += article.total_impressions;
+                    entry.0 = article.total_clicks;
+                    entry.1 = article.total_impressions;
                     if article.total_clicks > entry.2 {
                         entry.2 = article.total_clicks;
                         entry.3 = *qid;
@@ -408,29 +407,16 @@ impl GoogleSearchTrendsService {
             }
         }
 
-        let mut search: Vec<GoogleSearchDailyResult> = all_search_by_date
+        let search: Vec<GoogleSearchDailyResult> = search_data
             .into_iter()
-            .map(|(date, (clicks, impressions, weighted_position_sum))| {
-                let ctr = if impressions == 0 {
-                    0.0
-                } else {
-                    clicks as f64 / impressions as f64
-                };
-                let position = if impressions == 0 {
-                    0.0
-                } else {
-                    weighted_position_sum / impressions as f64
-                };
-                GoogleSearchDailyResult {
-                    date,
-                    clicks,
-                    impressions,
-                    ctr,
-                    position,
-                }
+            .map(|(date, metrics)| GoogleSearchDailyResult {
+                date,
+                clicks: metrics.clicks,
+                impressions: metrics.impressions,
+                ctr: metrics.ctr,
+                position: metrics.position,
             })
             .collect();
-        search.sort_by_key(|item| item.date);
 
         let mut article_totals: Vec<(u32, (u64, u64, u64, u32))> =
             all_articles.into_iter().collect();

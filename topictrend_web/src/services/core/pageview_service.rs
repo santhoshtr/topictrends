@@ -39,6 +39,28 @@ impl PageViewService {
         Ok(raw_data)
     }
 
+    /// Combined daily views over the union of several categories' article
+    /// sets — articles in more than one category are counted once.
+    pub async fn get_categories_views(
+        state: Arc<AppState>,
+        wiki: &str,
+        category_qids: Vec<u32>,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+    ) -> Result<Vec<(NaiveDate, u64)>, CoreServiceError> {
+        let engine = EngineService::get_or_build_pageview_engine(state, wiki).await?;
+
+        let raw_data = {
+            let engine_lock = engine.read().map_err(|e| {
+                CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
+            })?;
+
+            engine_lock.get_categories_trend(&category_qids, 0, start_date, end_date)
+        };
+
+        Ok(raw_data)
+    }
+
     pub async fn get_article_views(
         state: Arc<AppState>,
         wiki: &str,
