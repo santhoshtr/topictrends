@@ -45,10 +45,6 @@ name = "coverage-matrix"
 path = "src/coverage_matrix.rs"
 
 [[bin]]
-name = "coverage-overlap"
-path = "src/coverage_overlap.rs"
-
-[[bin]]
 name = "coverage-articles"
 path = "src/coverage_articles.rs"
 

@@ -326,13 +326,15 @@ GSC_DIR ?= data/gsc_page_date   # override if source is elsewhere
 
 ### Coverage Matrix (cross-wiki content gap)
 
-**Frequency**: Monthly (systemd timer)
-**Runtime**: minutes for stage 1, longer for the stage-2 cross-wiki pass
+**Frequency**: Monthly (chained after `make canonical` in the canonical systemd unit)
+**Runtime**: minutes (two group-bys per wiki)
 **Operation**: Materializes a dated coverage snapshot per wiki — the precomputed,
-scannable form of the live content-gap query.
+scannable form of the content-gap query. Consumes the canonical projection, so
+`make canonical` must have run against the same topology state first.
 
 ```bash
-make coverage DATE=2026-06-09        # full matrix, all wikis (stage 1 + stage 2)
+make canonical coverage DATE=2026-06-09   # as the systemd unit runs it
+make coverage DATE=2026-06-09             # alone, if projections are current
 ```
 
 **Two depth-0 measures** (recursive/subtree coverage is deliberately omitted — the
@@ -344,16 +346,20 @@ correct depth is per-category and can't be precomputed):
   article in W }|`. The pure content gap: how many of a category's globally-known
   articles W has, independent of how W categorizes them.
 
-**Pipeline:**
-1. **Stage 1** (`coverage-matrix`, per wiki): group-by on `article_category.parquet`
-   (already node-filtered, so faithful to `get_articles_in_category(C, 0)` without
-   building the graph) → `direct_coverage`. Written to `data/<wiki>/coverage/<DATE>.parquet`.
-2. **Stage 2** (`coverage-overlap`, once over all wikis): builds canonical
-   `(article_qid, category_qid)` membership across every wiki, then for each wiki
-   reverse-scatters its article set to tally `qid_overlap`, and enriches each snapshot
-   in place (full outer union of the two key sets — a category can have `qid_overlap > 0`
-   with `direct_coverage = 0` when it is absent in W but some of its canonical articles
-   exist there).
+**Pipeline:** one binary (`coverage-matrix`), one pass per wiki, two group-bys:
+
+- `direct_coverage` ← `article_category.parquet` (the local relation, already
+  node-filtered).
+- `qid_overlap_coverage` ← `article_category_canonical.parquet` — the canonical
+  projection already materializes `canonical_set(C) ∩ articles(W)` (built by
+  `canonical-projection` from the gated canonical snapshot), so the overlap
+  measure is a plain per-category count of it.
+
+Every local direct edge is also a canonical edge over the wiki's own articles,
+so `direct ≤ overlap` per category and the merge is a left join onto the
+overlap key set, zero-filling `direct_coverage` (a category can have
+`qid_overlap > 0` with `direct_coverage = 0` when it is absent in W but some of
+its canonical articles exist there). Written to `data/<wiki>/coverage/<DATE>.parquet`.
 
 **Output schema per file** `data/<wiki>/coverage/<DATE>.parquet`, sorted by `category_qid`:
 
@@ -366,20 +372,14 @@ correct depth is per-category and can't be precomputed):
 Wiki and snapshot date are encoded in the path; no `wiki`/`date` columns in the file.
 Dated snapshots are retained to support coverage-delta over time.
 
-**Scheduling (systemd):** install the units in `deploy/systemd/` (edit `User` and
-`WorkingDirectory` to match the checkout, which must have replica access like the daily
-`make run`):
-
-```bash
-sudo cp deploy/systemd/topictrend-coverage.{service,timer} /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now topictrend-coverage.timer
-systemctl list-timers topictrend-coverage.timer   # verify next run
-```
+**Scheduling (systemd):** coverage has no unit of its own — it runs chained
+after the canonical snapshot in `topictrend-canonical.service` (see the next
+section), so it always sees freshly-projected inputs and never runs when the
+canonical manifest gate aborts.
 
 ### Canonical Article→Category Relation (cross-wiki union)
 
-**Frequency**: Monthly (systemd timer, after the coverage snapshot)
+**Frequency**: Monthly (systemd timer; the coverage snapshot runs chained after it)
 **Runtime**: ~15 seconds for the union; minutes for the per-wiki projection
 **Operation**: Unions every wiki's `article_category.parquet` into one global
 relation, then projects it back onto each wiki. Articles and categories share
@@ -443,9 +443,10 @@ that change legitimately shrinks `article_category` row counts (enwiki loses
 "Living people", stub and tracking categories), so the first `make canonical`
 on the refreshed topology will trip the gate and needs `--force` once.
 
-**Scheduling (systemd):** same pattern as coverage; the timer fires monthly at
-03:00 on the 1st, an hour after the coverage timer, so the two
-topology-derived snapshots don't contend for the same inputs:
+**Scheduling (systemd):** the timer fires monthly at 02:00 on the 1st and the
+service runs `make canonical coverage` — the coverage matrix consumes the
+canonical projections, so the two run chained in dependency order (edit `User`
+and `WorkingDirectory` to match the checkout):
 
 ```bash
 sudo cp deploy/systemd/topictrend-canonical.{service,timer} /etc/systemd/system/

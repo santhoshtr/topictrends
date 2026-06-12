@@ -1,5 +1,5 @@
 //! Reader for the materialized coverage-matrix snapshots produced by the
-//! `coverage-matrix` + `coverage-overlap` ETL binaries.
+//! `coverage-matrix` ETL binary.
 //!
 //! Each per-wiki dated file `data/{wiki}/coverage/{YYYY-MM-DD}.parquet` has the
 //! schema `(category_qid: u32, direct_coverage: u32, qid_overlap_coverage: u32)`

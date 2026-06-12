@@ -1,10 +1,10 @@
 [Unit]
-Description=Monthly TopicTrends canonical relation snapshot
+Description=Monthly TopicTrends canonical + coverage snapshot
 
 [Timer]
-# First of each month at 03:00 UTC — after the coverage snapshot (02:00) so the
-# two monthly topology-derived artifacts don't contend for the same inputs.
-OnCalendar=*-*-01 03:00:00
+# First of each month at 02:00 UTC. Both are topology-derived snapshots, so
+# monthly cadence matches the dated-snapshot / coverage-delta semantics.
+OnCalendar=*-*-01 02:00:00
 # Catch up a missed run if the VPS was down at the scheduled time.
 Persistent=true
 

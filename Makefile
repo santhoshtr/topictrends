@@ -40,8 +40,9 @@ help:
 	@echo "  monthly          - Process all wikis for the calendar month containing END_DATE"
 	@echo "                     (1..LAST_DAY of that month, capped at END_DATE's day)"
 	@echo "  gsc              - Process Google Search Console data for all wikis (single DATE)"
-	@echo "  coverage         - Build the coverage matrix (depth-0 direct_coverage) for all"
-	@echo "                     wikis as a dated snapshot (data/<wiki>/coverage/<DATE>.parquet)"
+	@echo "  coverage         - Build the coverage matrix (direct_coverage + qid_overlap) for all"
+	@echo "                     wikis as a dated snapshot (data/<wiki>/coverage/<DATE>.parquet);"
+	@echo "                     needs the canonical projections, so run 'make canonical' first"
 	@echo "  canonical        - Union all wikis' article_category into the canonical relation"
 	@echo "                     with per-edge wiki counts (data/canonical/<DATE>/), then project"
 	@echo "                     it per wiki (article_category_canonical + categories_canonical)"
@@ -227,24 +228,21 @@ $(DATA_DIR)/%/gsc/$(YEAR)/$(MONTH)/$(DAY).parquet: $(DATA_DIR)/%/articles.parque
 # Falls back to yesterday if DATE is not set.
 gsc: init $(foreach w,$(WIKIS),$(DATA_DIR)/$(w)/gsc/$(YEAR)/$(MONTH)/$(DAY).parquet)
 
-# Coverage matrix (stage 1: depth-0 direct_coverage) for one wiki, dated snapshot.
-# Derived from topology (article_category.parquet), captured per snapshot date.
-# article_category is an order-only prerequisite (|): it must exist for the
-# derivation, but its mtime must not force a rebuild of an existing dated
+# Coverage matrix for one wiki, dated snapshot: depth-0 direct_coverage from
+# the local relation plus qid_overlap_coverage from the canonical projection
+# (article_category_canonical.parquet, produced by `make canonical` — run it
+# first against the same topology state).
+# Both inputs are order-only prerequisites (|): they must exist for the
+# derivation, but their mtimes must not force a rebuild of an existing dated
 # snapshot, keeping snapshots idempotent across topology refreshes.
-$(DATA_DIR)/%/coverage/$(DATE).parquet: | $(DATA_DIR)/%/article_category.parquet
+$(DATA_DIR)/%/coverage/$(DATE).parquet: | $(DATA_DIR)/%/article_category.parquet $(DATA_DIR)/%/article_category_canonical.parquet
 	@mkdir -p $(dir $@)
 	@echo "Building coverage matrix for $* ($(DATE)) -> $@"
-	$(CARGO_RELEASE)/coverage-matrix $(DATA_DIR)/$*/article_category.parquet $@
+	$(CARGO_RELEASE)/coverage-matrix $(DATA_DIR)/$*/article_category.parquet $(DATA_DIR)/$*/article_category_canonical.parquet $@
 
 # Build the full coverage matrix for all wikis as a dated snapshot.
-# Stage 1 (per-wiki direct_coverage) runs via the prerequisites; stage 2 then
-# runs once over all wikis to enrich each snapshot with qid_overlap_coverage
-# (it needs every wiki's article_category at once to build canonical membership).
 # Usage: make coverage DATE=2026-06-09  (falls back to yesterday if DATE unset)
 coverage: init $(foreach w,$(WIKIS),$(DATA_DIR)/$(w)/coverage/$(DATE).parquet)
-	@echo "Enriching coverage snapshots with qid_overlap (cross-wiki pass)..."
-	DATA_DIR=$(DATA_DIR) $(CARGO_RELEASE)/coverage-overlap --date $(DATE)
 
 # Canonical cross-wiki article->category relation, dated snapshot.
 # Stage 1 (canonical-membership) unions every wiki's article_category.parquet
