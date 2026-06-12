@@ -4235,7 +4235,7 @@ dependencies = [
 
 [[package]]
 name = "topictrend_cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ahash",
  "anyhow",
@@ -4252,7 +4252,7 @@ dependencies = [
 
 [[package]]
 name = "topictrend_core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ahash",
  "anyhow",
@@ -4266,7 +4266,7 @@ dependencies = [
 
 [[package]]
 name = "topictrend_taxonomy"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -4283,7 +4283,7 @@ dependencies = [
 
 [[package]]
 name = "topictrend_web"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "axum",
  "axum-macros",
