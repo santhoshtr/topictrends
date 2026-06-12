@@ -13,26 +13,34 @@ use crate::services::core::{CategoryService, QidService, ArticleService};
 impl TopicTrendMcpServer {
     /// List direct subcategories of a Wikipedia category.
     ///
-    /// Returns a map of Wikidata QID → category title for all immediate children.
+    /// Returns QID, local title and English label for all immediate children.
     #[tool(
         name = "topictrends_list_subcategories",
-        description = "List direct subcategories of a Wikipedia category, returning QID→title pairs.",
+        description = "List direct subcategories of a Wikipedia category (QID, title and English label for each).",
         annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = true)
     )]
     pub async fn list_subcategories(
         &self,
         Parameters(p): Parameters<SubCategoriesInput>,
-    ) -> Result<rmcp::handler::server::wrapper::Json<HashMap<String, String>>, ErrorData> {
+    ) -> Result<rmcp::handler::server::wrapper::Json<Vec<crate::models::CategoryInfo>>, ErrorData>
+    {
         let map = PageViewsService::get_sub_categories(
             Arc::clone(&self.state), &p.wiki, &p.category, p.category_qid,
         ).await.map_err(crate::mcp::tools::service_err)?;
 
-        // Convert u32 keys to strings as the OpenAPI spec uses string keys
-        let string_map: HashMap<String, String> = map.into_iter()
-            .map(|(qid, title)| (qid.to_string(), title))
-            .collect();
+        let qids: Vec<u32> = map.keys().copied().collect();
+        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &qids).await;
 
-        Ok(rmcp::handler::server::wrapper::Json(string_map))
+        let mut categories: Vec<crate::models::CategoryInfo> = map.into_iter()
+            .map(|(qid, title)| crate::models::CategoryInfo {
+                qid,
+                title_en: en.get(&qid).cloned(),
+                title,
+            })
+            .collect();
+        categories.sort_by(|a, b| a.title.cmp(&b.title));
+
+        Ok(rmcp::handler::server::wrapper::Json(categories))
     }
 
     /// List articles that are direct members of a Wikipedia category.

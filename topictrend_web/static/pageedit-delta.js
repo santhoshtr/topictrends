@@ -245,6 +245,12 @@ function createCategoryAccordion(category, type, accordionName) {
 	const nameSpan = document.createElement("span");
 	nameSpan.className = "category-name";
 	nameSpan.textContent = category.category_title.replace(/_/g, " ");
+	if (
+		category.category_title_en &&
+		category.category_title_en !== category.category_title
+	) {
+		nameSpan.title = category.category_title_en.replace(/_/g, " ");
+	}
 
 	// Delta percentage
 	const deltaDiv = document.createElement("div");
@@ -490,6 +496,12 @@ function createArticleElement(article, wiki) {
 	const titleLink = document.createElement("a");
 	titleLink.className = "article-title";
 	titleLink.textContent = article.article_title.replace(/_/g, " ");
+	if (
+		article.article_title_en &&
+		article.article_title_en !== article.article_title
+	) {
+		titleLink.title = article.article_title_en.replace(/_/g, " ");
+	}
 	titleLink.href = buildWikipediaUrl(wiki, article.article_title);
 	titleLink.target = "_blank";
 	titleLink.rel = "noopener noreferrer";

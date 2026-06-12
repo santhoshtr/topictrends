@@ -215,12 +215,7 @@ async function fetchTopicSearchData(wiki, topic, startDate, endDate) {
 	}
 }
 
-async function fetchCategorySearchData(
-	wiki,
-	category,
-	startDate,
-	endDate,
-) {
+async function fetchCategorySearchData(wiki, category, startDate, endDate) {
 	const url = `/api/googlesearch/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&category=${encodeURIComponent(category)}`;
 	const label = `Category: ${wiki} - ${category.replaceAll("_", " ")}`;
 

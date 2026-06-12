@@ -40,6 +40,10 @@ The API accepts titles as input (human-readable) and translates them to QIDs int
 
 **Example:** Query "Physics" (title) → internal translation to QID `42` → processing → response with both `category_qid: 42` and `category_title: "Physics"`
 
+### English Labels (`title_en`)
+
+When the requested wiki is not `enwiki`, every title-bearing response item also carries an optional English companion label (`title_en`, or `category_title_en` / `article_title_en` next to the matching display field), resolved from English Wikipedia with the canonical-label fallback. The field is omitted for `enwiki` requests and for QIDs with no English label. The web UI uses it for hover text; API and MCP consumers get it in the same payload.
+
 ## Endpoints
 
 ### 1. GET /api/pageviews/category

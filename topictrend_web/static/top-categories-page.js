@@ -101,6 +101,9 @@ document.addEventListener("DOMContentLoaded", () => {
 			const title = document.createElement("span");
 			title.className = "category-name";
 			title.textContent = formatTitle(category.title);
+			if (category.title_en && category.title_en !== category.title) {
+				title.title = formatTitle(category.title_en);
+			}
 
 			const metricValue = document.createElement("span");
 			metricValue.className = "category-views";
@@ -142,6 +145,9 @@ document.addEventListener("DOMContentLoaded", () => {
 				articleLink.target = "_blank";
 				articleLink.rel = "noopener noreferrer";
 				articleLink.textContent = formatTitle(article.title);
+				if (article.title_en && article.title_en !== article.title) {
+					articleLink.title = formatTitle(article.title_en);
+				}
 
 				const articleMetric = document.createElement("span");
 				articleMetric.className = "article-views";

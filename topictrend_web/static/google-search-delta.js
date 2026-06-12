@@ -180,6 +180,12 @@ function createCategoryAccordion(category, accordionName) {
 	const nameSpan = document.createElement("span");
 	nameSpan.className = "category-name";
 	nameSpan.textContent = category.category_title.replace(/_/g, " ");
+	if (
+		category.category_title_en &&
+		category.category_title_en !== category.category_title
+	) {
+		nameSpan.title = category.category_title_en.replace(/_/g, " ");
+	}
 
 	const deltaDiv = document.createElement("div");
 	const type = category.delta_percentage >= 0 ? "positive" : "negative";
@@ -340,6 +346,12 @@ function renderArticles(container, articles, wiki, summaryMetrics) {
 		const titleLink = document.createElement("a");
 		titleLink.className = "article-title";
 		titleLink.textContent = article.article_title.replace(/_/g, " ");
+		if (
+			article.article_title_en &&
+			article.article_title_en !== article.article_title
+		) {
+			titleLink.title = article.article_title_en.replace(/_/g, " ");
+		}
 		titleLink.href = `https://${wiki.replace("wiki", "")}.wikipedia.org/wiki/${encodeURIComponent(article.article_title)}`;
 		titleLink.target = "_blank";
 		titleLink.rel = "noopener noreferrer";

@@ -117,7 +117,10 @@ function renderArticles(articles, lang) {
 		a.href = `https://${lang}.wikipedia.org/wiki/${article.title}`;
 		a.innerText = article.title;
 		a.id = article.qid;
-		a.title = `QID: ${article.qid}`;
+		a.title =
+			article.title_en && article.title_en !== article.title
+				? `${article.title_en.replace(/_/g, " ")} (Q${article.qid})`
+				: `QID: ${article.qid}`;
 		li.append(a);
 		list.append(li);
 	}

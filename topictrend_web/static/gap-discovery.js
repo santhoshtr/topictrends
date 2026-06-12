@@ -168,6 +168,10 @@ function renderResults(data) {
 		const rank = data.offset + i + 1;
 		const cov = c.coverage_pct * 100;
 		const title = c.category_title.replace(/_/g, " ");
+		const enHover =
+			c.category_title_en && c.category_title_en !== c.category_title
+				? ` title="${c.category_title_en.replace(/_/g, " ")}"`
+				: "";
 		const articlesNote = `${data.target} files ${c.direct_coverage_target.toLocaleString()} articles directly under this category`;
 		const badge = c.has_category
 			? `<span class="structure-badge exists">Present<span class="badge-sub" title="${articlesNote}">${c.direct_coverage_target.toLocaleString()} articles</span></span>`
@@ -176,7 +180,7 @@ function renderResults(data) {
 		tr.innerHTML = `
 			<td class="num rank">${rank}</td>
 			<td class="cat">
-				<a href="${categoryUrl(data.reference, c.category_title)}" target="_blank" rel="noopener noreferrer">${title}</a>
+				<a href="${categoryUrl(data.reference, c.category_title)}" target="_blank" rel="noopener noreferrer"${enHover}>${title}</a>
 				<a class="qid-sub" href="${wikidataUrl(c.category_qid)}" target="_blank" rel="noopener noreferrer">Q${c.category_qid}</a>
 			</td>
 			<td class="num">${c.overlap_reference.toLocaleString()}</td>

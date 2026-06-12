@@ -155,16 +155,29 @@ pub async fn get_topic_pageview_trend_handler(
 pub async fn get_sub_categories(
     Query(params): Query<SubCategoryParams>,
     State(state): State<Arc<AppState>>,
-) -> Result<Json<std::collections::HashMap<u32, String>>, ApiError> {
+) -> Result<Json<Vec<crate::models::CategoryInfo>>, ApiError> {
     let titles_map = PageViewsService::get_sub_categories(
-        state,
+        Arc::clone(&state),
         &params.wiki,
         &params.category,
         params.category_qid,
     )
     .await?;
 
-    Ok(Json(titles_map))
+    let qids: Vec<u32> = titles_map.keys().copied().collect();
+    let en = QidService::get_english_titles(state, &params.wiki, &qids).await;
+
+    let mut categories: Vec<crate::models::CategoryInfo> = titles_map
+        .into_iter()
+        .map(|(qid, title)| crate::models::CategoryInfo {
+            qid,
+            title_en: en.get(&qid).cloned(),
+            title,
+        })
+        .collect();
+    categories.sort_by(|a, b| a.title.cmp(&b.title));
+
+    Ok(Json(categories))
 }
 
 pub async fn get_pageviews_top_categories_handler(

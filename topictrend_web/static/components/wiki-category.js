@@ -9,6 +9,7 @@ class WikiCategory extends HTMLElement {
 	static get observedAttributes() {
 		return [
 			"title",
+			"title-en",
 			"qid",
 			"views",
 			"wiki",
@@ -28,6 +29,10 @@ class WikiCategory extends HTMLElement {
 
 	get title() {
 		return this.getAttribute("title") || "";
+	}
+
+	get titleEn() {
+		return this.getAttribute("title-en") || "";
 	}
 
 	get qid() {
@@ -103,7 +108,11 @@ class WikiCategory extends HTMLElement {
 		wikiLink.href = `https://${wikiCode}.wikipedia.org/wiki/Category:${this.title}`;
 		wikiLink.target = "_blank";
 		wikiLink.rel = "noopener noreferrer";
-		wikiLink.title = `${this.formatTitle(this.title)} — ${this.formatViews(this.views)} on Wikipedia`;
+		const enHover =
+			this.titleEn && this.titleEn !== this.title
+				? ` (${this.formatTitle(this.titleEn)})`
+				: "";
+		wikiLink.title = `${this.formatTitle(this.title)}${enHover} — ${this.formatViews(this.views)} on Wikipedia`;
 		wikiLink.appendChild(iconSvg);
 		const textSpan = document.createElement("span");
 		textSpan.textContent = this.formatTitle(this.title);

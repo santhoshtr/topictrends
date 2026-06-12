@@ -154,12 +154,16 @@ async function renderSubCategories(wiki, category) {
 		categoryListContainer.appendChild(subheading);
 
 		const ul = document.createElement("ul");
-		Object.entries(subcategories).forEach(([qid, title]) => {
+		subcategories.forEach((cat) => {
+			const { qid, title, title_en } = cat;
 			const li = document.createElement("li");
 			li.id = qid;
 
 			const wikiCategory = document.createElement("wiki-category");
 			wikiCategory.setAttribute("title", title);
+			if (title_en && title_en !== title) {
+				wikiCategory.setAttribute("title-en", title_en);
+			}
 			wikiCategory.setAttribute("qid", qid);
 			wikiCategory.setAttribute("views", "0");
 
@@ -255,12 +259,7 @@ async function fetchTopicPageEdits(wiki, topic, startDate, endDate) {
 	}
 }
 
-async function fetchCategoryPageEdits(
-	wiki,
-	category,
-	startDate,
-	endDate,
-) {
+async function fetchCategoryPageEdits(wiki, category, startDate, endDate) {
 	showSection("chart-with-articles");
 
 	const apiUrl = `/api/pageedits/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&category=${encodeURIComponent(
