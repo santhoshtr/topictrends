@@ -1,6 +1,8 @@
 use std::error::Error;
 
+use tokio::sync::OnceCell;
 use tonic::Request;
+use tonic::transport::Channel;
 
 pub use crate::models::SearchResult;
 mod models;
@@ -12,11 +14,24 @@ pub mod embedding {
 use embedding::embedding_service_client::EmbeddingServiceClient;
 use embedding::{InjestRequest, SearchRequest};
 
-pub async fn injest(wiki: String) -> Result<(), Box<dyn Error>> {
-    let embedding_server =
-        std::env::var("EMBEDDING_SERVER").unwrap_or_else(|_| "http://localhost:50051".to_string());
+/// Connected client, established once and cloned per call — tonic channels
+/// are multiplexed and reconnect on their own. A failed connect leaves the
+/// cell empty, so the next call retries instead of caching the failure.
+static CLIENT: OnceCell<EmbeddingServiceClient<Channel>> = OnceCell::const_new();
 
-    let mut client = EmbeddingServiceClient::connect(embedding_server).await?;
+async fn client() -> Result<EmbeddingServiceClient<Channel>, Box<dyn Error>> {
+    let client = CLIENT
+        .get_or_try_init(|| async {
+            let embedding_server = std::env::var("EMBEDDING_SERVER")
+                .unwrap_or_else(|_| "http://localhost:50051".to_string());
+            EmbeddingServiceClient::connect(embedding_server).await
+        })
+        .await?;
+    Ok(client.clone())
+}
+
+pub async fn injest(wiki: String) -> Result<(), Box<dyn Error>> {
+    let mut client = client().await?;
 
     let request = InjestRequest { wiki };
 
@@ -36,10 +51,7 @@ pub async fn search(
     limit: u64,
     match_threshold: f32,
 ) -> Result<Vec<SearchResult>, Box<dyn Error>> {
-    let embedding_server =
-        std::env::var("EMBEDDING_SERVER").unwrap_or_else(|_| "http://localhost:50051".to_string());
-
-    let mut client = EmbeddingServiceClient::connect(embedding_server).await?;
+    let mut client = client().await?;
 
     let request = SearchRequest {
         query,

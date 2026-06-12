@@ -265,11 +265,15 @@ clean:
 
 # Run the web server. Depends only on the wiki list so that starting the server
 # does not re-invoke cargo build; build the binary explicitly via `make init`
-# when needed.
+# when needed. The embedding server is optional: without it only the semantic
+# topic-search endpoints fail, so its absence is a warning, not a refusal.
 web: $(DATA_DIR)/wikipedia.list
 	@echo "Checking embedding server at $(EMBEDDING_SERVER)..."
-	@(cd services/embedding && EMBEDDING_SERVER=$(EMBEDDING_SERVER) uv run python healthcheck.py)
-	@echo "Embedding server OK"
+	@if (cd services/embedding && EMBEDDING_SERVER=$(EMBEDDING_SERVER) uv run python healthcheck.py); then \
+		echo "Embedding server OK"; \
+	else \
+		echo "WARNING: embedding server unreachable; topic search will be unavailable" >&2; \
+	fi
 	$(CARGO_RELEASE)/topictrend_web
 
 # Start the embedding gRPC server from the project root so DATA_DIR and
