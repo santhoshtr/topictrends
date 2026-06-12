@@ -38,12 +38,28 @@ pub static EXCLUDED_CATEGORY_QIDS: LazyLock<HashSet<u32>> = LazyLock::new(|| {
         2944440, // Stubs
         7046360, // Biology stubs
         7046440, // Geography stubs
+        5834688, // People stubs / incomplete biographies
+        130866438, // Stub articles (ug)
         // Wikipedia maintenance / templates
         130251703, // Pages with image sizes containing extra px
         3740,      // Wikipedia templates
         6332021,   // Articles in translation
         18285010,  // Bot created articles from 2013-02
         22165254,  // Robot created butterfly items
+        // Tracking categories that surfaced in canonical-topology trending —
+        // visible (not hiddencat-flagged) on their home wikis.
+        27892622, // Webarchive template wayback links
+        10152088, // Pages with reference errors
+        7478359,  // Articles lacking sources
+        10051136, // Articles to be expanded
+        4989282,  // Pages with broken file links
+        9806171,  // Öömrang articles (frrwiki language-variant tracking)
+        8922197,  // Wikipedia articles with LCCN identifiers
+        8922195,  // Wikipedia articles with GND identifiers
+        27825420, // Pages using ISBN magic links
+        8181072,  // List of articles every Wikipedia should have
+        4387444,  // Featured articles (project namespace)
+        6157677,  // Spoken Wikipedia
         // "By alphabetical order" / by-name organizational containers
         32889963, // People by alphabetical order
         6547581,  // Populated places by alphabet
