@@ -3,9 +3,6 @@
 /* Content gap page styles */
 
 .form-container {
-	& .depth-input {
-		width: 5rem;
-	}
 }
 
 /* Results section */

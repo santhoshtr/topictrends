@@ -72,13 +72,11 @@ async function onSubmit(event) {
 	const endDate = document.getElementById("end_date").value;
 	const category_qid = document.getElementById("category_qid").value;
 	const article_qid = document.getElementById("article_qid").value;
-	const depth = document.getElementById("depth").value;
 
 	params.append("type", type);
 	params.append("wiki", wiki);
 	params.append("start_date", startDate);
 	params.append("end_date", endDate);
-	params.append("depth", depth);
 	if (category_qid) {
 		params.append("category_qid", category_qid);
 	}
@@ -104,8 +102,8 @@ async function onSubmit(event) {
 			const newUrl = `${window.location.pathname}?${params.toString()}`;
 			window.history.pushState({}, "", newUrl);
 
-			await fetchCategoryPageEdits(wiki, category, startDate, endDate, depth);
-			await renderSubCategories(wiki, category, depth);
+			await fetchCategoryPageEdits(wiki, category, startDate, endDate);
+			await renderSubCategories(wiki, category);
 		} else if (type === "article") {
 			const article = document
 				.getElementById("article")
@@ -137,7 +135,7 @@ function updateChartWithData(data, label) {
 	updateChart(chartInstance, data, label);
 }
 
-async function renderSubCategories(wiki, category, depth = 4) {
+async function renderSubCategories(wiki, category) {
 	const categoryListContainer = document.getElementById("category-list");
 	const apiUrl = `/api/list/sub_categories?wiki=${wiki}&category=${category}`;
 
@@ -180,7 +178,7 @@ async function renderSubCategories(wiki, category, depth = 4) {
 				const startDate = document.getElementById("start_date").value;
 				const endDate = document.getElementById("end_date").value;
 
-				fetchCategoryPageEdits(wiki, title, startDate, endDate, depth);
+				fetchCategoryPageEdits(wiki, title, startDate, endDate);
 			});
 
 			li.appendChild(wikiCategory);
@@ -224,10 +222,10 @@ document.addEventListener("DOMContentLoaded", () => {
 	startDatePicker.value = `${year}-${month}-${day}`;
 });
 
-async function fetchTopicPageEdits(wiki, topic, startDate, endDate, depth) {
+async function fetchTopicPageEdits(wiki, topic, startDate, endDate) {
 	showSection("chart-with-articles");
 
-	const apiUrl = `/api/pageedits/topic?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&topic=${encodeURIComponent(
+	const apiUrl = `/api/pageedits/topic?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&topic=${encodeURIComponent(
 		topic,
 	)}`;
 	const label = `Topic: ${wiki} - ${topic.replaceAll("_", " ")}`;
@@ -262,11 +260,10 @@ async function fetchCategoryPageEdits(
 	category,
 	startDate,
 	endDate,
-	depth,
 ) {
 	showSection("chart-with-articles");
 
-	const apiUrl = `/api/pageedits/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&category=${encodeURIComponent(
+	const apiUrl = `/api/pageedits/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&category=${encodeURIComponent(
 		category,
 	)}`;
 	const label = `Category: ${wiki} - ${category.replaceAll("_", " ")}`;

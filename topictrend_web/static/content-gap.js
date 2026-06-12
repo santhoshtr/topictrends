@@ -11,7 +11,6 @@ let activeWikis = [];
 let currentType = "topic"; // "topic" or "category"
 let currentTopic = null;
 let currentCategory = null;
-let currentDepth = "2";
 // last fetched data (for chart rendering)
 let lastData = null;
 // echarts instance for the article count chart
@@ -39,7 +38,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 			const p = new URLSearchParams(window.location.search);
 			const type = p.get("type") || "topic";
 			const wiki = p.get("wiki");
-			const depth = p.get("depth");
 			const compare = p.get("compare");
 
 			// Set the type tab (param name differs from field id: tab-topic / tab-category)
@@ -66,7 +64,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 				(type === "topic" && currentTopic) ||
 				(type === "category" && currentCategory)
 			) {
-				currentDepth = depth || "2";
 				const baseWiki = wiki || document.getElementById("wiki").value;
 				const compareWikis = compare
 					? compare
@@ -100,7 +97,6 @@ async function onSubmit(event) {
 
 	const type = document.querySelector('input[name="type"]:checked').value;
 	const baseWiki = document.getElementById("wiki").value;
-	const depth = document.getElementById("depth").value || "2";
 
 	if (type === "topic") {
 		const topic = document
@@ -130,7 +126,6 @@ async function onSubmit(event) {
 		currentTopic = null;
 	}
 
-	currentDepth = depth;
 	// On a fresh submit keep only the base wiki; any previous compare wikis are discarded.
 	activeWikis = [baseWiki];
 
@@ -150,11 +145,11 @@ async function fetchAndRender() {
 		if (currentType === "topic") {
 			url = `/api/content_gap/topic?topic=${encodeURIComponent(
 				currentTopic,
-			)}&wikis=${encodeURIComponent(wikisParam)}&depth=${currentDepth}`;
+			)}&wikis=${encodeURIComponent(wikisParam)}`;
 		} else {
 			url = `/api/content_gap/categories?category=${encodeURIComponent(
 				currentCategory,
-			)}&wikis=${encodeURIComponent(wikisParam)}&depth=${currentDepth}`;
+			)}&wikis=${encodeURIComponent(wikisParam)}`;
 		}
 
 		const response = await fetch(url);
@@ -176,7 +171,6 @@ function renderResults(data) {
 
 	header.innerHTML = `
 		<h2>Content gap: <em>${data.category.replaceAll("_", " ")}</em></h2>
-		<p class="results-meta">Depth: ${data.depth}</p>
 	`;
 
 	const plotBtn = document.createElement("button");
@@ -211,7 +205,6 @@ function renderResults(data) {
 		const searchUrl = buildSearchUrl(
 			wikiResult.wiki,
 			data.category,
-			currentDepth,
 		);
 		const subtext = (metric) =>
 			`<span class="metric-subtext" data-metric="${metric}" aria-busy="true">…</span>`;
@@ -219,15 +212,15 @@ function renderResults(data) {
 			<td class="wiki-code">${wikiResult.wiki}</td>
 			<td><a href="${searchUrl}">${wikiResult.article_count} articles</a></td>
 			<td>
-				<a href="${buildTrendsUrl("pageviews", wikiResult.wiki, data.category, currentDepth)}">${plotIcon}</a>
+				<a href="${buildTrendsUrl("pageviews", wikiResult.wiki, data.category)}">${plotIcon}</a>
 				${subtext("pageviews")}
 			</td>
 			<td>
-				<a href="${buildTrendsUrl("pageedits", wikiResult.wiki, data.category, currentDepth)}">${plotIcon}</a>
+				<a href="${buildTrendsUrl("pageedits", wikiResult.wiki, data.category)}">${plotIcon}</a>
 				${subtext("pageedits")}
 			</td>
 			<td>
-				<a href="${buildTrendsUrl("googlesearch", wikiResult.wiki, data.category, currentDepth)}">${plotIcon}</a>
+				<a href="${buildTrendsUrl("googlesearch", wikiResult.wiki, data.category)}">${plotIcon}</a>
 				${subtext("googlesearch")}
 			</td>
 		`;
@@ -375,7 +368,6 @@ function syncUrlParams() {
 	const params = new URLSearchParams({
 		type: currentType,
 		wiki: baseWiki,
-		depth: currentDepth,
 	});
 
 	if (currentType === "topic") {
@@ -390,21 +382,19 @@ function syncUrlParams() {
 	window.history.pushState({}, "", `${window.location.pathname}?${params}`);
 }
 
-function buildSearchUrl(wiki, query, depth) {
+function buildSearchUrl(wiki, query) {
 	const params = new URLSearchParams({
 		wiki,
 		category: query,
 		match_threshold: "0.6",
-		depth,
 	});
 	return `/search?${params}`;
 }
 
-function buildTrendsUrl(page, wiki, query, depth) {
+function buildTrendsUrl(page, wiki, query) {
 	const params = new URLSearchParams({
 		type: currentType,
 		wiki,
-		depth,
 	});
 
 	if (currentType === "topic") {
@@ -417,7 +407,7 @@ function buildTrendsUrl(page, wiki, query, depth) {
 }
 
 // Monthly totals are fetched lazily per row from the existing trend endpoints
-// (which default to the last 30 days). Cached by type|wiki|query|depth so that
+// (which default to the last 30 days). Cached by type|wiki|query so that
 // re-rendering the table when a wiki is added doesn't refetch warm rows.
 const monthlyCache = new Map();
 
@@ -448,7 +438,7 @@ const MONTHLY_METRICS = {
 
 async function fetchMonthlyMetric(metric, type, wiki, query) {
 	const { path, format } = MONTHLY_METRICS[metric];
-	const params = new URLSearchParams({ wiki, depth: currentDepth });
+	const params = new URLSearchParams({ wiki });
 	params.set(type === "topic" ? "topic" : "category", query);
 	try {
 		const response = await fetch(`/api/${path}/${type}?${params}`);
@@ -467,7 +457,7 @@ function fillSubtext(span, text) {
 }
 
 async function loadMonthlyTotals(wiki, type, query, spans) {
-	const key = `${type}|${wiki}|${query}|${currentDepth}`;
+	const key = `${type}|${wiki}|${query}`;
 	const cached = monthlyCache.get(key);
 	if (cached) {
 		for (const metric of Object.keys(spans))

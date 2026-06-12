@@ -149,11 +149,9 @@ impl GoogleSearchTrendsService {
         wiki: &str,
         category: &str,
         category_qid: Option<u32>,
-        depth: Option<u32>,
         start_date: Option<NaiveDate>,
         end_date: Option<NaiveDate>,
     ) -> Result<CategoryGoogleSearchTrendResult, CoreServiceError> {
-        let depth = depth.unwrap_or(0);
         let start = start_date
             .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
         let end = end_date.unwrap_or_else(|| chrono::Local::now().date_naive());
@@ -170,7 +168,6 @@ impl GoogleSearchTrendsService {
             category_qid,
             start,
             end,
-            depth,
         )
         .await?;
 
@@ -180,7 +177,6 @@ impl GoogleSearchTrendsService {
             category_qid,
             start,
             end,
-            depth,
             10,
         )
         .await?;
@@ -361,7 +357,6 @@ impl GoogleSearchTrendsService {
         state: Arc<AppState>,
         wiki: &str,
         topic: &str,
-        depth: Option<u32>,
         start_date: Option<NaiveDate>,
         end_date: Option<NaiveDate>,
     ) -> Result<CategoryGoogleSearchTrendResult, CoreServiceError> {
@@ -383,9 +378,8 @@ impl GoogleSearchTrendsService {
                 CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
             })?;
 
-            let effective_depth = depth.unwrap_or(1);
             for qid in &category_qids {
-                let search_data = engine_lock.get_category_trend(*qid, effective_depth, start, end);
+                let search_data = engine_lock.get_category_trend(*qid, 0, start, end);
                 for (date, metrics) in search_data {
                     let entry = all_search_by_date.entry(date).or_insert((0, 0, 0.0));
                     entry.0 += metrics.clicks;
@@ -394,7 +388,7 @@ impl GoogleSearchTrendsService {
                 }
 
                 let top_articles = engine_lock
-                    .get_top_articles_in_category(*qid, start, end, effective_depth, 50)
+                    .get_top_articles_in_category(*qid, start, end, 0, 50)
                     .map_err(|e| {
                         CoreServiceError::EngineError(format!("Failed to get top articles: {}", e))
                     })?

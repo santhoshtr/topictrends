@@ -23,7 +23,7 @@ impl TopicTrendMcpServer {
     /// Use `depth` to include subcategory articles (0 = direct members only).
     #[tool(
         name = "topictrends_get_category_pageview_trend",
-        description = "Daily Wikipedia pageviews for a category, with top articles. Use depth>0 to include subcategories.",
+        description = "Daily Wikipedia pageviews for a category (direct members), with top articles.",
         annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = true)
     )]
     pub async fn get_category_pageview_trend(
@@ -33,7 +33,7 @@ impl TopicTrendMcpServer {
         let start = parse_date_opt(p.start_date)?;
         let end = parse_date_opt(p.end_date)?;
         let r = PageViewsService::get_category_trend(
-            Arc::clone(&self.state), &p.wiki, &p.category, p.category_qid, p.depth, start, end,
+            Arc::clone(&self.state), &p.wiki, &p.category, p.category_qid, start, end,
         ).await.map_err(service_err)?;
 
         Ok(rmcp::handler::server::wrapper::Json(CategoryTrendResponse {
@@ -84,7 +84,7 @@ impl TopicTrendMcpServer {
         let start = parse_date_opt(p.start_date)?;
         let end = parse_date_opt(p.end_date)?;
         let r = PageViewsService::get_topic_trend(
-            Arc::clone(&self.state), &p.wiki, &p.topic, p.depth, start, end,
+            Arc::clone(&self.state), &p.wiki, &p.topic, start, end,
         ).await.map_err(service_err)?;
 
         Ok(rmcp::handler::server::wrapper::Json(CategoryTrendResponse {
@@ -169,7 +169,7 @@ impl TopicTrendMcpServer {
         let qids: Vec<u32> = search_results.into_iter().map(|r| r.qid).collect();
 
         let r = PageViewsService::get_categories_trend(
-            Arc::clone(&self.state), &p.wiki, qids, Some(1), start, end,
+            Arc::clone(&self.state), &p.wiki, qids, start, end,
         ).await.map_err(service_err)?;
 
         Ok(rmcp::handler::server::wrapper::Json(CategoriesTrendResponse {

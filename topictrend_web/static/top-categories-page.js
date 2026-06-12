@@ -71,7 +71,6 @@ document.addEventListener("DOMContentLoaded", () => {
 	) {
 		const params = new URLSearchParams({ type, wiki });
 		if (type === "category") {
-			params.set("depth", "4");
 			params.set("category", title);
 			if (qid) params.set("category_qid", qid.toString());
 		} else {

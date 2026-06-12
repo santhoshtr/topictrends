@@ -33,7 +33,6 @@ function buildCategoryParams(category, wiki, startDate, endDate) {
 		type: "category",
 		wiki,
 		category: category.title.toString(),
-		depth: "4",
 	});
 	if (category.qid) {
 		params.set("category_qid", category.qid.toString());

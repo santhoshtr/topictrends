@@ -50,7 +50,6 @@ async function onSubmit(event) {
 	const baselineEndDate = document.getElementById("baseline_end_date").value;
 	const impactStartDate = document.getElementById("impact_start_date").value;
 	const impactEndDate = document.getElementById("impact_end_date").value;
-	const depth = document.getElementById("depth").value;
 	const limit = document.getElementById("limit").value;
 
 	const params = new URLSearchParams({
@@ -59,7 +58,6 @@ async function onSubmit(event) {
 		baseline_end_date: baselineEndDate,
 		impact_start_date: impactStartDate,
 		impact_end_date: impactEndDate,
-		depth,
 		limit,
 	});
 
@@ -110,7 +108,6 @@ async function fetchArticleDeltaData(
 	baselineEndDate,
 	impactStartDate,
 	impactEndDate,
-	depth,
 	limit,
 ) {
 	const params = new URLSearchParams({
@@ -120,7 +117,6 @@ async function fetchArticleDeltaData(
 		baseline_end_date: baselineEndDate,
 		impact_start_date: impactStartDate,
 		impact_end_date: impactEndDate,
-		depth: depth || 0,
 		limit: limit || 100,
 	});
 
@@ -200,13 +196,12 @@ function createCategoryAccordion(category, accordionName) {
 	plotLink.rel = "noopener noreferrer";
 
 	const wiki = document.getElementById("wiki").value;
-	const depth = document.getElementById("depth").value || "0";
 	const endDate = new Date();
 	endDate.setDate(endDate.getDate() - 1);
 	const startDate = new Date();
 	startDate.setMonth(startDate.getMonth() - 1);
 	const formatDate = (date) => date.toISOString().split("T")[0];
-	plotLink.href = `/googlesearch/trends?type=category&wiki=${wiki}&start_date=${formatDate(startDate)}&end_date=${formatDate(endDate)}&depth=${depth}&category=${category.category_title}`;
+	plotLink.href = `/googlesearch/trends?type=category&wiki=${wiki}&start_date=${formatDate(startDate)}&end_date=${formatDate(endDate)}&category=${category.category_title}`;
 
 	plotLink.addEventListener("click", (event) => {
 		event.stopPropagation();
@@ -244,7 +239,6 @@ async function handleAccordionToggle(event) {
 		const baselineEndDate = document.getElementById("baseline_end_date").value;
 		const impactStartDate = document.getElementById("impact_start_date").value;
 		const impactEndDate = document.getElementById("impact_end_date").value;
-		const depth = document.getElementById("depth").value;
 
 		const articlesData = await fetchArticleDeltaData(
 			wiki,
@@ -253,7 +247,6 @@ async function handleAccordionToggle(event) {
 			baselineEndDate,
 			impactStartDate,
 			impactEndDate,
-			depth,
 			100,
 		);
 

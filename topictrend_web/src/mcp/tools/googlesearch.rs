@@ -34,7 +34,7 @@ impl TopicTrendMcpServer {
         let start = parse_date_opt(p.start_date)?;
         let end = parse_date_opt(p.end_date)?;
         let r = GoogleSearchTrendsService::get_category_trend(
-            Arc::clone(&self.state), &p.wiki, &p.category, p.category_qid, p.depth, start, end,
+            Arc::clone(&self.state), &p.wiki, &p.category, p.category_qid, start, end,
         ).await.map_err(core_err)?;
 
         Ok(rmcp::handler::server::wrapper::Json(GoogleSearchCategoryTrendResponse {
@@ -95,7 +95,7 @@ impl TopicTrendMcpServer {
         let start = parse_date_opt(p.start_date)?;
         let end = parse_date_opt(p.end_date)?;
         let r = GoogleSearchTrendsService::get_topic_google_search_trend(
-            Arc::clone(&self.state), &p.wiki, &p.topic, p.depth, start, end,
+            Arc::clone(&self.state), &p.wiki, &p.topic, start, end,
         ).await.map_err(core_err)?;
 
         Ok(rmcp::handler::server::wrapper::Json(GoogleSearchCategoryTrendResponse {

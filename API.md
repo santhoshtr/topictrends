@@ -380,7 +380,6 @@ Compares pageview trends between two time periods to identify categories with si
 | `impact_start_date` | String | Yes | Impact period start (ISO 8601) |
 | `impact_end_date` | String | Yes | Impact period end (ISO 8601) |
 | `limit` | Integer | No | Max results, default: 100, max: 1000 |
-| `depth` | Integer | No | Category tree depth, default: unlimited |
 
 **Example Request:**
 
@@ -473,7 +472,6 @@ Compares page edit activity in categories between two time periods.
 | `impact_start_date` | String | Yes | Impact period start |
 | `impact_end_date` | String | Yes | Impact period end |
 | `limit` | Integer | No | Max results, default: 100 |
-| `depth` | Integer | No | Category tree depth |
 
 **Example Request:**
 
@@ -676,7 +674,6 @@ Compares topic coverage across multiple wikis by counting category articles and 
 | `category` | String | No | Category title in enwiki (exact match) |
 | `category_qid` | Integer | No | Category QID (numeric) |
 | `wikis` | String | Yes | Comma-separated wiki list (e.g., `enwiki,mlwiki,tawiki`) |
-| `depth` | Integer | No | Category traversal depth, default: 0 |
 | `include_articles` | Boolean | No | Include article titles per wiki, default: false |
 
 **Note:** Either `category` or `category_qid` must be provided. `enwiki` is always used as the reference for gap calculations.
@@ -684,7 +681,7 @@ Compares topic coverage across multiple wikis by counting category articles and 
 **Example Request:**
 
 ```bash
-curl "http://localhost:8765/api/content_gap/categories?category=Quantum_physics&wikis=enwiki,mlwiki,tawiki&depth=2"
+curl "http://localhost:8765/api/content_gap/categories?category=Quantum_physics&wikis=enwiki,mlwiki,tawiki"
 ```
 
 **Response:**
@@ -693,7 +690,6 @@ curl "http://localhost:8765/api/content_gap/categories?category=Quantum_physics&
 {
   "category": "Quantum_physics",
   "category_qid": 49833,
-  "depth": 2,
   "wikis": [
     {
       "wiki": "enwiki",

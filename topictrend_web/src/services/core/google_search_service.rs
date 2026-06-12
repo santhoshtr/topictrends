@@ -38,7 +38,6 @@ impl GoogleSearchService {
         category_qid: u32,
         start_date: NaiveDate,
         end_date: NaiveDate,
-        depth: u32,
     ) -> Result<Vec<DailySearchMetrics>, CoreServiceError> {
         let engine = EngineService::get_or_build_google_search_engine(state, wiki).await?;
 
@@ -47,7 +46,7 @@ impl GoogleSearchService {
                 CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
             })?;
 
-            engine_lock.get_category_trend(category_qid, depth, start_date, end_date)
+            engine_lock.get_category_trend(category_qid, 0, start_date, end_date)
         };
 
         Ok(raw_data
@@ -97,7 +96,6 @@ impl GoogleSearchService {
         category_qid: u32,
         start_date: NaiveDate,
         end_date: NaiveDate,
-        depth: u32,
         limit: usize,
     ) -> Result<Vec<ArticleSearchRank>, CoreServiceError> {
         let engine = EngineService::get_or_build_google_search_engine(state, wiki).await?;
@@ -108,7 +106,7 @@ impl GoogleSearchService {
             })?;
 
             engine_lock
-                .get_top_articles_in_category(category_qid, start_date, end_date, depth, limit)
+                .get_top_articles_in_category(category_qid, start_date, end_date, 0, limit)
                 .map_err(|e| {
                     CoreServiceError::EngineError(format!("Failed to get top articles: {}", e))
                 })?

@@ -43,8 +43,6 @@ async function onSubmit(event) {
 	const baselineEndDate = document.getElementById("baseline_end_date").value;
 	const impactStartDate = document.getElementById("impact_start_date").value;
 	const impactEndDate = document.getElementById("impact_end_date").value;
-
-	const depth = document.getElementById("depth").value;
 	const limit = document.getElementById("limit").value;
 
 	params.append("wiki", wiki);
@@ -52,7 +50,6 @@ async function onSubmit(event) {
 	params.append("baseline_end_date", baselineEndDate);
 	params.append("impact_start_date", impactStartDate);
 	params.append("impact_end_date", impactEndDate);
-	params.append("depth", depth);
 	params.append("limit", limit);
 	try {
 		// Update the browser URL with the new parameters
@@ -65,7 +62,6 @@ async function onSubmit(event) {
 			baselineEndDate,
 			impactStartDate,
 			impactEndDate,
-			depth,
 			limit,
 		);
 		if (data) {
@@ -93,7 +89,6 @@ async function fetchDeltaData(
 	baselineEndDate,
 	impactStartDate,
 	impactEndDate,
-	depth,
 	limit,
 ) {
 	const params = new URLSearchParams({
@@ -102,7 +97,6 @@ async function fetchDeltaData(
 		baseline_end_date: baselineEndDate,
 		impact_start_date: impactStartDate,
 		impact_end_date: impactEndDate,
-		depth: depth || 0,
 		limit: limit || 100,
 	});
 
@@ -131,7 +125,6 @@ async function fetchArticleDeltaData(
 	baselineEndDate,
 	impactStartDate,
 	impactEndDate,
-	depth,
 	limit,
 ) {
 	const params = new URLSearchParams({
@@ -141,7 +134,6 @@ async function fetchArticleDeltaData(
 		baseline_end_date: baselineEndDate,
 		impact_start_date: impactStartDate,
 		impact_end_date: impactEndDate,
-		depth: depth || 0,
 		limit: limit || 50,
 	});
 
@@ -284,9 +276,8 @@ function createCategoryAccordion(category, type, accordionName) {
 	plotLink.target = "_blank";
 	plotLink.rel = "noopener noreferrer";
 
-	// Get wiki and depth from form
+	// Get wiki from form
 	const wiki = document.getElementById("wiki").value;
-	const depth = document.getElementById("depth").value || "0";
 
 	// Build plot URL with date range (today - 1 month to yesterday)
 	const endDate = new Date();
@@ -295,7 +286,7 @@ function createCategoryAccordion(category, type, accordionName) {
 	startDate.setMonth(startDate.getMonth() - 1); // One month ago
 
 	const formatDate = (date) => date.toISOString().split("T")[0];
-	plotLink.href = `/pageedits/trends?type=category&wiki=${wiki}&start_date=${formatDate(startDate)}&end_date=${formatDate(endDate)}&depth=${depth}&category=${category.category_title}`;
+	plotLink.href = `/pageedits/trends?type=category&wiki=${wiki}&start_date=${formatDate(startDate)}&end_date=${formatDate(endDate)}&category=${category.category_title}`;
 
 	// Prevent accordion toggle when clicking plot button
 	plotLink.addEventListener("click", (e) => {
@@ -348,7 +339,6 @@ async function handleAccordionToggle(event) {
 			const impactStartDate =
 				document.getElementById("impact_start_date").value;
 			const impactEndDate = document.getElementById("impact_end_date").value;
-			const depth = document.getElementById("depth").value;
 
 			const articlesData = await fetchArticleDeltaData(
 				wiki,
@@ -357,7 +347,6 @@ async function handleAccordionToggle(event) {
 				baselineEndDate,
 				impactStartDate,
 				impactEndDate,
-				depth,
 				100, // Fetch more articles (no pagination needed)
 			);
 

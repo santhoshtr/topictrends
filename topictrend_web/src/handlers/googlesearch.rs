@@ -23,7 +23,6 @@ pub async fn get_category_google_search_trend_handler(
         &params.wiki,
         &params.category,
         params.category_qid,
-        params.depth,
         params.start_date,
         params.end_date,
     )
@@ -105,7 +104,6 @@ pub async fn get_topic_google_search_trend_handler(
         state,
         &params.wiki,
         &params.topic,
-        params.depth,
         params.start_date,
         params.end_date,
     )

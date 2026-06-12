@@ -61,7 +61,7 @@ impl TopicTrendMcpServer {
         };
 
         let article_qids = CategoryService::get_category_articles(
-            Arc::clone(&self.state), &p.wiki, category_qid, 0, p.min_agreement.unwrap_or(1),
+            Arc::clone(&self.state), &p.wiki, category_qid, p.min_agreement.unwrap_or(1),
         ).await.map_err(core_err)?;
 
         let titles = QidService::get_titles_by_qids(
@@ -96,7 +96,7 @@ impl TopicTrendMcpServer {
             .collect();
 
         let result = ContentGapService::get_topic_content_gap(
-            Arc::clone(&self.state), &p.topic, wikis, p.depth,
+            Arc::clone(&self.state), &p.topic, wikis,
         ).await.map_err(core_err)?;
 
         Ok(rmcp::handler::server::wrapper::Json(result))

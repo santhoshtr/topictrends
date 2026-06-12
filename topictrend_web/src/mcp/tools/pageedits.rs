@@ -32,7 +32,7 @@ impl TopicTrendMcpServer {
         let start = parse_date_opt(p.start_date)?;
         let end = parse_date_opt(p.end_date)?;
         let r = PageEditsService::get_category_edit_trend(
-            Arc::clone(&self.state), &p.wiki, &p.category, p.category_qid, p.depth, start, end,
+            Arc::clone(&self.state), &p.wiki, &p.category, p.category_qid, start, end,
         ).await.map_err(core_err)?;
 
         Ok(rmcp::handler::server::wrapper::Json(CategoryEditTrendResponse {
@@ -82,7 +82,7 @@ impl TopicTrendMcpServer {
         let start = parse_date_opt(p.start_date)?;
         let end = parse_date_opt(p.end_date)?;
         let r = PageEditsService::get_topic_edit_trend(
-            Arc::clone(&self.state), &p.wiki, &p.topic, p.depth, start, end,
+            Arc::clone(&self.state), &p.wiki, &p.topic, start, end,
         ).await.map_err(core_err)?;
 
         Ok(rmcp::handler::server::wrapper::Json(CategoryEditTrendResponse {

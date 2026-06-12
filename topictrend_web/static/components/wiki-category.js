@@ -113,7 +113,6 @@ class WikiCategory extends HTMLElement {
 		const trendParams = new URLSearchParams({
 			type: "category",
 			wiki: this.wiki,
-			depth: "4",
 			category: this.title,
 		});
 		if (this.start_date) trendParams.set("start_date", this.start_date);

@@ -11,14 +11,13 @@ impl ContentGapService {
         category_qid: u32,
         category_label: &str,
         wikis: Vec<String>,
-        depth: u32,
     ) -> Result<ContentGapResult, CoreServiceError> {
         let mut results: Vec<ContentGapWikiResult> = Vec::new();
 
         for wiki in &wikis {
             let graph = EngineService::get_or_build_graph_engine(Arc::clone(&state), wiki).await?;
             let article_count = graph
-                .get_articles_in_category(category_qid, depth)
+                .get_articles_in_category(category_qid, 0)
                 .map_err(CoreServiceError::EngineError)?
                 .len();
 
@@ -31,7 +30,6 @@ impl ContentGapService {
         Ok(ContentGapResult {
             category: category_label.to_string(),
             category_qid,
-            depth,
             wikis: results,
         })
     }
@@ -40,9 +38,7 @@ impl ContentGapService {
         state: Arc<AppState>,
         topic: &str,
         wikis: Vec<String>,
-        depth: Option<u32>,
     ) -> Result<ContentGapResult, CoreServiceError> {
-        let effective_depth = depth.unwrap_or(0);
         let category_qids = taxonomy_search_category_qids(topic).await?;
 
         let mut results: Vec<ContentGapWikiResult> = Vec::new();
@@ -53,7 +49,7 @@ impl ContentGapService {
 
             for qid in &category_qids {
                 let articles = graph
-                    .get_articles_in_category(*qid, effective_depth)
+                    .get_articles_in_category(*qid, 0)
                     .map_err(CoreServiceError::EngineError)?;
                 total_article_count += articles.len();
             }
@@ -67,7 +63,6 @@ impl ContentGapService {
         Ok(ContentGapResult {
             category: topic.to_string(),
             category_qid: 0,
-            depth: effective_depth,
             wikis: results,
         })
     }

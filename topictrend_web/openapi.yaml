@@ -42,7 +42,6 @@ paths:
         - $ref: "#/components/parameters/Wiki"
         - $ref: "#/components/parameters/Category"
         - $ref: "#/components/parameters/CategoryQidOptional"
-        - $ref: "#/components/parameters/DepthOptional"
         - $ref: "#/components/parameters/StartDateOptional"
         - $ref: "#/components/parameters/EndDateOptional"
       responses:
@@ -91,7 +90,6 @@ paths:
         - $ref: "#/components/parameters/Wiki"
         - $ref: "#/components/parameters/Category"
         - $ref: "#/components/parameters/CategoryQidOptional"
-        - $ref: "#/components/parameters/DepthOptional"
         - $ref: "#/components/parameters/StartDateOptional"
         - $ref: "#/components/parameters/EndDateOptional"
       responses:
@@ -140,7 +138,6 @@ paths:
         - $ref: "#/components/parameters/Wiki"
         - $ref: "#/components/parameters/Category"
         - $ref: "#/components/parameters/CategoryQidOptional"
-        - $ref: "#/components/parameters/DepthOptional"
         - $ref: "#/components/parameters/StartDateOptional"
         - $ref: "#/components/parameters/EndDateOptional"
       responses:
@@ -195,7 +192,6 @@ paths:
       parameters:
         - $ref: "#/components/parameters/Wiki"
         - $ref: "#/components/parameters/Topic"
-        - $ref: "#/components/parameters/DepthOptional"
         - $ref: "#/components/parameters/StartDateOptional"
         - $ref: "#/components/parameters/EndDateOptional"
       responses:
@@ -221,7 +217,6 @@ paths:
       parameters:
         - $ref: "#/components/parameters/Wiki"
         - $ref: "#/components/parameters/Topic"
-        - $ref: "#/components/parameters/DepthOptional"
         - $ref: "#/components/parameters/StartDateOptional"
         - $ref: "#/components/parameters/EndDateOptional"
       responses:
@@ -248,7 +243,6 @@ paths:
       parameters:
         - $ref: "#/components/parameters/Wiki"
         - $ref: "#/components/parameters/Topic"
-        - $ref: "#/components/parameters/DepthOptional"
         - $ref: "#/components/parameters/StartDateOptional"
         - $ref: "#/components/parameters/EndDateOptional"
       responses:
@@ -439,7 +433,6 @@ paths:
         - $ref: "#/components/parameters/ImpactStartDate"
         - $ref: "#/components/parameters/ImpactEndDate"
         - $ref: "#/components/parameters/LimitOptional"
-        - $ref: "#/components/parameters/DepthOptional"
       responses:
         "200":
           description: OK
@@ -466,7 +459,6 @@ paths:
         - $ref: "#/components/parameters/ImpactStartDate"
         - $ref: "#/components/parameters/ImpactEndDate"
         - $ref: "#/components/parameters/LimitOptional"
-        - $ref: "#/components/parameters/DepthOptional"
       responses:
         "200":
           description: OK
@@ -492,7 +484,6 @@ paths:
         - $ref: "#/components/parameters/ImpactStartDate"
         - $ref: "#/components/parameters/ImpactEndDate"
         - $ref: "#/components/parameters/LimitOptional"
-        - $ref: "#/components/parameters/DepthOptional"
       responses:
         "200":
           description: OK
@@ -519,7 +510,6 @@ paths:
         - $ref: "#/components/parameters/ImpactStartDate"
         - $ref: "#/components/parameters/ImpactEndDate"
         - $ref: "#/components/parameters/LimitOptional"
-        - $ref: "#/components/parameters/DepthOptional"
       responses:
         "200":
           description: OK
@@ -545,7 +535,6 @@ paths:
         - $ref: "#/components/parameters/ImpactStartDate"
         - $ref: "#/components/parameters/ImpactEndDate"
         - $ref: "#/components/parameters/LimitOptional"
-        - $ref: "#/components/parameters/DepthOptional"
       responses:
         "200":
           description: OK
@@ -572,7 +561,6 @@ paths:
         - $ref: "#/components/parameters/ImpactStartDate"
         - $ref: "#/components/parameters/ImpactEndDate"
         - $ref: "#/components/parameters/LimitOptional"
-        - $ref: "#/components/parameters/DepthOptional"
       responses:
         "200":
           description: OK
@@ -741,7 +729,6 @@ paths:
       parameters:
         - $ref: "#/components/parameters/Topic"
         - $ref: "#/components/parameters/Wikis"
-        - $ref: "#/components/parameters/DepthOptional"
       responses:
         "200":
           description: OK
@@ -919,17 +906,6 @@ components:
         type: integer
         format: int32
         minimum: 0
-
-    DepthOptional:
-      name: depth
-      in: query
-      required: false
-      description: Traversal depth (0 = direct members only, the default).
-      schema:
-        type: integer
-        format: int32
-        minimum: 0
-        default: 0
 
     LimitOptional:
       name: limit
@@ -1901,7 +1877,7 @@ components:
 
     ContentGapResult:
       type: object
-      required: [category, category_qid, depth, wikis]
+      required: [category, category_qid, wikis]
       properties:
         category:
           type: string
@@ -1911,11 +1887,6 @@ components:
           format: int32
           minimum: 0
           description: Wikidata QID (0 for topic searches)
-        depth:
-          type: integer
-          format: int32
-          minimum: 0
-          description: Traversal depth used in the query
         wikis:
           type: array
           items:

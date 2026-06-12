@@ -40,7 +40,6 @@ impl GoogleSearchDeltaService {
         impact_start: NaiveDate,
         impact_end: NaiveDate,
         limit: usize,
-        depth: u32,
     ) -> Result<Vec<GoogleSearchCategoryDeltaItem>, CoreServiceError> {
         let baseline_categories = GoogleSearchService::get_top_categories(
             Arc::clone(&state),
@@ -100,7 +99,6 @@ impl GoogleSearchDeltaService {
                     *qid,
                     baseline_start,
                     baseline_end,
-                    depth,
                 )
                 .await
             {
@@ -116,7 +114,6 @@ impl GoogleSearchDeltaService {
                     *qid,
                     impact_start,
                     impact_end,
-                    depth,
                 )
                 .await
             {
@@ -174,7 +171,6 @@ impl GoogleSearchDeltaService {
         impact_start: NaiveDate,
         impact_end: NaiveDate,
         limit: usize,
-        depth: u32,
     ) -> Result<Vec<GoogleSearchArticleDeltaItem>, CoreServiceError> {
         let baseline_articles = GoogleSearchService::get_top_articles(
             Arc::clone(&state),
@@ -182,7 +178,6 @@ impl GoogleSearchDeltaService {
             category_qid,
             baseline_start,
             baseline_end,
-            depth,
             limit,
         )
         .await?;
@@ -193,7 +188,6 @@ impl GoogleSearchDeltaService {
             category_qid,
             impact_start,
             impact_end,
-            depth,
             limit,
         )
         .await?;

@@ -146,13 +146,11 @@ async function onSubmit(event) {
 	const wiki = document.getElementById("wiki").value;
 	const startDate = document.getElementById("start_date").value;
 	const endDate = document.getElementById("end_date").value;
-	const depth = document.getElementById("depth").value;
 
 	params.append("type", type);
 	params.append("wiki", wiki);
 	params.append("start_date", startDate);
 	params.append("end_date", endDate);
-	params.append("depth", depth);
 
 	try {
 		if (type === "topic") {
@@ -174,7 +172,7 @@ async function onSubmit(event) {
 				"",
 				`${window.location.pathname}?${params.toString()}`,
 			);
-			await fetchCategorySearchData(wiki, category, startDate, endDate, depth);
+			await fetchCategorySearchData(wiki, category, startDate, endDate);
 		} else {
 			const article = document
 				.getElementById("article")
@@ -193,8 +191,8 @@ async function onSubmit(event) {
 	}
 }
 
-async function fetchTopicSearchData(wiki, topic, startDate, endDate, depth) {
-	const url = `/api/googlesearch/topic?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&topic=${encodeURIComponent(topic)}`;
+async function fetchTopicSearchData(wiki, topic, startDate, endDate) {
+	const url = `/api/googlesearch/topic?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&topic=${encodeURIComponent(topic)}`;
 	const label = `Topic: ${wiki} - ${topic.replaceAll("_", " ")}`;
 
 	try {
@@ -222,9 +220,8 @@ async function fetchCategorySearchData(
 	category,
 	startDate,
 	endDate,
-	depth,
 ) {
-	const url = `/api/googlesearch/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&depth=${depth}&category=${encodeURIComponent(category)}`;
+	const url = `/api/googlesearch/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&category=${encodeURIComponent(category)}`;
 	const label = `Category: ${wiki} - ${category.replaceAll("_", " ")}`;
 
 	try {

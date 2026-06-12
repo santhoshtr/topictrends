@@ -72,11 +72,9 @@ impl PageViewsService {
         wiki: &str,
         category: &str,
         category_qid: Option<u32>,
-        depth: Option<u32>,
         start_date: Option<NaiveDate>,
         end_date: Option<NaiveDate>,
     ) -> Result<CategoryTrendResult, ServiceError> {
-        let depth = depth.unwrap_or(0);
         let start = start_date
             .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
         let end = end_date.unwrap_or_else(|| chrono::Local::now().date_naive());
@@ -94,7 +92,6 @@ impl PageViewsService {
             category_qid,
             start,
             end,
-            depth,
         )
         .await?;
 
@@ -105,7 +102,6 @@ impl PageViewsService {
             category_qid,
             start,
             end,
-            depth,
             10,
         )
         .await?;
@@ -145,11 +141,9 @@ impl PageViewsService {
         state: Arc<AppState>,
         wiki: &str,
         category_qids: Vec<u32>,
-        depth: Option<u32>,
         start_date: Option<NaiveDate>,
         end_date: Option<NaiveDate>,
     ) -> Result<CategoriesTrendResult, ServiceError> {
-        let depth = depth.unwrap_or(0);
         let start = start_date
             .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
         let end = end_date.unwrap_or_else(|| chrono::Local::now().date_naive());
@@ -171,7 +165,6 @@ impl PageViewsService {
                 *category_qid,
                 start,
                 end,
-                depth,
             )
             .await?;
 
@@ -187,7 +180,6 @@ impl PageViewsService {
                 *category_qid,
                 start,
                 end,
-                depth,
                 50, // Get more articles per category to ensure good global top
             )
             .await?;
@@ -319,7 +311,6 @@ impl PageViewsService {
         state: Arc<AppState>,
         wiki: &str,
         topic: &str,
-        depth: Option<u32>,
         start_date: Option<NaiveDate>,
         end_date: Option<NaiveDate>,
     ) -> Result<CategoryTrendResult, ServiceError> {
@@ -328,7 +319,6 @@ impl PageViewsService {
             Arc::clone(&state),
             wiki,
             category_qids,
-            Some(depth.unwrap_or(1)),
             start_date,
             end_date,
         )
@@ -533,7 +523,7 @@ impl PageViewsService {
 
         // Get all articles in the category (depth 0 = direct members only)
         let article_qids =
-            CategoryService::get_category_articles(Arc::clone(&state), wiki, category_qid, 0, 1)
+            CategoryService::get_category_articles(Arc::clone(&state), wiki, category_qid, 1)
                 .await?;
 
         // Get titles for all articles

@@ -36,7 +36,6 @@ impl PageEditDeltaService {
         impact_start: NaiveDate,
         impact_end: NaiveDate,
         limit: usize,
-        depth: u32,
     ) -> Result<Vec<PageEditCategoryDeltaItem>, CoreServiceError> {
         // STEP 1: Get top categories from BOTH periods
         let baseline_categories = PageEditService::get_top_categories(
@@ -96,7 +95,6 @@ impl PageEditDeltaService {
                     *qid,
                     baseline_start,
                     baseline_end,
-                    depth,
                 )
                 .await
             {
@@ -112,7 +110,6 @@ impl PageEditDeltaService {
                     *qid,
                     impact_start,
                     impact_end,
-                    depth,
                 )
                 .await
             {
@@ -171,7 +168,6 @@ impl PageEditDeltaService {
         impact_start: NaiveDate,
         impact_end: NaiveDate,
         limit: usize,
-        depth: u32,
     ) -> Result<Vec<PageEditArticleDeltaItem>, CoreServiceError> {
         // STEP 1: Get top articles from BOTH periods
         let baseline_articles = PageEditService::get_top_articles(
@@ -180,7 +176,6 @@ impl PageEditDeltaService {
             category_qid,
             baseline_start,
             baseline_end,
-            depth,
             limit,
         )
         .await?;
@@ -191,7 +186,6 @@ impl PageEditDeltaService {
             category_qid,
             impact_start,
             impact_end,
-            depth,
             limit,
         )
         .await?;

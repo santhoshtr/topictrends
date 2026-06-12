@@ -99,7 +99,6 @@ impl AppState {
 pub struct CategoryTrendParams {
     pub wiki: String,
     pub category: String,
-    pub depth: Option<u32>,
     pub category_qid: Option<u32>,
     pub start_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
@@ -128,7 +127,6 @@ pub struct ArticleTrendParams {
 pub struct TopicTrendParams {
     pub wiki: String,
     pub topic: String,
-    pub depth: Option<u32>,
     pub start_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
 }
@@ -156,7 +154,6 @@ pub struct PageViewCategoryDeltaParams {
     pub impact_start_date: NaiveDate,
     pub impact_end_date: NaiveDate,
     pub limit: Option<u32>,
-    pub depth: Option<u32>,
 }
 
 #[derive(Deserialize)]
@@ -168,7 +165,6 @@ pub struct PageViewArticleDeltaParams {
     pub impact_start_date: NaiveDate,
     pub impact_end_date: NaiveDate,
     pub limit: Option<u32>,
-    pub depth: Option<u32>,
 }
 
 #[derive(Deserialize)]
@@ -179,7 +175,6 @@ pub struct PageEditCategoryDeltaParams {
     pub impact_start_date: NaiveDate,
     pub impact_end_date: NaiveDate,
     pub limit: Option<u32>,
-    pub depth: Option<u32>,
 }
 
 #[derive(Deserialize)]
@@ -191,7 +186,6 @@ pub struct PageEditArticleDeltaParams {
     pub impact_start_date: NaiveDate,
     pub impact_end_date: NaiveDate,
     pub limit: Option<u32>,
-    pub depth: Option<u32>,
 }
 
 #[derive(Deserialize)]
@@ -202,7 +196,6 @@ pub struct GoogleSearchCategoryDeltaParams {
     pub impact_start_date: NaiveDate,
     pub impact_end_date: NaiveDate,
     pub limit: Option<u32>,
-    pub depth: Option<u32>,
 }
 
 #[derive(Deserialize)]
@@ -214,7 +207,6 @@ pub struct GoogleSearchArticleDeltaParams {
     pub impact_start_date: NaiveDate,
     pub impact_end_date: NaiveDate,
     pub limit: Option<u32>,
-    pub depth: Option<u32>,
 }
 
 // --- Response DTO ---
@@ -619,14 +611,12 @@ pub struct ContentGapParams {
     pub category: Option<String>,
     pub category_qid: Option<u32>,
     pub wikis: String,
-    pub depth: Option<u32>,
 }
 
 #[derive(Deserialize)]
 pub struct ContentGapTopicParams {
     pub topic: String,
     pub wikis: String,
-    pub depth: Option<u32>,
 }
 
 #[derive(Deserialize)]
@@ -687,6 +677,5 @@ pub struct ContentGapWikiResult {
 pub struct ContentGapResult {
     pub category: String,
     pub category_qid: u32,
-    pub depth: u32,
     pub wikis: Vec<ContentGapWikiResult>,
 }

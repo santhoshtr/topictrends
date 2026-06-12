@@ -101,7 +101,6 @@ pub async fn get_categories_trend_by_search_handler(
         state,
         &params.wiki,
         category_qids,
-        Some(0u32),
         params.start_date,
         params.end_date,
     )
@@ -163,7 +162,6 @@ pub async fn get_articles_in_category(
         Arc::clone(&state),
         params.wiki.as_str(),
         category_qid,
-        0,
         params.min_agreement.unwrap_or(1),
     )
     .await?;
@@ -196,7 +194,6 @@ pub async fn get_content_gap_handler(
     Query(params): Query<ContentGapParams>,
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ContentGapResult>, ApiError> {
-    let depth = params.depth.unwrap_or(0);
 
     let wikis: Vec<String> = params
         .wikis
@@ -223,7 +220,7 @@ pub async fn get_content_gap_handler(
         .unwrap_or_else(|| format!("Q{}", category_qid));
 
     let result =
-        ContentGapService::get_content_gap(state, category_qid, &category_label, wikis, depth)
+        ContentGapService::get_content_gap(state, category_qid, &category_label, wikis)
             .await?;
 
     Ok(Json(result))
@@ -242,7 +239,7 @@ pub async fn get_content_gap_topic_handler(
         .collect();
 
     let result =
-        ContentGapService::get_topic_content_gap(state, &params.topic, wikis, params.depth)
+        ContentGapService::get_topic_content_gap(state, &params.topic, wikis)
             .await?;
 
     Ok(Json(result))

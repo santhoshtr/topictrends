@@ -36,12 +36,11 @@ impl TopicTrendMcpServer {
         let impact_start   = parse_date(&p.impact_start_date)?;
         let impact_end     = parse_date(&p.impact_end_date)?;
         let limit = p.limit.unwrap_or(100) as usize;
-        let depth = p.depth.unwrap_or(0);
 
         let items = PageViewDeltaService::get_category_delta(
             Arc::clone(&self.state), &p.wiki,
             baseline_start, baseline_end, impact_start, impact_end,
-            limit, depth,
+            limit,
         ).await.map_err(core_err)?;
 
         Ok(rmcp::handler::server::wrapper::Json(PageViewCategoryDeltaResponse {
@@ -73,12 +72,11 @@ impl TopicTrendMcpServer {
         let impact_start   = parse_date(&p.impact_start_date)?;
         let impact_end     = parse_date(&p.impact_end_date)?;
         let limit = p.limit.unwrap_or(100) as usize;
-        let depth = p.depth.unwrap_or(0);
 
         let items = PageViewDeltaService::get_article_delta(
             Arc::clone(&self.state), &p.wiki, p.category_qid,
             baseline_start, baseline_end, impact_start, impact_end,
-            limit, depth,
+            limit,
         ).await.map_err(core_err)?;
 
         Ok(rmcp::handler::server::wrapper::Json(PageViewArticleDeltaResponse {
@@ -112,12 +110,11 @@ impl TopicTrendMcpServer {
         let impact_start   = parse_date(&p.impact_start_date)?;
         let impact_end     = parse_date(&p.impact_end_date)?;
         let limit = p.limit.unwrap_or(100) as usize;
-        let depth = p.depth.unwrap_or(0);
 
         let items = PageEditDeltaService::get_category_delta(
             Arc::clone(&self.state), &p.wiki,
             baseline_start, baseline_end, impact_start, impact_end,
-            limit, depth,
+            limit,
         ).await.map_err(core_err)?;
 
         Ok(rmcp::handler::server::wrapper::Json(PageEditCategoryDeltaResponse {
@@ -149,12 +146,11 @@ impl TopicTrendMcpServer {
         let impact_start   = parse_date(&p.impact_start_date)?;
         let impact_end     = parse_date(&p.impact_end_date)?;
         let limit = p.limit.unwrap_or(100) as usize;
-        let depth = p.depth.unwrap_or(0);
 
         let items = PageEditDeltaService::get_article_delta(
             Arc::clone(&self.state), &p.wiki, p.category_qid,
             baseline_start, baseline_end, impact_start, impact_end,
-            limit, depth,
+            limit,
         ).await.map_err(core_err)?;
 
         Ok(rmcp::handler::server::wrapper::Json(PageEditArticleDeltaResponse {
@@ -188,12 +184,11 @@ impl TopicTrendMcpServer {
         let impact_start   = parse_date(&p.impact_start_date)?;
         let impact_end     = parse_date(&p.impact_end_date)?;
         let limit = p.limit.unwrap_or(100) as usize;
-        let depth = p.depth.unwrap_or(0);
 
         let items = GoogleSearchDeltaService::get_category_delta(
             Arc::clone(&self.state), &p.wiki,
             baseline_start, baseline_end, impact_start, impact_end,
-            limit, depth,
+            limit,
         ).await.map_err(core_err)?;
 
         Ok(rmcp::handler::server::wrapper::Json(GoogleSearchCategoryDeltaResponse {
@@ -227,12 +222,11 @@ impl TopicTrendMcpServer {
         let impact_start   = parse_date(&p.impact_start_date)?;
         let impact_end     = parse_date(&p.impact_end_date)?;
         let limit = p.limit.unwrap_or(100) as usize;
-        let depth = p.depth.unwrap_or(0);
 
         let items = GoogleSearchDeltaService::get_article_delta(
             Arc::clone(&self.state), &p.wiki, p.category_qid,
             baseline_start, baseline_end, impact_start, impact_end,
-            limit, depth,
+            limit,
         ).await.map_err(core_err)?;
 
         Ok(rmcp::handler::server::wrapper::Json(GoogleSearchArticleDeltaResponse {

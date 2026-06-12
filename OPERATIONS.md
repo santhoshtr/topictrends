@@ -124,13 +124,13 @@ PORT=8765
 # Data directory path (optional, defaults to "data")
 DATA_DIR=data
 
-# Topology source for graph building (optional). "canonical" builds each
+# Topology source for graph building (optional). The default builds each
 # wiki's graph from the cross-wiki canonical projection
 # (article_category_canonical.parquet + categories_canonical.parquet,
-# produced by `make canonical`) instead of the local relation. Article->
-# category edges then carry cross-wiki agreement weights; the category
-# hierarchy stays local. Unset (default) = local relation, v1 behavior.
-TOPICTREND_TOPOLOGY=canonical
+# produced by `make canonical`); article->category edges carry cross-wiki
+# agreement weights and the category hierarchy stays local. "local" selects
+# the wiki's own relation instead (rollback path).
+TOPICTREND_TOPOLOGY=local
 
 # Maximum number of distinct dates the pageview engine keeps in its
 # in-memory cache, per wiki (optional, defaults to 120). Each cached
@@ -660,7 +660,7 @@ wikis reload from parquet on the next request.
 # Topology parquets present for the wikis you serve?
 ls data/enwiki/{articles,categories,article_category,category_graph}.parquet
 
-# Canonical artifacts present when running TOPICTREND_TOPOLOGY=canonical?
+# Canonical artifacts present? (the default topology needs them; run `make canonical`)
 ls data/enwiki/article_category_canonical.parquet data/canonical/
 
 # Check if embedding service is required
