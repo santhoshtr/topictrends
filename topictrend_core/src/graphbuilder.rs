@@ -22,12 +22,12 @@ impl GraphBuilder {
     pub fn build(&self) -> Result<WikiGraph> {
         let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "data".to_string());
 
-        // TOPICTREND_TOPOLOGY=canonical switches the article->category relation
-        // (and the category node universe) to the cross-wiki canonical
-        // projection produced by `make canonical`. Articles and the category
-        // hierarchy stay local in both modes.
-        let canonical =
-            std::env::var("TOPICTREND_TOPOLOGY").is_ok_and(|v| v == "canonical");
+        // The article->category relation (and the category node universe)
+        // come from the cross-wiki canonical projection produced by
+        // `make canonical` — the default. TOPICTREND_TOPOLOGY=local selects
+        // the wiki's own relation instead (rollback path). Articles and the
+        // category hierarchy are local in both modes.
+        let canonical = !std::env::var("TOPICTREND_TOPOLOGY").is_ok_and(|v| v == "local");
 
         println!(
             "Starting Graph Build for {} ({} topology)...",
