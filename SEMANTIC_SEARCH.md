@@ -34,7 +34,7 @@ The index is built once and refreshed after each monthly topology update:
 
 1. Load English Wikipedia categories from `data/enwiki/categories.parquet`
 2. Batch categories in groups of 100
-3. Encode each batch via the gRPC embedding service
+3. Encode each batch in-process with `fastembed` (ONNX `all-MiniLM-L12-v2`)
 4. Insert vectors into zvec collection `enwiki-categories` (keyed by QID)
 5. Build HNSW index
 
@@ -44,7 +44,7 @@ Runtime: ~30 minutes. See [OPERATIONS.md](OPERATIONS.md#semantic-search-setup) f
 
 When a semantic search request arrives (e.g., `query=machine learning`, `wiki=frwiki`):
 
-1. **Encode**: The English query string is sent to the embedding service and converted to a 384-dimensional vector.
+1. **Encode**: The English query string is encoded in-process by `fastembed` into a 384-dimensional vector.
 2. **Search**: The vector is searched against the `enwiki-categories` zvec collection, returning the top-k results with cosine similarity scores.
 3. **Filter & translate** (if target wiki ≠ enwiki): Results are kept only if the category is populated in the target wiki's canonical graph (`qid_overlap > 0` in its coverage snapshot) — a local category page is not required, since the canonical projection populates categories the wiki never created. Titles resolve from the target wiki's parquet title store, falling back to the canonical label table (usually the English label) for categories with no local page.
 4. **Return**: Results include both the English title (from embeddings) and the translated title, plus the similarity score.
@@ -78,13 +78,14 @@ The semantic understanding comes from the English embedding model; the cross-lin
 
 - **Query language**: Queries must be in English. The embedding model understands English semantics only. Queries in other languages will return results, but semantic matching quality is degraded because the model was not trained on those languages.
 - **Coverage**: Categories that exist in the target wiki but have no English equivalent (no QID link to enwiki) are not reachable through semantic search.
-- **Embedding service dependency**: Semantic search endpoints require the embedding gRPC service to be running. Other API endpoints function normally without it.
+- **Native library**: Semantic search loads the `zvec` native library (`libzvec_c_api.so`) at runtime; it must be on the loader path (the Makefile targets set this). Encoding and search run in-process, so there is no separate service to keep alive.
+- **Model load**: The `fastembed` model is loaded lazily on first use (~300 ms warm, longer on the first run if the ONNX model still needs downloading) and then reused for the process lifetime.
 
 ## Latency Profile
 
 | Step | Typical Time |
 |---|---|
-| Query encoding (embedding service) | 10–50 ms |
+| Query encoding (`fastembed`, in-process) | ~4–5 ms |
 | HNSW nearest-neighbor search (zvec) | 5–20 ms |
 | Coverage filter + QID→title translation (parquet stores, in-memory after first load) | 1–5 ms |
-| **Total** | **50–150 ms** |
+| **Total** | **~10–30 ms** |

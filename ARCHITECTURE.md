@@ -113,7 +113,7 @@ The architecture scales with the number of categories (2.5 million for English),
 TopicTrends follows Unix philosophy: small, focused crates with single responsibilities, each tested in isolation.
 
 - **`topictrend_core`**: Pure numeric algorithms — CSR traversal, level-wise aggregation, visited-set cycle handling. Tested with synthetic graphs of varying size and structure, no external dependencies.
-- **`topictrend_taxonomy`**: Semantic search integration — embedding service client, zvec queries. Tested against the live embedding service and zvec.
+- **`topictrend_taxonomy`**: Semantic search — in-process embedding inference (fastembed) and zvec queries. Tested against the on-disk zvec collections.
 - **`topictrend_web`**: HTTP routing and title-to-QID translation. Tested against the real MariaDB replica.
 
 This separation enables rapid iteration. Algorithmic improvements to `topictrend_core` can be validated without involving external services.

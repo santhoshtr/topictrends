@@ -4,3 +4,4 @@
 *.parquet
 sync.sh
 .venv/
+.fastembed_cache/

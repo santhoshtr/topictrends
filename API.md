@@ -365,7 +365,7 @@ curl "http://localhost:8765/api/search/categories?wiki=dewiki&query=quantum+comp
 **Error Responses:**
 
 - `400 Bad Request`: Invalid parameters or empty query
-- `503 Service Unavailable`: Embedding service or vector store unavailable
+- `503 Service Unavailable`: Vector store unavailable
 - `422 Unprocessable Entity`: Query too long (max ~1000 characters)
 
 ---
@@ -663,7 +663,7 @@ curl "http://localhost:8765/api/pageviews/categories?wiki=enwiki&category_query=
 **Error Responses:**
 
 - `400 Bad Request`: Invalid parameters or empty query
-- `503 Service Unavailable`: Embedding service unavailable
+- `503 Service Unavailable`: Vector store unavailable
 
 ---
 
@@ -747,7 +747,7 @@ All errors follow a consistent format:
 
 - `RESOURCE_NOT_FOUND` (404): Title or QID not found
 - `INVALID_PARAMETER` (400): Invalid wiki, date, or metric
-- `SERVICE_UNAVAILABLE` (503): Database or embedding service unavailable
+- `SERVICE_UNAVAILABLE` (503): Vector store unavailable
 - `UNPROCESSABLE_ENTITY` (422): Query parameters out of valid range
 - `INTERNAL_ERROR` (500): Unexpected server error (rare)
 
@@ -831,7 +831,7 @@ curl "http://localhost:8765/api/list/top_categories?wiki=frwiki&metric=trend_sco
 The system is designed for internal use without rate limiting. However, be mindful of:
 
 - **Trending queries** ($O(N)$): Can take 20-50ms. Cache results if polling frequently.
-- **Semantic search** ($O(\log N)$): 50-150ms. Embedding service is the bottleneck.
+- **Semantic search** ($O(\log N)$): ~10-30ms, dominated by the HNSW nearest-neighbor search.
 - **Database queries**: Title translation adds 5-10ms. Batch requests where possible.
 
 For high-frequency queries, consider:
@@ -854,7 +854,7 @@ For API versioning, prefix future versions with `/api/v2/`.
 For API issues:
 1. Check `/api/health` for component status
 2. Review logs: `RUST_LOG=debug ./topictrend_web`
-4. Test embedding service: `cd services/embedding && EMBEDDING_SERVER=localhost:50051 uv run python healthcheck.py`
+3. For semantic search, confirm the zvec collection exists (`ls data/embedding_store/zvec/enwiki-categories/`) and that `libzvec_c_api.so` is on `LD_LIBRARY_PATH` (`make web` sets it)
 
 For deployment and operational questions, see [OPERATIONS.md](OPERATIONS.md).
 For architectural context, see [README.md](README.md).
