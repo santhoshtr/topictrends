@@ -5,3 +5,4 @@
 sync.sh
 .venv/
 .fastembed_cache/
+.devcontainer/
