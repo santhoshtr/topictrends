@@ -30,11 +30,11 @@ This reduces storage from 3.3 TB to ~9.6 GB — a factor of ~345 — at the cost
 
 Vector search requires approximate nearest-neighbor indexing. The main alternatives considered:
 
-- **FAISS**: Requires lower-level C/Python integration and does not provide persistent storage out of the box.
+- **FAISS**: Requires lower-level integration and does not provide persistent storage out of the box.
 - **Qdrant**: Requires running a separate service, adding operational complexity.
 - **Cloud solutions** (Pinecone, etc.): Introduce vendor lock-in and network latency.
 
-zvec provides an in-process solution with a straightforward Python API, persistent on-disk storage, and HNSW indexing — without running a separate service. The embedding pipeline stays within a single operational boundary.
+zvec provides an in-process solution with a straightforward Rust API (the official `zvec` SDK), persistent on-disk storage, and HNSW indexing — without running a separate service. Embedding inference (`fastembed`, ONNX `all-MiniLM-L12-v2`) runs in the same process, so the entire semantic-search pipeline stays within a single operational boundary.
 
 ## What Was Sacrificed
 

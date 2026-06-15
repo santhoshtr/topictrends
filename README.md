@@ -26,7 +26,7 @@ cargo test                   # all crates
 make web                     # run the server on :8765 (needs .env with DB_USERNAME / DB_PASSWORD)
 ```
 
-`make web` health-checks the embedding service first: semantic search needs it, every other endpoint works without it. The full ETL pipeline (SQL replicas, pageview dumps) runs only on a Wikimedia Cloud VPS — see [OPERATIONS.md](OPERATIONS.md). Semantic-search indexing is covered in [SEMANTIC_SEARCH.md](SEMANTIC_SEARCH.md).
+`make web` runs the server directly; semantic search runs in-process, so no extra service is needed. The full ETL pipeline (SQL replicas, pageview dumps) runs only on a Wikimedia Cloud VPS — see [OPERATIONS.md](OPERATIONS.md). Semantic-search indexing is covered in [SEMANTIC_SEARCH.md](SEMANTIC_SEARCH.md).
 
 ## Crates
 
@@ -35,8 +35,7 @@ make web                     # run the server on :8765 (needs .env with DB_USERN
 | `topictrend_core` (lib `topictrend`) | Pure numeric engine — CSR adjacency, `WikiGraph`, the `PageViewEngine` / `PageEditsEngine` / `GoogleSearchEngine`, and per-day Parquet readers/writers. No strings, no HTTP, no DB; operates entirely on `u32` QIDs. |
 | `topictrend_cli` | ETL binaries (`get-articles`, `get-categories`, `get-categorygraph`, `get-article_category`, `get-pageviews`, `get-per_day_wiki_stats`, `get-day-pageedits`, `get-gsc-qid-date`) plus the `wikigraph` query CLI. Driven by the Makefile pipeline. |
 | `topictrend_web` | Axum HTTP server + MCP server. `routes.rs` → `handlers/` (title↔QID translation) → `services/core/` (single engine) or `services/composite/` (multiple engines). Tera templates, static assets. |
-| `topictrend_taxonomy` | gRPC client for the Python embedding service (`embedding.proto`, compiled via `tonic-build`). |
-| `services/embedding/` | Python (uv-managed) gRPC service running the sentence-transformer model; owns the zvec on-disk vector store. |
+| `topictrend_taxonomy` | In-process semantic search: query encoding via `fastembed` (ONNX `all-MiniLM-L12-v2`) and vector search via the `zvec` Rust SDK over the on-disk category embeddings. |
 
 ## Mental model
 

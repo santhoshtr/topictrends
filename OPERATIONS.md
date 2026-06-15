@@ -18,7 +18,6 @@ This document covers deployment, configuration, data ingestion, and operational 
 
 - **Rust toolchain** (1.70+): Install from https://rustup.rs/
 - **MariaDB client tools**: For the ETL pipeline's replica queries (not needed to run the web server)
-- **Python 3.12+** (required): For running embedding service
 - **Access to Wikimedia infrastructure**: Required for data ingestion from SQL replicas and pageview dumps
 - **Network connectivity**: To https://dumps.wikimedia.org for pageview data
 
@@ -57,11 +56,7 @@ make init
 ### Running the Web Server
 
 ```bash
-# Start the embedding service (required for semantic search)
-make embedding-server &
-# Or with docker: cd services/embedding && docker-compose up -d
-
-# Start the web server
+# Start the web server (semantic search runs in-process)
 make web
 
 # Server listens on http://localhost:8765
@@ -82,10 +77,9 @@ Loads topology at startup into memory (CSR graphs); loads time series (pageviews
 #### 3. Web Server (Axum)
 Thin translation layer. Handles HTTP requests, translates titles to QIDs from the topology parquets, invokes core engine, translates results back to titles.
 
-#### 4. Semantic Search (Microservices)
-Optional component for semantic search:
-- **Embedding Service**: Python gRPC server running a sentence transformer model
-- **Vector Database (zvec)**: In-process storage for 384-dimensional embeddings with HNSW indexing
+#### 4. Semantic Search (In-Process)
+- **Embedding inference**: `fastembed` runs the ONNX `all-MiniLM-L12-v2` model in-process
+- **Vector Database (zvec)**: In-process storage for 384-dimensional embeddings with HNSW indexing, via the `zvec` Rust SDK
 
 ### Data Flow
 
@@ -112,10 +106,7 @@ Wikipedia SQL Replicas
 Create a `.env` file in the project root or set these environment variables before running:
 
 ```bash
-# Embedding service endpoint (optional, only for semantic search)
-EMBEDDING_SERVER=http://localhost:50051
-
-# zvec vector database (in-process, no setup needed)
+# zvec vector store directory (in-process, no separate service)
 ZVEC_DIR=data/embedding_store/zvec
 
 # Web server port (optional, defaults to 8765)
@@ -147,7 +138,7 @@ TOPICTREND_TITLE_WIKIS=4
 ```
 
 **Optional Variables:**
-- `EMBEDDING_SERVER` is only needed if using semantic search endpoints
+- `ZVEC_DIR` overrides the zvec vector store directory (semantic search)
 - `PORT` overrides default if needed
 - `TOPICTREND_PAGEVIEW_CACHE_DAYS` bounds the pageview engine's per-date cache to control RSS. The cap is per wiki; the cache evicts in FIFO insertion order when full. Setting it below the largest expected single-query range is safe — concurrent requests get an `Arc`-snapshot of their range, so mid-query eviction does not corrupt results, but recent dates may need to be re-loaded from disk more often.
 
@@ -199,8 +190,8 @@ The ingestion process is separated into topology (structural data) and pageviews
 
 ### Topology Refresh (Monthly)
 
-**Frequency**: Monthly (or on-demand)  
-**Runtime**: ~1 hour  
+**Frequency**: Monthly (or on-demand)
+**Runtime**: ~1 hour
 **Operation**: Fetches complete Wikipedia topology for all 345 languages
 
 ```bash
@@ -227,8 +218,8 @@ Parquet format is chosen for:
 
 ### Daily Pageview Ingestion
 
-**Frequency**: Daily at 10:00 UTC  
-**Runtime**: ~10 minutes  
+**Frequency**: Daily at 10:00 UTC
+**Runtime**: ~10 minutes
 **Operation**: Processes yesterday's pageview data for all 345 wikis
 
 ```bash
@@ -499,9 +490,9 @@ Daily pageview, pageedit, and GSC Parquet files are not loaded at startup; each 
 
 The web server requires:
 - **The `data/` tree** (topology parquets; canonical artifacts for v2 topology and label fallback)
-- **Embedding service** (optional): Only if using semantic search endpoints
+- **The zvec native library** on the loader path and **the zvec category collections** under `ZVEC_DIR` — both only for semantic search (see [Semantic Search Setup](#semantic-search-setup))
 
-If the embedding service is unavailable, semantic search endpoints will return errors, but other APIs function normally. No database is needed.
+If the zvec collections are absent, semantic search endpoints return errors, but other APIs function normally. No database is needed.
 
 ### Health Checks
 
@@ -529,65 +520,36 @@ The server closes database connections cleanly on shutdown.
 
 ## Semantic Search Setup
 
+Semantic search runs in-process: query/title encoding via `fastembed` (ONNX `all-MiniLM-L12-v2`) and vector search via the `zvec` Rust SDK. There is no separate service to run.
+
 ### Prerequisites
 
-- **Python 3.12+** (to run embedding service)
-- **Embedding service**: Included in `services/embedding/`
+- **The zvec native library.** `zvec-sys`'s `build.rs` fetches a prebuilt `libzvec_c_api.so` during `cargo build`, into `target/release/build/zvec-sys-*/out/zvec-prebuilt/`. It has no embedded rpath, so that directory must be on `LD_LIBRARY_PATH` at runtime — `make web` and `make index-wiki` set this for you.
+- **The fastembed model.** `all-MiniLM-L12-v2` (384-dimensional) is downloaded from Hugging Face on first use, cached locally under `.fastembed_cache/`, and loaded once per process.
 
-### Step 1: Start Embedding Service
+### Index English Wikipedia Categories
 
-The embedding service runs as a gRPC server on port 50051 (default).
-
-```bash
-cd services/embedding
-docker-compose up -d
-
-# Or manually (requires Python venv):
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python embedding_server.py
-```
-
-**Configuration:**
-- **Port 50051**: gRPC endpoint
-- **Model**: `sentence-transformers/all-MiniLM-L12-v2` (384-dimensional)
-- **First run**: Downloads model from Hugging Face (~100MB)
-
-**Set environment variable for web server:**
-```bash
-export EMBEDDING_SERVER=localhost:50051
-
-# zvec vector database (in-process, no setup needed)
-export ZVEC_DIR=data/embedding_store/zvec
-```
-
-### Step 2: Index English Wikipedia Categories
-
-This is a one-time operation that builds the zvec collection. Use the Makefile target:
+A one-time operation that builds the zvec collection:
 
 ```bash
-# Ensure categories parquet exists
+# Ensure the categories parquet exists
 make data/enwiki/categories.parquet
 
-# Index into zvec
-make index-wiki
-
-# Or manually:
-cd services/embedding && uv run python index_categories.py --wiki enwiki
+# Index into zvec (in-process)
+make index-wiki WIKI=enwiki
 ```
 
 **Process:**
 1. Loads English Wikipedia categories from `data/enwiki/categories.parquet`
 2. Batches categories in groups of 100
-3. Encodes each batch via the embedding service
+3. Encodes each batch in-process with fastembed
 4. Inserts vectors into zvec collection `enwiki-categories`
-5. Creates HNSW index on zvec
+5. Creates the HNSW index on zvec
 
-**Runtime**: ~30 minutes (depends on network latency to embedding service)
+**Runtime**: ~30 minutes.
 
 **Output:**
-- zvec collection: `data/embedding_store/zvec/enwiki-categories/` with 2.5M points
+- zvec collection: `data/embedding_store/zvec/enwiki-categories/` with ~2.5M points
 - Each point: {id: QID, vector: 384-dim, fields: {qid, page_title}}
 
 ### Step 4: Verify Semantic Search
@@ -663,32 +625,28 @@ ls data/enwiki/{articles,categories,article_category,category_graph}.parquet
 
 # Canonical artifacts present? (the default topology needs them; run `make canonical`)
 ls data/enwiki/article_category_canonical.parquet data/canonical/
-
-# Check if embedding service is required
-grep -r "EMBEDDING_SERVER" src/
 ```
 
 **Solution**:
 - Re-run topology ETL for missing wikis (`make topology-refresh WIKIS=<wiki>` on the VPS)
 - Run `make canonical` before serving canonical topology
-- If embedding service is optional, ensure semantic search endpoints aren't required
 
 ### Issue: Semantic Search Returns Errors
 
-**Symptom**: `{"error": "Embedding service unavailable"}` or `{"error": "Vector database error"}`
+**Symptom**: `{"error": "Vector database error"}`, or a startup failure with `libzvec_c_api.so: cannot open shared object file`
 
 **Diagnosis**:
 ```bash
-# Check embedding service
-curl http://localhost:50051/health  # (gRPC, may not respond to HTTP)
+# Is the zvec native library on the loader path? (make web / make index-wiki set this)
+find target/release/build -name libzvec_c_api.so
 
-# Verify zvec collection exists
+# Verify the zvec collection exists
 ls -la data/embedding_store/zvec/enwiki-categories/
 ```
 
 **Solution**:
-- Restart embedding service: `docker-compose restart` in `services/embedding/`
-- Re-index: `make index-wiki`
+- Ensure `LD_LIBRARY_PATH` includes the directory holding `libzvec_c_api.so` (use `make web`, which sets it)
+- Re-index if the collection is missing: `make index-wiki WIKI=enwiki`
 
 ### Issue: High Latency on Pageview Queries
 
