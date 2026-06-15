@@ -2025,10 +2025,10 @@ components:
           format: int32
         category_title:
           type: string
+          description: Category title resolved from the reference wiki (or `Q<id>` fallback)
         category_title_en:
           type: string
           description: English label for the same QID, resolved from English Wikipedia with the canonical-label fallback. Present only when the requested wiki is not enwiki and a label exists.
-          description: Category title resolved from the reference wiki (or `Q<id>` fallback)
         direct_coverage_target:
           type: integer
           format: int32
