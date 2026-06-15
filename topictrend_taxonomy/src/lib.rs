@@ -24,7 +24,7 @@ const EMBEDDING_DIM: u32 = 384;
 const INDEX_BATCH_SIZE: usize = 256;
 
 /// Emit an indexing progress line roughly every this many records.
-const PROGRESS_EVERY: usize = 50_000;
+const PROGRESS_EVERY: usize = 10_000;
 
 /// Immediate parents to append as disambiguating context when indexing a
 /// category (see `enrichment_text`). Bounded so a category with many parents
