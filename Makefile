@@ -18,18 +18,22 @@ DATA_DIR ?= data
 GSC_DIR ?= $(DATA_DIR)/gsc_page_date
 QUERIES_DIR := queries
 
-# Embedding service configuration
-EMBEDDING_SERVER ?= localhost:50051
+# Vector store (zvec) configuration. Embeddings and search run in-process via
+# topictrend_taxonomy (fastembed + zvec-rust).
 ZVEC_DIR ?= $(DATA_DIR)/embedding_store/zvec
 WIKI ?= enwiki
 EMBED_ENV := DATA_DIR=$(abspath $(DATA_DIR)) ZVEC_DIR=$(abspath $(ZVEC_DIR))
+# zvec-sys's build.rs fetches libzvec_c_api.so as a prebuilt with no embedded
+# rpath, so it must be on the loader path at runtime. Resolved lazily from the
+# build output (empty until `cargo build` has run).
+ZVEC_LIB_DIR = $(abspath $(shell find $(CARGO_RELEASE)/build -name libzvec_c_api.so -printf '%h\n' 2>/dev/null | head -1))
 
 # Deferred so the list is re-read after `init` produces it on a fresh checkout.
 WIKIS = $(shell cat $(DATA_DIR)/wikipedia.list 2>/dev/null)
 
 .DEFAULT_GOAL := run
 
-.PHONY: run init clean help monthly index-wiki index-clean embedding-server web gsc coverage canonical _run-wikis topology-refresh
+.PHONY: run init clean help monthly index-wiki index-clean web gsc coverage canonical _run-wikis topology-refresh
 
 # Help target
 help:
@@ -50,7 +54,6 @@ help:
 	@echo "                     for all wikis; scope with WIKIS=enwiki. Restart the server after."
 	@echo "  web              - Start the web server (no rebuild)"
 	@echo "  init             - Build release binaries and fetch the Wikipedia list"
-	@echo "  embedding-server - Start the embedding gRPC server"
 	@echo "  index-wiki       - Index a wiki's categories into zvec (WIKI=enwiki)"
 	@echo "  index-clean      - Remove the zvec index store"
 	@echo "  clean            - Remove all generated data files"
@@ -265,28 +268,18 @@ clean:
 
 # Run the web server. Depends only on the wiki list so that starting the server
 # does not re-invoke cargo build; build the binary explicitly via `make init`
-# when needed. The embedding server is optional: without it only the semantic
-# topic-search endpoints fail, so its absence is a warning, not a refusal.
+# when needed. Semantic search runs in-process, so no extra service is needed.
 web: $(DATA_DIR)/wikipedia.list
-	@echo "Checking embedding server at $(EMBEDDING_SERVER)..."
-	@if (cd services/embedding && EMBEDDING_SERVER=$(EMBEDDING_SERVER) uv run python healthcheck.py); then \
-		echo "Embedding server OK"; \
-	else \
-		echo "WARNING: embedding server unreachable; topic search will be unavailable" >&2; \
-	fi
-	$(CARGO_RELEASE)/topictrend_web
+	@test -n "$(ZVEC_LIB_DIR)" || { echo "libzvec_c_api.so not found under $(CARGO_RELEASE)/build; run 'make init' first" >&2; exit 1; }
+	LD_LIBRARY_PATH=$(ZVEC_LIB_DIR):$${LD_LIBRARY_PATH:-} $(CARGO_RELEASE)/topictrend_web
 
-# Start the embedding gRPC server from the project root so DATA_DIR and
-# ZVEC_DIR resolve as absolute paths regardless of shell CWD.
-embedding-server:
-	@echo "Starting embedding server..."
-	@cd services/embedding && $(EMBED_ENV) uv run python embedding_server.py
-
-# Index a wiki's categories into zvec (usage: make index-wiki WIKI=enwiki)
+# Index a wiki's categories into zvec, in-process via fastembed + zvec-rust
+# (usage: make index-wiki WIKI=enwiki).
 index-wiki: $(DATA_DIR)/$(WIKI)/categories.parquet
+	@test -n "$(ZVEC_LIB_DIR)" || { echo "libzvec_c_api.so not found under $(CARGO_RELEASE)/build; run 'make init' first" >&2; exit 1; }
 	@echo "Indexing $(WIKI) categories into zvec..."
-	@cd services/embedding && $(EMBED_ENV) \
-		uv run python index_categories.py --wiki $(WIKI) --server $(EMBEDDING_SERVER)
+	$(EMBED_ENV) LD_LIBRARY_PATH=$(ZVEC_LIB_DIR):$${LD_LIBRARY_PATH:-} \
+		$(CARGO_RELEASE)/topictrend_taxonomy index $(WIKI)
 
 # Clean zvec indexes
 index-clean:
