@@ -5,6 +5,7 @@
 //! collections at `<ZVEC_DIR>/<wiki>-categories`.
 
 use std::collections::HashMap;
+use std::io::Write;
 use std::path::Path;
 use std::sync::{Mutex, Once, OnceLock};
 
@@ -21,6 +22,9 @@ mod models;
 
 const EMBEDDING_DIM: u32 = 384;
 const INDEX_BATCH_SIZE: usize = 100;
+
+/// Emit an indexing progress line roughly every this many records.
+const PROGRESS_EVERY: usize = 50_000;
 
 /// Immediate parents to append as disambiguating context when indexing a
 /// category (see `enrichment_text`). Bounded so a category with many parents
@@ -189,6 +193,17 @@ fn load_parent_map(wiki: &str) -> Result<HashMap<u32, Vec<u32>>> {
     Ok(map)
 }
 
+/// Overwrite a single stdout line with current indexing progress.
+fn report_progress(processed: usize, total: usize) {
+    let pct = if total > 0 {
+        processed as f64 / total as f64 * 100.0
+    } else {
+        0.0
+    };
+    print!("\r  indexed {processed}/{total} ({pct:.1}%)");
+    let _ = std::io::stdout().flush();
+}
+
 fn injest_blocking(wiki: &str) -> Result<()> {
     ensure_zvec_init();
 
@@ -236,8 +251,10 @@ fn injest_blocking(wiki: &str) -> Result<()> {
     let collection =
         Collection::create_and_open(&path, &schema, None).context("creating collection")?;
 
+    let total = frame.height();
     let mut batch: Vec<(u32, &str, String)> = Vec::with_capacity(INDEX_BATCH_SIZE);
     let mut processed = 0usize;
+    let mut next_report = PROGRESS_EVERY;
     for (qid, title) in qids.iter().zip(titles.iter()) {
         let (Some(qid), Some(title)) = (qid, title) else {
             continue;
@@ -247,12 +264,19 @@ fn injest_blocking(wiki: &str) -> Result<()> {
         if batch.len() >= INDEX_BATCH_SIZE {
             processed += insert_batch(&collection, &batch)?;
             batch.clear();
+            if processed >= next_report {
+                report_progress(processed, total);
+                next_report += PROGRESS_EVERY;
+            }
         }
     }
     if !batch.is_empty() {
         processed += insert_batch(&collection, &batch)?;
     }
+    report_progress(processed, total);
+    println!();
 
+    println!("Optimizing index for {wiki}...");
     collection.optimize().context("optimizing index")?;
     collection.close().context("closing collection")?;
     println!("Indexed {processed} records for {wiki}");
