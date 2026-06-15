@@ -21,7 +21,7 @@ pub use crate::models::SearchResult;
 mod models;
 
 const EMBEDDING_DIM: u32 = 384;
-const INDEX_BATCH_SIZE: usize = 100;
+const INDEX_BATCH_SIZE: usize = 256;
 
 /// Emit an indexing progress line roughly every this many records.
 const PROGRESS_EVERY: usize = 50_000;
@@ -214,9 +214,9 @@ fn injest_blocking(wiki: &str) -> Result<()> {
         Default::default(),
     )
     .with_context(|| format!("scanning {parquet}"))?
-        .select([col("qid"), col("page_title")])
-        .collect()
-        .with_context(|| format!("reading {parquet}"))?;
+    .select([col("qid"), col("page_title")])
+    .collect()
+    .with_context(|| format!("reading {parquet}"))?;
 
     let qids = frame.column("qid")?.u32()?;
     let titles = frame.column("page_title")?.str()?;
