@@ -4,7 +4,7 @@
 //! 384-d) and the vector store is the official `zvec` Rust SDK over the on-disk
 //! collections at `<ZVEC_DIR>/<wiki>-categories`.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::Path;
 use std::sync::{Mutex, Once, OnceLock};
@@ -25,6 +25,21 @@ const INDEX_BATCH_SIZE: usize = 256;
 
 /// Emit an indexing progress line roughly every this many records.
 const PROGRESS_EVERY: usize = 10_000;
+
+/// Minimum canonical members a category must have to be indexed for topic
+/// search. Categories below this contribute no (or negligible) articles to
+/// aggregate, so they are dead weight and false-match surface in the index.
+/// Overridable per run via `TOPICTREND_INDEX_MIN_MEMBERS`. This prunes only the
+/// search index — `categories.parquet` (the shared label/identity source) is
+/// untouched, so labels and parent context for these categories survive.
+const DEFAULT_INDEX_MIN_MEMBERS: u32 = 2;
+
+fn index_min_members() -> u32 {
+    std::env::var("TOPICTREND_INDEX_MIN_MEMBERS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(DEFAULT_INDEX_MIN_MEMBERS)
+}
 
 /// Immediate parents to append as disambiguating context when indexing a
 /// category (see `enrichment_text`). Bounded so a category with many parents
@@ -193,6 +208,32 @@ fn load_parent_map(wiki: &str) -> Result<HashMap<u32, Vec<u32>>> {
     Ok(map)
 }
 
+/// Category QIDs with at least `min_members` canonical members in this wiki,
+/// from `article_category_canonical.parquet`. `None` when the projection is
+/// absent (e.g. local-only setup) — the caller then indexes every category.
+fn load_eligible_categories(wiki: &str, min_members: u32) -> Result<HashSet<u32>> {
+    let parquet = format!("{}/{}/article_category_canonical.parquet", data_dir(), wiki);
+    let frame = LazyFrame::scan_parquet(
+        PlRefPath::try_from_path(Path::new(&parquet))
+            .with_context(|| format!("invalid path {parquet}"))?,
+        Default::default(),
+    )
+    .with_context(|| format!("scanning {parquet}"))?
+    .group_by([col("category_qid")])
+    .agg([col("article_qid").count().alias("members")])
+    .filter(col("members").gt_eq(lit(min_members)))
+    .select([col("category_qid")])
+    .collect()
+    .with_context(|| format!("reading {parquet}"))?;
+
+    Ok(frame
+        .column("category_qid")?
+        .u32()?
+        .iter()
+        .flatten()
+        .collect())
+}
+
 /// Overwrite a single stdout line with current indexing progress.
 fn report_progress(processed: usize, total: usize) {
     let pct = if total > 0 {
@@ -236,6 +277,17 @@ fn injest_blocking(wiki: &str) -> Result<()> {
         HashMap::new()
     });
 
+    // Prune categories with too few canonical members from the index only.
+    // Absent projection -> index everything (filter disabled).
+    let min_members = index_min_members();
+    let eligible = match load_eligible_categories(wiki, min_members) {
+        Ok(set) => Some(set),
+        Err(e) => {
+            eprintln!("canonical projection unavailable for {wiki} ({e}); indexing all categories");
+            None
+        }
+    };
+
     let path = collection_path(wiki);
     let schema = CollectionSchema::builder(&format!("{wiki}-categories"))
         .add_field(FieldSchema::new("qid", DataType::Uint32, false, 0)?)
@@ -251,7 +303,18 @@ fn injest_blocking(wiki: &str) -> Result<()> {
     let collection =
         Collection::create_and_open(&path, &schema, None).context("creating collection")?;
 
-    let total = frame.height();
+    let total = match &eligible {
+        Some(set) => qids.iter().flatten().filter(|q| set.contains(q)).count(),
+        None => frame.height(),
+    };
+    if eligible.is_some() {
+        println!(
+            "Indexing {total} of {} categories (>= {min_members} canonical members); skipping {} sparse/empty",
+            frame.height(),
+            frame.height() - total,
+        );
+    }
+
     let mut batch: Vec<(u32, &str, String)> = Vec::with_capacity(INDEX_BATCH_SIZE);
     let mut processed = 0usize;
     let mut next_report = PROGRESS_EVERY;
@@ -259,6 +322,11 @@ fn injest_blocking(wiki: &str) -> Result<()> {
         let (Some(qid), Some(title)) = (qid, title) else {
             continue;
         };
+        if let Some(set) = &eligible
+            && !set.contains(&qid)
+        {
+            continue;
+        }
         let text = enrichment_text(title, child_to_parents.get(&qid), &qid_to_label);
         batch.push((qid, title, text));
         if batch.len() >= INDEX_BATCH_SIZE {
