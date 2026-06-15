@@ -22,6 +22,26 @@ mod models;
 const EMBEDDING_DIM: u32 = 384;
 const INDEX_BATCH_SIZE: usize = 100;
 
+/// Immediate parents to append as disambiguating context when indexing a
+/// category (see `enrichment_text`). Bounded so a category with many parents
+/// does not dilute its own label.
+const MAX_PARENTS: usize = 8;
+
+/// Top-level organizational roots that carry no topical sense; skipped as
+/// parent context so they cannot bleed unrelated queries toward a category.
+const BROAD_PARENT_QIDS: &[u32] = &[
+    4587687,  // Main_topic_classifications
+    4588897,  // Categories_by_topic
+    65754124, // Main_topic_articles
+    10013748, // Categories
+    2945159,  // Wikipedia_categories
+    2944611,  // Wikipedia_administration
+    1281,     // Contents
+    9735744,  // Contents
+    7386634,  // World
+    13384444, // World
+];
+
 fn zvec_dir() -> String {
     std::env::var("ZVEC_DIR").unwrap_or_else(|_| "data/embedding_store/zvec".to_string())
 }
@@ -143,6 +163,32 @@ pub async fn injest(wiki: String) -> Result<()> {
         .context("injest task panicked")?
 }
 
+/// Build `child_qid -> [parent_qid]` from the wiki's local category hierarchy
+/// (`category_graph.parquet`, schema `(parent_qid, child_qid)`).
+fn load_parent_map(wiki: &str) -> Result<HashMap<u32, Vec<u32>>> {
+    let parquet = format!("{}/{}/category_graph.parquet", data_dir(), wiki);
+    let frame = LazyFrame::scan_parquet(
+        PlRefPath::try_from_path(Path::new(&parquet))
+            .with_context(|| format!("invalid path {parquet}"))?,
+        Default::default(),
+    )
+    .with_context(|| format!("scanning {parquet}"))?
+    .select([col("parent_qid"), col("child_qid")])
+    .collect()
+    .with_context(|| format!("reading {parquet}"))?;
+
+    let parents = frame.column("parent_qid")?.u32()?;
+    let children = frame.column("child_qid")?.u32()?;
+
+    let mut map: HashMap<u32, Vec<u32>> = HashMap::new();
+    for (parent, child) in parents.iter().zip(children.iter()) {
+        if let (Some(parent), Some(child)) = (parent, child) {
+            map.entry(child).or_default().push(parent);
+        }
+    }
+    Ok(map)
+}
+
 fn injest_blocking(wiki: &str) -> Result<()> {
     ensure_zvec_init();
 
@@ -161,6 +207,20 @@ fn injest_blocking(wiki: &str) -> Result<()> {
     let titles = frame.column("page_title")?.str()?;
     println!("Found {} records to process for {wiki}", frame.height());
 
+    // qid -> label, for resolving parent context. Borrows from `frame`.
+    let qid_to_label: HashMap<u32, &str> = qids
+        .iter()
+        .zip(titles.iter())
+        .filter_map(|(q, t)| Some((q?, t?)))
+        .collect();
+
+    // child -> immediate parents, from the local category hierarchy. Missing or
+    // unreadable graph degrades gracefully to bare-label embedding.
+    let child_to_parents = load_parent_map(wiki).unwrap_or_else(|e| {
+        eprintln!("category_graph unavailable for {wiki} ({e}); indexing bare labels");
+        HashMap::new()
+    });
+
     let path = collection_path(wiki);
     let schema = CollectionSchema::builder(&format!("{wiki}-categories"))
         .add_field(FieldSchema::new("qid", DataType::Uint32, false, 0)?)
@@ -176,13 +236,14 @@ fn injest_blocking(wiki: &str) -> Result<()> {
     let collection =
         Collection::create_and_open(&path, &schema, None).context("creating collection")?;
 
-    let mut batch: Vec<(u32, &str)> = Vec::with_capacity(INDEX_BATCH_SIZE);
+    let mut batch: Vec<(u32, &str, String)> = Vec::with_capacity(INDEX_BATCH_SIZE);
     let mut processed = 0usize;
     for (qid, title) in qids.iter().zip(titles.iter()) {
         let (Some(qid), Some(title)) = (qid, title) else {
             continue;
         };
-        batch.push((qid, title));
+        let text = enrichment_text(title, child_to_parents.get(&qid), &qid_to_label);
+        batch.push((qid, title, text));
         if batch.len() >= INDEX_BATCH_SIZE {
             processed += insert_batch(&collection, &batch)?;
             batch.clear();
@@ -198,12 +259,53 @@ fn injest_blocking(wiki: &str) -> Result<()> {
     Ok(())
 }
 
-fn insert_batch(collection: &Collection, batch: &[(u32, &str)]) -> Result<usize> {
-    let titles: Vec<&str> = batch.iter().map(|(_, title)| *title).collect();
-    let embeddings = embed(titles)?;
+/// Category labels are stored with underscores (`English_models`); queries
+/// arrive as natural language. Normalize to spaces so multi-word labels
+/// tokenize as phrases.
+fn humanize(label: &str) -> String {
+    label.replace('_', " ")
+}
+
+/// Text fed to the embedder for a category: its own label (repeated once so it
+/// stays dominant) followed by its immediate parent-category labels. The parent
+/// context encodes the category's *sense* — e.g. `English models` gains
+/// `english people by occupation`, pulling it away from `large language models`
+/// in embedding space. Falls back to the bare label when no parents resolve.
+fn enrichment_text(
+    label: &str,
+    parents: Option<&Vec<u32>>,
+    qid_to_label: &HashMap<u32, &str>,
+) -> String {
+    let base = humanize(label);
+
+    let mut parent_labels: Vec<String> = Vec::new();
+    if let Some(parents) = parents {
+        for &p in parents {
+            if BROAD_PARENT_QIDS.contains(&p) {
+                continue;
+            }
+            if let Some(plabel) = qid_to_label.get(&p) {
+                parent_labels.push(humanize(plabel));
+                if parent_labels.len() >= MAX_PARENTS {
+                    break;
+                }
+            }
+        }
+    }
+
+    if parent_labels.is_empty() {
+        base
+    } else {
+        format!("{base}. {base}. {}", parent_labels.join(", "))
+    }
+}
+
+fn insert_batch(collection: &Collection, batch: &[(u32, &str, String)]) -> Result<usize> {
+    let texts: Vec<&str> = batch.iter().map(|(_, _, text)| text.as_str()).collect();
+    let embeddings = embed(texts)?;
 
     let mut docs = Vec::with_capacity(batch.len());
-    for ((qid, title), embedding) in batch.iter().zip(embeddings.iter()) {
+    for ((qid, title, _), embedding) in batch.iter().zip(embeddings.iter()) {
         let mut doc = Doc::new()?;
         doc.set_pk(&qid.to_string());
         doc.add_u32("qid", *qid)?;
