@@ -98,6 +98,18 @@ impl WikiGraph {
         union
     }
 
+    /// Number of articles filed directly under `category_qid` in this wiki's
+    /// (canonical) relation. `None` if the category is absent from the graph.
+    pub fn category_member_count(&self, category_qid: u32) -> Option<u64> {
+        let dense = self.cat_original_to_dense.get(category_qid)?;
+        Some(self.cat_articles.get(dense as usize).map_or(0, |b| b.len()))
+    }
+
+    /// Total number of articles in this wiki's graph.
+    pub fn article_count(&self) -> usize {
+        self.art_dense_to_original.len()
+    }
+
     /// Get immediate subcategories (Depth 1)
     /// Returns a vector of category_qids: Original_Wiki_ID
     pub fn get_child_categories(&self, category_qid: u32) -> Result<Vec<u32>, String> {

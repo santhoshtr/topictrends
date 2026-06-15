@@ -8,6 +8,20 @@ use chrono::NaiveDate;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+const TOPIC_SATURATION_PCT_ENV: &str = "TOPICTREND_TOPIC_SATURATION_PCT";
+const DEFAULT_TOPIC_SATURATION_PCT: f64 = 0.5;
+
+/// Max fraction of a wiki's articles a topic-matched category may contain
+/// before it is dropped as an over-broad hypernym. Configured as a percentage
+/// via `TOPICTREND_TOPIC_SATURATION_PCT` (default 0.5%).
+fn topic_saturation_fraction() -> f64 {
+    let pct = std::env::var(TOPIC_SATURATION_PCT_ENV)
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(DEFAULT_TOPIC_SATURATION_PCT);
+    pct / 100.0
+}
+
 pub struct PageViewsService;
 
 #[derive(Debug)]
@@ -306,6 +320,13 @@ impl PageViewsService {
         end_date: Option<NaiveDate>,
     ) -> Result<CategoryTrendResult, ServiceError> {
         let category_qids = taxonomy_search_category_qids(topic).await?;
+        let category_qids = CategoryService::filter_saturated_categories(
+            Arc::clone(&state),
+            wiki,
+            category_qids,
+            topic_saturation_fraction(),
+        )
+        .await?;
         let categories_result = Self::get_categories_trend(
             Arc::clone(&state),
             wiki,
