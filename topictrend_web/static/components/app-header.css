@@ -110,7 +110,7 @@
 	background-color: var(--background-color-base);
 	border: var(--border-width-base) solid var(--border-color-subtle);
 	border-radius: var(--border-radius-base);
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	box-shadow: 0 4px 4px 0 var(--box-shadow-color-alpha-base, rgba(0, 0, 0, .06)),0 0 8px 0 var(--box-shadow-color-alpha-base, rgba(0, 0, 0, .06));
 	min-width: 150px;
 }
 
