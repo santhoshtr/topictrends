@@ -6,6 +6,7 @@ use topictrend::{
     wikigraph,
 };
 
+#[path = "etl/pageviews.rs"]
 mod pageviews;
 
 fn main() -> Result<(), Box<dyn Error>> {

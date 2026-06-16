@@ -11,39 +11,39 @@ path = "src/main.rs"
 
 [[bin]]
 name = "get-categories"
-path = "src/categories.rs"
+path = "src/etl/categories.rs"
 
 [[bin]]
 name = "get-articles"
-path = "src/articles.rs"
+path = "src/etl/articles.rs"
 
 [[bin]]
 name = "get-categorygraph"
-path = "src/category_graph.rs"
+path = "src/etl/category_graph.rs"
 
 [[bin]]
 name = "get-article_category"
-path = "src/article_category.rs"
+path = "src/etl/article_category.rs"
 
 [[bin]]
 name = "get-pageviews"
-path = "src/pageviews.rs"
+path = "src/etl/pageviews.rs"
 
 [[bin]]
 name = "get-per_day_wiki_stats"
-path = "src/per_day_wiki_stats.rs"
+path = "src/etl/per_day_wiki_stats.rs"
 
 [[bin]]
 name = "get-day-pageedits"
-path = "src/day_pageedits.rs"
+path = "src/etl/day_pageedits.rs"
 
 [[bin]]
 name = "get-gsc-qid-date"
-path = "src/google_search_data.rs"
+path = "src/etl/google_search_data.rs"
 
 [[bin]]
 name = "coverage-matrix"
-path = "src/coverage_matrix.rs"
+path = "src/etl/coverage_matrix.rs"
 
 [[bin]]
 name = "coverage-articles"
@@ -72,12 +72,12 @@ path = "src/coverage_gaps.rs"
 
 [[bin]]
 name = "canonical-membership"
-path = "src/canonical_membership.rs"
+path = "src/etl/canonical_membership.rs"
 
 [[bin]]
 name = "canonical-projection"
-path = "src/canonical_projection.rs"
+path = "src/etl/canonical_projection.rs"
 
 [[bin]]
 name = "canonical-labels"
-path = "src/canonical_labels.rs"
+path = "src/etl/canonical_labels.rs"
