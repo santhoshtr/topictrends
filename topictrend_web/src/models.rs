@@ -724,6 +724,11 @@ pub struct ArticlesInCategoryResponse {
 }
 
 #[derive(Serialize, JsonSchema)]
+pub struct SubCategoriesResponse {
+    pub categories: Vec<CategoryInfo>,
+}
+
+#[derive(Serialize, JsonSchema)]
 pub struct ArticleItem {
     pub qid: u32,
     pub title: String,

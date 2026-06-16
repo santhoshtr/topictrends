@@ -22,7 +22,7 @@ impl TopicTrendMcpServer {
     pub async fn list_subcategories(
         &self,
         Parameters(p): Parameters<SubCategoriesInput>,
-    ) -> Result<rmcp::handler::server::wrapper::Json<Vec<crate::models::CategoryInfo>>, ErrorData>
+    ) -> Result<rmcp::handler::server::wrapper::Json<crate::models::SubCategoriesResponse>, ErrorData>
     {
         let map = PageViewsService::get_sub_categories(
             Arc::clone(&self.state), &p.wiki, &p.category, p.category_qid,
@@ -40,7 +40,9 @@ impl TopicTrendMcpServer {
             .collect();
         categories.sort_by(|a, b| a.title.cmp(&b.title));
 
-        Ok(rmcp::handler::server::wrapper::Json(categories))
+        Ok(rmcp::handler::server::wrapper::Json(
+            crate::models::SubCategoriesResponse { categories },
+        ))
     }
 
     /// List articles that are direct members of a Wikipedia category.
