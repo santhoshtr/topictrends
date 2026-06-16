@@ -35,10 +35,10 @@ pub static EXCLUDED_CATEGORY_QIDS: LazyLock<HashSet<u32>> = LazyLock::new(|| {
         4671284, // Place name disambiguation pages
         8379354, // Disambiguation pages with surname-holder lists
         // Stubs
-        2944440, // Stubs
-        7046360, // Biology stubs
-        7046440, // Geography stubs
-        5834688, // People stubs / incomplete biographies
+        2944440,   // Stubs
+        7046360,   // Biology stubs
+        7046440,   // Geography stubs
+        5834688,   // People stubs / incomplete biographies
         130866438, // Stub articles (ug)
         // Wikipedia maintenance / templates
         130251703, // Pages with image sizes containing extra px
@@ -61,11 +61,17 @@ pub static EXCLUDED_CATEGORY_QIDS: LazyLock<HashSet<u32>> = LazyLock::new(|| {
         4387444,  // Featured articles (project namespace)
         6157677,  // Spoken Wikipedia
         // "By alphabetical order" / by-name organizational containers
-        32889963, // People by alphabetical order
-        6547581,  // Populated places by alphabet
-        9961681,  // Sportspeople by name
-        54860644, // Administrative subdivisions in alphabetical order
-        9700775,  // Footballers by alphabetical order
+        32889963,  // People by alphabetical order
+        6547581,   // Populated places by alphabet
+        9961681,   // Sportspeople by name
+        54860644,  // Administrative subdivisions in alphabetical order
+        9700775,   // Footballers by alphabetical order
+        8691757,   // Plant stubs
+        7046062,   // Stub categories
+        7580371,   // Plants in alphabetical order
+        9989549,   // ചിത്രം ആവശ്യമുള്ള ലേഖനങ്ങൾ
+        104844397, // Commons link is on Wikidata (Q104844397)
+        62273066,  // Pages with empty portal template
     ]
     .into_iter()
     .collect()
