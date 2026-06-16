@@ -63,7 +63,6 @@ function showSection(section) {
 async function onSubmit(event) {
 	event.preventDefault();
 
-	document.querySelector(".examples").hidden = true;
 
 	const params = new URLSearchParams();
 	const type = document.querySelector('input[name="type"]:checked').value;
