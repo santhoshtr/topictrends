@@ -12,12 +12,14 @@ const prevBtn = document.getElementById("prev-page");
 const nextBtn = document.getElementById("next-page");
 const pageRange = document.getElementById("page-range");
 const statusEl = document.getElementById("status");
+const weightToggle = document.getElementById("weight-pageviews");
 
 // Query state. `offset` is the current page start; Prev/Next move it by `limit`.
 const state = {
 	reference: "enwiki",
 	target: "hiwiki",
 	hasCategory: null, // null = all, true = under-populated, false = missing
+	weighted: false, // rank by estimated missing readership instead of raw gap
 	limit: 100, // fixed page size (no UI control)
 	offset: 0,
 	total: 0,
@@ -69,6 +71,7 @@ function readForm() {
 	const struct =
 		form.querySelector('input[name="structure"]:checked')?.value ?? "all";
 	state.hasCategory = structureToHasCategory(struct);
+	state.weighted = weightToggle.checked;
 }
 
 function syncUrl() {
@@ -79,6 +82,7 @@ function syncUrl() {
 	if (state.offset > 0) p.set("skip", String(state.offset));
 	if (state.hasCategory === true) p.set("structure", "under");
 	if (state.hasCategory === false) p.set("structure", "missing");
+	if (state.weighted) p.set("weight", "true");
 	window.history.replaceState({}, "", `${window.location.pathname}?${p}`);
 }
 
@@ -93,6 +97,10 @@ function applyUrlParams() {
 		document.getElementById("struct-missing").checked = true;
 	else if (struct === "under")
 		document.getElementById("struct-under").checked = true;
+	if (p.get("weight") === "true") {
+		state.weighted = true;
+		weightToggle.checked = true;
+	}
 	return p.has("reference") && p.has("target");
 }
 
@@ -109,6 +117,7 @@ async function fetchAndRender() {
 	});
 	if (state.hasCategory != null)
 		params.set("has_category", String(state.hasCategory));
+	if (state.weighted) params.set("weight", "true");
 
 	showProgress();
 	statusEl.textContent = "";
@@ -134,15 +143,29 @@ async function fetchAndRender() {
 
 function renderResults(data) {
 	resultsHeader.innerHTML = "";
+	const weighted = data.weighted_applied;
 	const h2 = document.createElement("h2");
 	h2.innerHTML = `Gaps: <em>${data.target}</em> vs <em>${data.reference}</em>`;
 	const meta = document.createElement("p");
 	meta.className = "results-meta";
+	const sortNote = weighted
+		? " · ranked by estimated missing readership"
+		: " · ranked by missing-article count";
 	meta.textContent =
 		`snapshot ${data.target_date} · ${data.total.toLocaleString()} gaps ` +
 		`(${data.without_category.toLocaleString()} missing category, ` +
-		`${data.with_category.toLocaleString()} under-populated)`;
+		`${data.with_category.toLocaleString()} under-populated)${sortNote}`;
 	resultsHeader.append(h2, meta);
+
+	// Requested weighting but the reference snapshot predates the pageview column.
+	if (data.weighted && !data.weighted_applied) {
+		const notice = document.createElement("p");
+		notice.className = "weight-notice";
+		notice.textContent =
+			`This ${data.reference} snapshot has no pageview data, so the ranking falls ` +
+			"back to raw missing-article count. Re-run the coverage ETL to enable weighting.";
+		resultsHeader.append(notice);
+	}
 
 	if (data.categories.length === 0) {
 		resultsEl.innerHTML = `<div class="empty-state">No gaps for this pair with the
@@ -150,6 +173,9 @@ function renderResults(data) {
 		return;
 	}
 
+	const viewsHead = weighted
+		? '<th scope="col" class="num">Missing views (est.)</th>'
+		: "";
 	const table = document.createElement("table");
 	table.className = "gap-table";
 	table.innerHTML = `<thead><tr>
@@ -158,6 +184,7 @@ function renderResults(data) {
 		<th scope="col" class="num">${data.reference}</th>
 		<th scope="col" class="num">${data.target}</th>
 		<th scope="col" class="num">Gap</th>
+		${viewsHead}
 		<th scope="col">Coverage</th>
 		<th scope="col">Category status</th>
 	</tr></thead>`;
@@ -176,6 +203,9 @@ function renderResults(data) {
 		const badge = c.has_category
 			? `<span class="structure-badge exists">Present<span class="badge-sub" title="${articlesNote}">${c.direct_coverage_target.toLocaleString()} articles</span></span>`
 			: `<span class="structure-badge absent" title="${data.target} has no such category">Absent</span>`;
+		const viewsCell = weighted
+			? `<td class="num" title="${c.overlap_pageviews.toLocaleString()} views across this category's reference articles">${c.weighted_score.toLocaleString()}</td>`
+			: "";
 
 		tr.innerHTML = `
 			<td class="num rank">${rank}</td>
@@ -186,6 +216,7 @@ function renderResults(data) {
 			<td class="num">${c.overlap_reference.toLocaleString()}</td>
 			<td class="num">${c.overlap_target.toLocaleString()}</td>
 			<td class="num">${c.gap.toLocaleString()}</td>
+			${viewsCell}
 			<td class="cov-cell">
 				<meter class="cov-meter" min="0" max="1" low="0.1" high="0.5" optimum="1" value="${c.coverage_pct}" title="${cov.toFixed(1)}%"></meter>
 				<span class="cov-num">${cov.toFixed(1)}%</span>

@@ -21,6 +21,7 @@ pub async fn get_gap_discovery_handler(
 ) -> Result<Json<GapDiscoveryResponse>, ApiError> {
     let offset = params.offset.unwrap_or(0);
     let limit = params.limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
+    let weighted = params.weight.unwrap_or(false);
 
     let outcome = GapDiscoveryService::discover(
         Arc::clone(&state),
@@ -28,6 +29,7 @@ pub async fn get_gap_discovery_handler(
         &params.target,
         params.min_ref,
         params.has_category,
+        weighted,
         offset,
         limit,
     )
@@ -52,6 +54,8 @@ pub async fn get_gap_discovery_handler(
             gap: r.gap,
             coverage_pct: r.coverage_pct,
             has_category: r.has_category,
+            overlap_pageviews: r.overlap_pageviews,
+            weighted_score: r.weighted_score,
         })
         .collect();
 
@@ -65,6 +69,8 @@ pub async fn get_gap_discovery_handler(
         without_category: outcome.without_category,
         offset,
         limit,
+        weighted,
+        weighted_applied: outcome.weighted_applied,
         categories,
     }))
 }

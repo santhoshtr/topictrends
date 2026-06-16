@@ -241,7 +241,7 @@ gsc: init $(foreach w,$(WIKIS),$(DATA_DIR)/$(w)/gsc/$(YEAR)/$(MONTH)/$(DAY).parq
 $(DATA_DIR)/%/coverage/$(DATE).parquet: | $(DATA_DIR)/%/article_category.parquet $(DATA_DIR)/%/article_category_canonical.parquet
 	@mkdir -p $(dir $@)
 	@echo "Building coverage matrix for $* ($(DATE)) -> $@"
-	$(CARGO_RELEASE)/coverage-matrix $(DATA_DIR)/$*/article_category.parquet $(DATA_DIR)/$*/article_category_canonical.parquet $@
+	$(CARGO_RELEASE)/coverage-matrix $(DATA_DIR)/$*/article_category.parquet $(DATA_DIR)/$*/article_category_canonical.parquet $@ $(DATA_DIR)/$*/pageviews $(DATE)
 
 # Build the full coverage matrix for all wikis as a dated snapshot.
 # Usage: make coverage DATE=2026-06-09  (falls back to yesterday if DATE unset)

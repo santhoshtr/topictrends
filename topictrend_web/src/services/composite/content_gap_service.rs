@@ -21,7 +21,7 @@ impl ContentGapService {
         for wiki in &wikis {
             let snapshot =
                 CoverageService::get_or_load_snapshot(Arc::clone(&state), wiki).await?;
-            let (_direct, overlap) = snapshot.matrix.get(category_qid);
+            let (_direct, overlap, _pageviews) = snapshot.matrix.get(category_qid);
 
             results.push(ContentGapWikiResult {
                 wiki: wiki.clone(),

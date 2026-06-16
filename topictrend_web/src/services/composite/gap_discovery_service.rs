@@ -19,6 +19,8 @@ pub struct GapDiscoveryRow {
     pub gap: i64,
     pub coverage_pct: f64,
     pub has_category: bool,
+    pub overlap_pageviews: u64,
+    pub weighted_score: u64,
 }
 
 pub struct GapDiscoveryOutcome {
@@ -28,6 +30,7 @@ pub struct GapDiscoveryOutcome {
     pub without_category: usize,
     pub reference_date: NaiveDate,
     pub target_date: NaiveDate,
+    pub weighted_applied: bool,
 }
 
 impl GapDiscoveryService {
@@ -38,6 +41,7 @@ impl GapDiscoveryService {
         target: &str,
         min_ref: Option<u32>,
         has_category: Option<bool>,
+        weighted: bool,
         offset: usize,
         limit: usize,
     ) -> Result<GapDiscoveryOutcome, CoreServiceError> {
@@ -48,7 +52,8 @@ impl GapDiscoveryService {
         }
 
         let ranking =
-            CoverageService::get_or_build_ranking(Arc::clone(&state), reference, target).await?;
+            CoverageService::get_or_build_ranking(Arc::clone(&state), reference, target, weighted)
+                .await?;
         let window = ranking.window(min_ref, has_category, offset, limit);
 
         // Resolve titles for just this page, from the reference wiki. Degrade to
@@ -80,6 +85,8 @@ impl GapDiscoveryService {
                     gap: r.gap,
                     coverage_pct,
                     has_category: r.has_category,
+                    overlap_pageviews: r.overlap_pageviews,
+                    weighted_score: r.weighted_score,
                 }
             })
             .collect();
@@ -91,6 +98,7 @@ impl GapDiscoveryService {
             without_category: window.without_category,
             reference_date: ranking.reference_date,
             target_date: ranking.target_date,
+            weighted_applied: ranking.weighted_applied,
         })
     }
 }

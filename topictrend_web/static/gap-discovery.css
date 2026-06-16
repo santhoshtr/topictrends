@@ -49,15 +49,6 @@
 	}
 }
 
-.coming-soon-pill {
-	font-size: var(--font-size-x-small, 0.7rem);
-	background: var(--background-color-interactive-subtle, #eaecf0);
-	color: var(--color-subtle);
-	border-radius: 1rem;
-	padding: 0.05rem 0.5rem;
-	margin-left: 0.3rem;
-}
-
 .results-header {
 	margin-bottom: 1.25rem;
 
@@ -74,6 +65,11 @@
 	& .results-meta {
 		font-size: var(--font-size-sm);
 		color: var(--color-subtle);
+	}
+	& .weight-notice {
+		margin-top: 0.5rem;
+		font-size: var(--font-size-sm);
+		color: var(--color-warning, #ad5f00);
 	}
 }
 

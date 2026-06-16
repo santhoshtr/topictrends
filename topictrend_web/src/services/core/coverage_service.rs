@@ -43,14 +43,20 @@ pub struct GapRow {
     pub overlap_reference: u32,
     pub gap: i64, // overlap_reference - overlap_target, always > 0 in a ranking
     pub has_category: bool, // target files >=1 article directly under C
+    pub overlap_pageviews: u64, // reference-side windowed views of C's overlap articles
+    pub weighted_score: u64, // overlap_pageviews × gap / overlap_reference (0 when unweighted)
 }
 
-/// Full sorted ranking for a `(reference, target)` pair (gap DESC, qid ASC).
+/// Full sorted ranking for a `(reference, target)` pair. Sorted by
+/// `weighted_score DESC, qid ASC` when weighted, else `gap DESC, qid ASC`.
 #[derive(Debug)]
 pub struct GapRanking {
     pub rows: Vec<GapRow>,
     pub reference_date: NaiveDate,
     pub target_date: NaiveDate,
+    // True when weighting was requested AND the reference snapshot carries the
+    // pageview column. False means the rows are the unweighted gap ranking.
+    pub weighted_applied: bool,
 }
 
 /// A filtered, paginated slice of a `GapRanking` plus summary counts.
@@ -174,11 +180,12 @@ impl CoverageService {
         state: Arc<AppState>,
         reference: &str,
         target: &str,
+        weighted: bool,
     ) -> Result<Arc<GapRanking>, CoreServiceError> {
         let reference = reference.to_string();
         let target = target.to_string();
         tokio::task::spawn_blocking(move || {
-            Self::get_or_build_ranking_blocking(&state, &reference, &target)
+            Self::get_or_build_ranking_blocking(&state, &reference, &target, weighted)
         })
         .await
         .map_err(|_| CoreServiceError::InternalError("Failed to spawn blocking task".to_string()))?
@@ -188,8 +195,9 @@ impl CoverageService {
         state: &AppState,
         reference: &str,
         target: &str,
+        weighted: bool,
     ) -> Result<Arc<GapRanking>, CoreServiceError> {
-        let key = (reference.to_string(), target.to_string());
+        let key = (reference.to_string(), target.to_string(), weighted);
 
         // Fast path: ranking already cached.
         {
@@ -205,14 +213,26 @@ impl CoverageService {
         let ref_snap = Self::get_or_load_snapshot_blocking(state, reference)?;
         let tgt_snap = Self::get_or_load_snapshot_blocking(state, target)?;
 
+        // Weighting needs the reference snapshot's pageview column; degrade to an
+        // unweighted ranking (and report it) if this snapshot predates it.
+        let weighted_applied = weighted && ref_snap.matrix.has_pageviews();
+
         let mut rows: Vec<GapRow> = Vec::new();
-        for (category_qid, _direct_ref, overlap_reference) in ref_snap.matrix.iter() {
+        for (category_qid, _direct_ref, overlap_reference, overlap_pageviews) in
+            ref_snap.matrix.iter()
+        {
             if EXCLUDED_CATEGORY_QIDS.contains(&category_qid) {
                 continue;
             }
-            let (direct_target, overlap_target) = tgt_snap.matrix.get(category_qid);
+            let (direct_target, overlap_target, _pv_target) = tgt_snap.matrix.get(category_qid);
             let gap = overlap_reference as i64 - overlap_target as i64;
             if gap > 0 {
+                // overlap_reference ≥ gap > 0, so the division is always defined.
+                let weighted_score = if weighted_applied {
+                    (overlap_pageviews as u128 * gap as u128 / overlap_reference as u128) as u64
+                } else {
+                    0
+                };
                 rows.push(GapRow {
                     category_qid,
                     direct_target,
@@ -220,15 +240,28 @@ impl CoverageService {
                     overlap_reference,
                     gap,
                     has_category: direct_target > 0,
+                    overlap_pageviews,
+                    weighted_score,
                 });
             }
         }
-        rows.sort_unstable_by(|a, b| b.gap.cmp(&a.gap).then(a.category_qid.cmp(&b.category_qid)));
+        if weighted_applied {
+            rows.sort_unstable_by(|a, b| {
+                b.weighted_score
+                    .cmp(&a.weighted_score)
+                    .then(a.category_qid.cmp(&b.category_qid))
+            });
+        } else {
+            rows.sort_unstable_by(|a, b| {
+                b.gap.cmp(&a.gap).then(a.category_qid.cmp(&b.category_qid))
+            });
+        }
 
         let ranking = Arc::new(GapRanking {
             rows,
             reference_date: ref_snap.date,
             target_date: tgt_snap.date,
+            weighted_applied,
         });
 
         let mut cache = state.gap_rankings.write().map_err(|_| {

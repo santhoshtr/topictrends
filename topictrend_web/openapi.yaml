@@ -648,6 +648,13 @@ paths:
         server-side. Supports skip/limit pagination, a `min_ref` floor (to drop
         tiny noise), and a structure filter (`has_category`: `false` = category
         absent in target, `true` = present but under-populated).
+
+        When `weight=true`, rows are instead ranked by estimated missing
+        readership `overlap_pageviews × gap / overlap_reference` — average views
+        per reference article times the missing-article count — which demotes bot
+        stub farms. If the reference snapshot predates the pageview column the
+        request silently falls back to the raw gap ranking and
+        `weighted_applied` is `false`.
       parameters:
         - name: reference
           in: query
@@ -676,6 +683,11 @@ paths:
           in: query
           required: false
           schema: { type: boolean }
+        - name: weight
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
+          description: Rank by estimated missing readership instead of raw gap.
       responses:
         "200":
           description: OK
@@ -1845,7 +1857,7 @@ components:
 
     GapDiscoveryItem:
       type: object
-      required: [category_qid, category_title, direct_coverage_target, overlap_target, overlap_reference, gap, coverage_pct, has_category]
+      required: [category_qid, category_title, direct_coverage_target, overlap_target, overlap_reference, gap, coverage_pct, has_category, overlap_pageviews, weighted_score]
       properties:
         category_qid:
           type: integer
@@ -1879,10 +1891,18 @@ components:
         has_category:
           type: boolean
           description: Whether the target wiki has the category populated (direct_coverage_target > 0)
+        overlap_pageviews:
+          type: integer
+          format: int64
+          description: Windowed pageviews of the category's reference-side overlap articles (0 when unweighted)
+        weighted_score:
+          type: integer
+          format: int64
+          description: Estimated missing readership, overlap_pageviews × gap / overlap_reference (0 when unweighted)
 
     GapDiscoveryResponse:
       type: object
-      required: [reference, target, reference_date, target_date, total, with_category, without_category, offset, limit, categories]
+      required: [reference, target, reference_date, target_date, total, with_category, without_category, offset, limit, weighted, weighted_applied, categories]
       properties:
         reference:
           type: string
@@ -1907,6 +1927,12 @@ components:
           type: integer
         limit:
           type: integer
+        weighted:
+          type: boolean
+          description: Whether pageview weighting was requested
+        weighted_applied:
+          type: boolean
+          description: Whether weighting was actually applied (false if the reference snapshot predates the pageview column)
         categories:
           type: array
           items:

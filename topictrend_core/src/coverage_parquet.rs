@@ -2,10 +2,14 @@
 //! `coverage-matrix` ETL binary.
 //!
 //! Each per-wiki dated file `data/{wiki}/coverage/{YYYY-MM-DD}.parquet` has the
-//! schema `(category_qid: u32, direct_coverage: u32, qid_overlap_coverage: u32)`
-//! and is written sorted by `category_qid`. We hold it as three parallel arrays
-//! so a cross-wiki gap computation is a cache-friendly two-pointer merge and a
-//! single-category lookup is an `O(log n)` binary search.
+//! schema `(category_qid: u32, direct_coverage: u32, qid_overlap_coverage: u32,
+//! overlap_pageviews: u64)` and is written sorted by `category_qid`. We hold it
+//! as parallel arrays so a cross-wiki gap computation is a cache-friendly
+//! two-pointer merge and a single-category lookup is an `O(log n)` binary search.
+//!
+//! `overlap_pageviews` was added after the first snapshots shipped; pre-existing
+//! 3-column files load with `has_pageviews = false` and a zero-filled column, so
+//! the reader never panics on an old snapshot.
 //!
 //! Like `pageview_parquet`/`pageview_engine`, this reads with the raw `parquet`
 //! crate (purely synchronous) rather than Polars, so it is safe to call from
@@ -24,27 +28,36 @@ pub struct CoverageMatrix {
     category_qids: Vec<u32>, // sorted ascending
     direct: Vec<u32>,        // direct_coverage[i]
     overlap: Vec<u32>,       // qid_overlap_coverage[i]
+    pageviews: Vec<u64>,     // overlap_pageviews[i] (all-zero for legacy 3-col snapshots)
+    has_pageviews: bool,     // false when the snapshot predates the pageview column
 }
 
 impl CoverageMatrix {
-    /// `O(log n)` lookup. Returns `(direct_coverage, qid_overlap_coverage)`,
-    /// or `(0, 0)` if the category is absent from this wiki's snapshot.
+    /// `O(log n)` lookup. Returns `(direct_coverage, qid_overlap_coverage,
+    /// overlap_pageviews)`, or `(0, 0, 0)` if the category is absent.
     #[inline]
-    pub fn get(&self, category_qid: u32) -> (u32, u32) {
+    pub fn get(&self, category_qid: u32) -> (u32, u32, u64) {
         match self.category_qids.binary_search(&category_qid) {
-            Ok(i) => (self.direct[i], self.overlap[i]),
-            Err(_) => (0, 0),
+            Ok(i) => (self.direct[i], self.overlap[i], self.pageviews[i]),
+            Err(_) => (0, 0, 0),
         }
     }
 
-    /// Yields `(category_qid, direct, overlap)` in `category_qid` order.
-    pub fn iter(&self) -> impl Iterator<Item = (u32, u32, u32)> + '_ {
+    /// Yields `(category_qid, direct, overlap, pageviews)` in `category_qid` order.
+    pub fn iter(&self) -> impl Iterator<Item = (u32, u32, u32, u64)> + '_ {
         self.category_qids
             .iter()
             .copied()
             .zip(self.direct.iter().copied())
             .zip(self.overlap.iter().copied())
-            .map(|((c, d), o)| (c, d, o))
+            .zip(self.pageviews.iter().copied())
+            .map(|(((c, d), o), p)| (c, d, o, p))
+    }
+
+    /// Whether this snapshot carries the `overlap_pageviews` column. When false,
+    /// pageview weighting cannot be applied (the column is uniformly zero).
+    pub fn has_pageviews(&self) -> bool {
+        self.has_pageviews
     }
 
     pub fn len(&self) -> usize {
@@ -55,46 +68,60 @@ impl CoverageMatrix {
         self.category_qids.is_empty()
     }
 
-    /// Build from `(category_qid, direct, overlap)` rows. Sorts by
+    /// Build from `(category_qid, direct, overlap, pageviews)` rows. Sorts by
     /// `category_qid` so `get`/`iter` can rely on the ordering invariant even
     /// if a future writer changes its output order.
-    fn from_rows(mut rows: Vec<(u32, u32, u32)>) -> Self {
-        rows.sort_unstable_by_key(|(c, _, _)| *c);
+    fn from_rows(mut rows: Vec<(u32, u32, u32, u64)>, has_pageviews: bool) -> Self {
+        rows.sort_unstable_by_key(|(c, _, _, _)| *c);
         let mut category_qids = Vec::with_capacity(rows.len());
         let mut direct = Vec::with_capacity(rows.len());
         let mut overlap = Vec::with_capacity(rows.len());
-        for (c, d, o) in rows {
+        let mut pageviews = Vec::with_capacity(rows.len());
+        for (c, d, o, p) in rows {
             category_qids.push(c);
             direct.push(d);
             overlap.push(o);
+            pageviews.push(p);
         }
         Self {
             category_qids,
             direct,
             overlap,
+            pageviews,
+            has_pageviews,
         }
     }
 }
 
-/// Load a coverage-matrix Parquet. Columns are read positionally
-/// (0 = category_qid, 1 = direct_coverage, 2 = qid_overlap_coverage), matching
-/// the `CoverageRecord` written by the ETL — the same positional convention as
-/// `load_pageview_parquet`.
+/// Load a coverage-matrix Parquet. The first three columns
+/// (category_qid, direct_coverage, qid_overlap_coverage) are read positionally,
+/// matching the `CoverageRecord` written by the ETL. The fourth,
+/// `overlap_pageviews`, is presence-checked by name in the file schema so that
+/// pre-pageview 3-column snapshots load cleanly (zero-filled, `has_pageviews=false`).
 pub fn load_coverage_parquet(path: &str) -> Result<CoverageMatrix, Box<dyn Error>> {
     let file = File::open(path)?;
     let reader = SerializedFileReader::new(file)?;
-    let row_iter = reader.get_row_iter(None)?;
 
-    let mut rows: Vec<(u32, u32, u32)> = Vec::new();
+    let has_pageviews = reader
+        .metadata()
+        .file_metadata()
+        .schema_descr()
+        .columns()
+        .iter()
+        .any(|c| c.name() == "overlap_pageviews");
+
+    let row_iter = reader.get_row_iter(None)?;
+    let mut rows: Vec<(u32, u32, u32, u64)> = Vec::new();
     for row_result in row_iter {
         let row = row_result?;
         let category_qid = row.get_uint(0)?;
         let direct = row.get_uint(1)?;
         let overlap = row.get_uint(2)?;
-        rows.push((category_qid, direct, overlap));
+        let pageviews = if has_pageviews { row.get_ulong(3)? } else { 0 };
+        rows.push((category_qid, direct, overlap, pageviews));
     }
 
-    Ok(CoverageMatrix::from_rows(rows))
+    Ok(CoverageMatrix::from_rows(rows, has_pageviews))
 }
 
 /// Discover the newest coverage snapshot for a wiki under

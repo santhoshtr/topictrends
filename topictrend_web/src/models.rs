@@ -79,7 +79,9 @@ pub struct AppState {
     // Gap-discovery: per-wiki coverage snapshots and per-(reference,target)
     // sorted rankings, both lazily loaded and FIFO-bounded.
     pub coverage_snapshots: Arc<RwLock<BoundedCache<String, CoverageSnapshot>>>,
-    pub gap_rankings: Arc<RwLock<BoundedCache<(String, String), GapRanking>>>,
+    // Key: (reference, target, weighted) — the weighted and unweighted rankings
+    // of a pair sort differently, so they are distinct cached vectors.
+    pub gap_rankings: Arc<RwLock<BoundedCache<(String, String, bool), GapRanking>>>,
 }
 
 impl AppState {
@@ -657,6 +659,7 @@ pub struct GapDiscoveryParams {
     pub limit: Option<usize>,
     pub min_ref: Option<u32>,
     pub has_category: Option<bool>,
+    pub weight: Option<bool>,
 }
 
 #[derive(Serialize, JsonSchema)]
@@ -671,6 +674,11 @@ pub struct GapDiscoveryItemResponse {
     pub gap: i64,
     pub coverage_pct: f64,
     pub has_category: bool,
+    // overlap_pageviews: windowed views of the category's reference-side overlap
+    // articles; weighted_score: overlap_pageviews × gap / overlap_reference, the
+    // estimated readership the target is missing. Both 0 when not weighted.
+    pub overlap_pageviews: u64,
+    pub weighted_score: u64,
 }
 
 #[derive(Serialize, JsonSchema)]
@@ -684,6 +692,10 @@ pub struct GapDiscoveryResponse {
     pub without_category: usize,
     pub offset: usize,
     pub limit: usize,
+    // weighted: the client requested pageview weighting; weighted_applied: it was
+    // actually applied (false when the reference snapshot predates the column).
+    pub weighted: bool,
+    pub weighted_applied: bool,
     pub categories: Vec<GapDiscoveryItemResponse>,
 }
 
