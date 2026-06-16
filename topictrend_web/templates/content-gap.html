@@ -27,7 +27,7 @@
           <div class="tab-content-topic">
             <input type="text" id="topic" name="topic" pattern="[\x00-\x7F]+"  class="cdx-text-input__input"
               placeholder="Enter any topic" />
-            <p class="field-description">Describe a concept in plain English. We'll find Wikipedia articles that semantically match your description.</p>
+            <p class="field-description">Search Wikipedia categories in plain English. Pick a matched category below to analyse it.</p>
           </div>
           <div class="tab-content-category">
             <wiki-category-selector id="category" name="category"
@@ -44,6 +44,7 @@
       </div>
     </form>
     </form-filler>
+    <section id="category-list"></section>
   </div>
 
   <div class="main">
@@ -71,5 +72,6 @@
 <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
 <script src="/static/components/wikicategoryselector.js" type="module"></script>
 <script src="/static/components/form-filler.js" type="module"></script>
+<script src="/static/components/wiki-category.js" type="module"></script>
 <script src="/static/content-gap.js" type="module"></script>
 {% endblock %}

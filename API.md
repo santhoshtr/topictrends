@@ -610,64 +610,7 @@ curl "http://localhost:8765/api/list/articles?wiki=enwiki&category_qid=42&limit=
 
 ---
 
-### 11. GET /api/pageviews/categories
-
-Performs semantic search on categories and returns aggregated pageview trends for matching categories.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `wiki` | String | Yes | Wikipedia edition |
-| `category_query` | String | Yes | Semantic search query (English) |
-| `start_date` | String | No | Start date, default: 30 days ago |
-| `end_date` | String | No | End date, default: yesterday |
-| `match_threshold` | Float | No | Min. similarity score (0.0-1.0), default: 0.6 |
-| `limit` | Integer | No | Max results, default: 100 |
-
-**Example Request:**
-
-```bash
-curl "http://localhost:8765/api/pageviews/categories?wiki=enwiki&category_query=machine+learning&limit=10&match_threshold=0.7"
-```
-
-**Response:**
-
-```json
-{
-  "query": "machine learning",
-  "wiki": "enwiki",
-  "period": {
-    "start_date": "2024-12-15",
-    "end_date": "2025-01-14"
-  },
-  "categories": [
-    {
-      "category_qid": 11019,
-      "category_title": "Artificial intelligence",
-      "match_score": 0.95,
-      "total_views": 2500000,
-      "daily_average": 83333
-    },
-    {
-      "category_qid": 5952,
-      "category_title": "Machine learning",
-      "match_score": 0.88,
-      "total_views": 1800000,
-      "daily_average": 60000
-    }
-  ]
-}
-```
-
-**Error Responses:**
-
-- `400 Bad Request`: Invalid parameters or empty query
-- `503 Service Unavailable`: Vector store unavailable
-
----
-
-### 12. GET /api/content_gap/categories
+### 11. GET /api/content_gap/categories
 
 Compares one category's coverage across multiple wikis. Each wiki's
 `article_count` is the category's `qid_overlap_coverage` from the monthly

@@ -5,9 +5,9 @@ use rmcp::{ErrorData, tool};
 use rmcp::handler::server::wrapper::Parameters;
 
 use crate::mcp::TopicTrendMcpServer;
-use crate::mcp::tools::{ContentGapTopicInput, ListArticlesInput, SubCategoriesInput, core_err, ListArticleCategoriesInput};
-use crate::models::{ArticleItem, ArticlesInCategoryResponse, ContentGapResult, ArticleCategoriesResponse};
-use crate::services::{ContentGapService, PageViewsService};
+use crate::mcp::tools::{ListArticlesInput, SubCategoriesInput, core_err, ListArticleCategoriesInput};
+use crate::models::{ArticleItem, ArticlesInCategoryResponse, ArticleCategoriesResponse};
+use crate::services::PageViewsService;
 use crate::services::core::{CategoryService, QidService, ArticleService};
 
 impl TopicTrendMcpServer {
@@ -86,32 +86,6 @@ impl TopicTrendMcpServer {
         }).collect();
 
         Ok(rmcp::handler::server::wrapper::Json(ArticlesInCategoryResponse { articles }))
-    }
-
-    /// Analyse content coverage gaps across Wikipedia language editions for a semantic topic.
-    ///
-    /// Performs semantic search for categories matching `topic`, then returns the article count
-    /// for each requested wiki. Useful for identifying which language editions have sparse coverage.
-    #[tool(
-        name = "topictrends_get_content_gap_topic",
-        description = "Content coverage gap analysis across Wikipedia language editions for a semantic topic.",
-        annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = true)
-    )]
-    pub async fn get_content_gap_topic(
-        &self,
-        Parameters(p): Parameters<ContentGapTopicInput>,
-    ) -> Result<rmcp::handler::server::wrapper::Json<ContentGapResult>, ErrorData> {
-        let wikis: Vec<String> = p.wikis
-            .split(',')
-            .map(|w| w.trim().to_string())
-            .filter(|w| !w.is_empty())
-            .collect();
-
-        let result = ContentGapService::get_topic_content_gap(
-            Arc::clone(&self.state), &p.topic, wikis,
-        ).await.map_err(core_err)?;
-
-        Ok(rmcp::handler::server::wrapper::Json(result))
     }
 
     /// List all categories that an article belongs to.

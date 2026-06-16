@@ -5,13 +5,11 @@ use rmcp::handler::server::wrapper::Parameters;
 
 use crate::mcp::TopicTrendMcpServer;
 use crate::mcp::tools::{
-    ArticleTrendInput, CategoriesSearchTrendInput, CategoryTrendInput, TopNInput, TopicTrendInput,
-    parse_date_opt, service_err,
+    ArticleTrendInput, CategoryTrendInput, TopNInput, parse_date_opt, service_err,
 };
 use crate::models::{
-    ArticleTrendResponse, CategoryRankResponse, CategoryTrendResponse, CategoriesTrendResponse,
-    DailyViews, PageViewTopArticle, PageViewTopArticlesResponse, TopArticle, TopArticleCategory,
-    TopCategory, CategoryInfo,
+    ArticleTrendResponse, CategoryRankResponse, CategoryTrendResponse, DailyViews,
+    PageViewTopArticle, PageViewTopArticlesResponse, TopArticle, TopArticleCategory, TopCategory,
 };
 use crate::services::PageViewsService;
 use crate::services::core::QidService;
@@ -75,38 +73,6 @@ impl TopicTrendMcpServer {
             title_en: en.get(&r.qid).cloned(),
             title: r.title,
             views: r.views.into_iter().map(|(date, views)| DailyViews { date, views }).collect(),
-        }))
-    }
-
-    /// Get daily Wikipedia pageviews for a semantic topic.
-    ///
-    /// Performs embedding-based search against the English Wikipedia category taxonomy,
-    /// then aggregates daily pageviews across all matched categories mapped to the target wiki.
-    /// The topic does not need to match an exact category title.
-    #[tool(
-        name = "topictrends_get_topic_pageview_trend",
-        description = "Daily Wikipedia pageviews for a semantic topic query (embedding-based, cross-language).",
-        annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = true)
-    )]
-    pub async fn get_topic_pageview_trend(
-        &self,
-        Parameters(p): Parameters<TopicTrendInput>,
-    ) -> Result<rmcp::handler::server::wrapper::Json<CategoryTrendResponse>, ErrorData> {
-        let start = parse_date_opt(p.start_date)?;
-        let end = parse_date_opt(p.end_date)?;
-        let r = PageViewsService::get_topic_trend(
-            Arc::clone(&self.state), &p.wiki, &p.topic, start, end,
-        ).await.map_err(service_err)?;
-
-        let en_qids = article_rank_qids(&r.top_articles);
-        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &en_qids).await;
-
-        Ok(rmcp::handler::server::wrapper::Json(CategoryTrendResponse {
-            qid: r.qid,
-            title_en: None,
-            title: r.title,
-            views: r.views.into_iter().map(|(date, views)| DailyViews { date, views }).collect(),
-            top_articles: build_top_articles(r.top_articles, &en),
         }))
     }
 
@@ -178,52 +144,6 @@ impl TopicTrendMcpServer {
         }))
     }
 
-    /// Get pageview trends for categories found via semantic search.
-    ///
-    /// Searches categories by `category_query` (embedding-based), then returns a combined
-    /// cumulative trend plus the top articles across all matched categories.
-    #[tool(
-        name = "topictrends_get_categories_pageview_trend",
-        description = "Combined pageview trend for all categories matching a semantic search query.",
-        annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = true)
-    )]
-    pub async fn get_categories_pageview_trend(
-        &self,
-        Parameters(p): Parameters<CategoriesSearchTrendInput>,
-    ) -> Result<rmcp::handler::server::wrapper::Json<CategoriesTrendResponse>, ErrorData> {
-        let start = parse_date_opt(p.start_date)?;
-        let end = parse_date_opt(p.end_date)?;
-        let limit = p.limit.unwrap_or(1000);
-        let match_threshold = p.match_threshold.unwrap_or(0.6);
-
-        let search_results = topictrend_taxonomy::search(
-            p.category_query.clone(), "enwiki".to_string(), limit, match_threshold,
-        ).await.map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
-
-        let qids: Vec<u32> = search_results.into_iter().map(|r| r.qid).collect();
-
-        let r = PageViewsService::get_categories_trend(
-            Arc::clone(&self.state), &p.wiki, qids, start, end,
-        ).await.map_err(service_err)?;
-
-        let mut en_qids: Vec<u32> = r.categories.iter().map(|c| c.qid).collect();
-        en_qids.extend(article_rank_qids(&r.top_articles));
-        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &en_qids).await;
-
-        Ok(rmcp::handler::server::wrapper::Json(CategoriesTrendResponse {
-            categories: r.categories.into_iter()
-                .map(|c| CategoryInfo {
-                    qid: c.qid,
-                    title_en: en.get(&c.qid).cloned(),
-                    title: c.title,
-                })
-                .collect(),
-            cumulative_views: r.cumulative_views.into_iter()
-                .map(|(date, views)| DailyViews { date, views })
-                .collect(),
-            top_articles: build_top_articles(r.top_articles, &en),
-        }))
-    }
 }
 
 fn build_top_articles(arts: Vec<ArticleRank>, en: &HashMap<u32, String>) -> Vec<TopArticle> {

@@ -10,7 +10,7 @@ use crate::models::{
     AppState, ArticleTrendParams, GoogleSearchArticleTrendResponse, CategoryTrendParams,
     GoogleSearchCategoryTrendResponse, DailyGoogleSearch, TopArticleGoogleSearch, TopCategoriesParams,
     CategorySearchRankResponse, TopCategoryBySearch, TopArticleBySearch, GoogleSearchTopArticlesResponse,
-    GoogleSearchTopArticle, TopArticleCategory, TopicTrendParams,
+    GoogleSearchTopArticle, TopArticleCategory,
 };
 
 use super::ApiError;
@@ -113,66 +113,6 @@ pub async fn get_article_google_search_trend_handler(
     }))
 }
 
-pub async fn get_topic_google_search_trend_handler(
-    Query(params): Query<TopicTrendParams>,
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<GoogleSearchCategoryTrendResponse>, ApiError> {
-    let result = GoogleSearchTrendsService::get_topic_google_search_trend(
-        Arc::clone(&state),
-        &params.wiki,
-        &params.topic,
-        params.start_date,
-        params.end_date,
-    )
-    .await?;
-
-    let daily_search: Vec<DailyGoogleSearch> = result
-        .search
-        .into_iter()
-        .map(|item| DailyGoogleSearch {
-            date: item.date,
-            clicks: item.clicks,
-            impressions: item.impressions,
-            ctr: item.ctr,
-            position: item.position,
-        })
-        .collect();
-
-    let mut en_qids: Vec<u32> = Vec::new();
-    for art in &result.top_articles {
-        en_qids.push(art.qid);
-        en_qids.extend(art.source_categories.iter().map(|(qid, _)| *qid));
-    }
-    let en = QidService::get_english_titles(state, &params.wiki, &en_qids).await;
-
-    let top_articles: Vec<TopArticleGoogleSearch> = result
-        .top_articles
-        .into_iter()
-        .map(|article| TopArticleGoogleSearch {
-            qid: article.qid,
-            title_en: en.get(&article.qid).cloned(),
-            title: article.title,
-            clicks: article.clicks,
-            impressions: article.impressions,
-            ctr: article.ctr,
-            source_categories: article.source_categories.into_iter()
-                .map(|(qid, title)| TopArticleCategory {
-                    qid,
-                    title,
-                    title_en: en.get(&qid).cloned(),
-                })
-                .collect(),
-        })
-        .collect();
-
-    Ok(Json(GoogleSearchCategoryTrendResponse {
-        qid: result.qid,
-        title_en: None,
-        title: result.title,
-        search: daily_search,
-        top_articles,
-    }))
-}
 
 pub async fn get_googlesearch_top_categories_handler(
     Query(params): Query<TopCategoriesParams>,

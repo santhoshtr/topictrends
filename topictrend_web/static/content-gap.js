@@ -1,3 +1,7 @@
+import {
+	renderCategoryChips,
+	searchCategories,
+} from "./utils/category-chips.js";
 import { DEFAULT_CHART_COLORS } from "./utils/chart-utils.js";
 import { hideProgress, showProgress } from "./utils/progress-bar.js";
 import { showMessage } from "./utils/ui-utils.js";
@@ -11,6 +15,9 @@ let activeWikis = [];
 let currentType = "topic"; // "topic" or "category"
 let currentTopic = null;
 let currentCategory = null;
+// QID of the chosen category (from a matched-category chip); authoritative when set,
+// so a non-local localized title need not resolve against enwiki.
+let currentCategoryQid = null;
 // last fetched data (for chart rendering)
 let lastData = null;
 // echarts instance for the article count chart
@@ -44,27 +51,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 			const typeRadio = document.getElementById(`tab-${type}`);
 			if (typeRadio) typeRadio.checked = true;
 
+			const baseWiki = wiki || document.getElementById("wiki").value;
+
 			if (type === "topic") {
 				const topic = p.get("topic");
 				if (topic) {
-					currentType = "topic";
-					currentTopic = topic;
-					currentCategory = null;
+					searchTopicCategories(baseWiki, topic);
 				}
-			} else {
-				const category = p.get("category");
-				if (category) {
-					currentType = "category";
-					currentCategory = category;
-					currentTopic = null;
-				}
+				return;
 			}
 
-			if (
-				(type === "topic" && currentTopic) ||
-				(type === "category" && currentCategory)
-			) {
-				const baseWiki = wiki || document.getElementById("wiki").value;
+			const category = p.get("category");
+			if (category) {
+				currentType = "category";
+				currentCategory = category;
+				currentCategoryQid = p.get("category_qid") || null;
+				currentTopic = null;
+
 				const compareWikis = compare
 					? compare
 							.split(",")
@@ -107,30 +110,70 @@ async function onSubmit(event) {
 			showMessage("Please enter a topic.", "error");
 			return;
 		}
-
-		currentType = "topic";
-		currentTopic = topic;
-		currentCategory = null;
-	} else {
-		const category = document
-			.getElementById("category")
-			.value.trim()
-			.replaceAll(" ", "_");
-		if (!category) {
-			showMessage("Please select a category.", "error");
-			return;
-		}
-
-		currentType = "category";
-		currentCategory = category;
-		currentTopic = null;
+		await searchTopicCategories(baseWiki, topic);
+		return;
 	}
+
+	const category = document
+		.getElementById("category")
+		.value.trim()
+		.replaceAll(" ", "_");
+	if (!category) {
+		showMessage("Please select a category.", "error");
+		return;
+	}
+
+	currentType = "category";
+	currentCategory = category;
+	currentCategoryQid = document.getElementById("category_qid").value || null;
+	currentTopic = null;
 
 	// On a fresh submit keep only the base wiki; any previous compare wikis are discarded.
 	activeWikis = [baseWiki];
 
 	syncUrlParams();
 	await fetchAndRender();
+}
+
+// Topic mode: relaxed semantic search, then list the matched categories as chips.
+// Clicking a chip runs the content-gap analysis for that single category — exactly
+// like an exact category match.
+async function searchTopicCategories(wiki, topic) {
+	const newUrl = `${window.location.pathname}?type=topic&wiki=${wiki}&topic=${encodeURIComponent(
+		topic,
+	)}`;
+	window.history.pushState({}, "", newUrl);
+
+	document.getElementById("content-gap-results").hidden = true;
+
+	showProgress();
+	try {
+		const items = await searchCategories(wiki, topic);
+		renderCategoryChips(document.getElementById("category-list"), {
+			heading: "Matched categories",
+			items,
+			wiki,
+			onPlot: (qid, title) => {
+				currentType = "category";
+				currentCategory = title;
+				currentCategoryQid = qid;
+				currentTopic = null;
+				activeWikis = [wiki];
+				syncUrlParams();
+				fetchAndRender();
+			},
+		});
+		if (items.length === 0) {
+			showMessage(
+				"No matching categories found. Try a different topic.",
+				"error",
+			);
+		}
+	} catch (error) {
+		showMessage(`Failed to search categories: ${error.message}`, "error");
+	} finally {
+		hideProgress();
+	}
 }
 
 async function fetchAndRender() {
@@ -140,16 +183,11 @@ async function fetchAndRender() {
 	showProgress();
 	try {
 		const wikisParam = [...new Set(activeWikis)].join(",");
-		let url;
-
-		if (currentType === "topic") {
-			url = `/api/content_gap/topic?topic=${encodeURIComponent(
-				currentTopic,
-			)}&wikis=${encodeURIComponent(wikisParam)}`;
-		} else {
-			url = `/api/content_gap/categories?category=${encodeURIComponent(
-				currentCategory,
-			)}&wikis=${encodeURIComponent(wikisParam)}`;
+		let url = `/api/content_gap/categories?category=${encodeURIComponent(
+			currentCategory,
+		)}&wikis=${encodeURIComponent(wikisParam)}`;
+		if (currentCategoryQid) {
+			url += `&category_qid=${currentCategoryQid}`;
 		}
 
 		const response = await fetch(url);
@@ -363,14 +401,12 @@ function syncUrlParams() {
 	const baseWiki = activeWikis[0];
 	const compareWikis = activeWikis.slice(1);
 	const params = new URLSearchParams({
-		type: currentType,
+		type: "category",
 		wiki: baseWiki,
 	});
-
-	if (currentType === "topic") {
-		params.set("topic", currentTopic);
-	} else {
-		params.set("category", currentCategory);
+	params.set("category", currentCategory);
+	if (currentCategoryQid) {
+		params.set("category_qid", currentCategoryQid);
 	}
 
 	if (compareWikis.length > 0) {

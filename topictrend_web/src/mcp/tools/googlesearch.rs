@@ -4,10 +4,7 @@ use rmcp::{ErrorData, tool};
 use rmcp::handler::server::wrapper::Parameters;
 
 use crate::mcp::TopicTrendMcpServer;
-use crate::mcp::tools::{
-    ArticleTrendInput, CategoryTrendInput, TopNInput, TopicTrendInput,
-    parse_date_opt, core_err,
-};
+use crate::mcp::tools::{ArticleTrendInput, CategoryTrendInput, TopNInput, parse_date_opt, core_err};
 use crate::models::{
     CategorySearchRankResponse, DailyGoogleSearch, GoogleSearchArticleTrendResponse,
     GoogleSearchCategoryTrendResponse, GoogleSearchTopArticle, GoogleSearchTopArticlesResponse,
@@ -88,42 +85,6 @@ impl TopicTrendMcpServer {
                 ctr: item.ctr,
                 position: item.position,
             }).collect(),
-        }))
-    }
-
-    /// Get daily Google Search Console metrics for a semantic topic.
-    ///
-    /// Performs embedding-based category search then aggregates Google Search data.
-    #[tool(
-        name = "topictrends_get_topic_googlesearch_trend",
-        description = "Daily Google Search metrics for a semantic topic query.",
-        annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = true)
-    )]
-    pub async fn get_topic_googlesearch_trend(
-        &self,
-        Parameters(p): Parameters<TopicTrendInput>,
-    ) -> Result<rmcp::handler::server::wrapper::Json<GoogleSearchCategoryTrendResponse>, ErrorData> {
-        let start = parse_date_opt(p.start_date)?;
-        let end = parse_date_opt(p.end_date)?;
-        let r = GoogleSearchTrendsService::get_topic_google_search_trend(
-            Arc::clone(&self.state), &p.wiki, &p.topic, start, end,
-        ).await.map_err(core_err)?;
-
-        let en_qids = article_search_rank_qids(&r.top_articles);
-        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &en_qids).await;
-
-        Ok(rmcp::handler::server::wrapper::Json(GoogleSearchCategoryTrendResponse {
-            qid: r.qid,
-            title_en: None,
-            title: r.title,
-            search: r.search.into_iter().map(|item| DailyGoogleSearch {
-                date: item.date,
-                clicks: item.clicks,
-                impressions: item.impressions,
-                ctr: item.ctr,
-                position: item.position,
-            }).collect(),
-            top_articles: build_top_article_search(r.top_articles, &en),
         }))
     }
 

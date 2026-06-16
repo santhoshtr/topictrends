@@ -176,87 +176,6 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
-  /api/pageviews/topic:
-    get:
-      operationId: getTopicPageviewTrend
-      tags: [Pageviews]
-      summary: Topic pageview trend (semantic)
-      description: |
-        Performs a semantic search for Wikipedia categories matching `topic`,
-        then returns aggregated daily pageviews across all matched categories.
-
-        Unlike `/api/pageviews/category`, this endpoint never requires an exact
-        category title. The query is matched using embedding-based similarity
-        against the English Wikipedia category taxonomy and then mapped to the
-        requested `wiki`.
-      parameters:
-        - $ref: "#/components/parameters/Wiki"
-        - $ref: "#/components/parameters/Topic"
-        - $ref: "#/components/parameters/StartDateOptional"
-        - $ref: "#/components/parameters/EndDateOptional"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CategoryTrendResponse"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalError"
-
-  /api/pageedits/topic:
-    get:
-      operationId: getTopicPageeditTrend
-      tags: [Pageedits]
-      summary: Topic page edit trend (semantic)
-      description: |
-        Performs a semantic search for Wikipedia categories matching `topic`,
-        then returns aggregated daily page edits across all matched categories.
-      parameters:
-        - $ref: "#/components/parameters/Wiki"
-        - $ref: "#/components/parameters/Topic"
-        - $ref: "#/components/parameters/StartDateOptional"
-        - $ref: "#/components/parameters/EndDateOptional"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CategoryEditTrendResponse"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalError"
-
-  /api/googlesearch/topic:
-    get:
-      operationId: getTopicGoogleSearchTrend
-      tags: [GoogleSearch]
-      summary: Topic Google search trend (semantic)
-      description: |
-        Performs a semantic search for Wikipedia categories matching `topic`,
-        then returns aggregated daily Google search metrics across all matched
-        categories.
-      parameters:
-        - $ref: "#/components/parameters/Wiki"
-        - $ref: "#/components/parameters/Topic"
-        - $ref: "#/components/parameters/StartDateOptional"
-        - $ref: "#/components/parameters/EndDateOptional"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/GoogleSearchCategoryTrendResponse"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalError"
-
   /api/list/sub_categories:
     get:
       operationId: listSubCategories
@@ -687,35 +606,6 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
-  /api/pageviews/categories:
-    get:
-      operationId: getCategoriesPageviewTrendBySearch
-      tags: [Pageviews, Search]
-      summary: Pageview trends for searched categories
-      description: |
-        Searches categories by `category_query` (embedding-based), then returns a combined trend.
-
-        Note: The current implementation searches the English index and then maps titles to the
-        requested `wiki` where possible.
-      parameters:
-        - $ref: "#/components/parameters/Wiki"
-        - $ref: "#/components/parameters/CategoryQuery"
-        - $ref: "#/components/parameters/StartDateOptional"
-        - $ref: "#/components/parameters/EndDateOptional"
-        - $ref: "#/components/parameters/MatchThresholdOptional"
-        - $ref: "#/components/parameters/SearchLimitOptional"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CategoriesTrendResponse"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalError"
-
   /api/content_gap/categories:
     get:
       operationId: getContentGapCategories
@@ -732,32 +622,6 @@ paths:
       parameters:
         - $ref: "#/components/parameters/CategoryOptional"
         - $ref: "#/components/parameters/CategoryQidOptional"
-        - $ref: "#/components/parameters/Wikis"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ContentGapResult"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalError"
-
-  /api/content_gap/topic:
-    get:
-      operationId: getContentGapTopic
-      tags: [ContentGap]
-      summary: Content gap for topic (semantic)
-      description: |
-        Performs a semantic search for Wikipedia categories matching `topic`,
-        then returns article counts across specified wikis for all matched categories.
-
-        Useful for understanding content coverage disparities across language editions
-        for a given topic.
-      parameters:
-        - $ref: "#/components/parameters/Topic"
         - $ref: "#/components/parameters/Wikis"
       responses:
         "200":
@@ -851,17 +715,6 @@ components:
         type: string
         minLength: 1
 
-    Topic:
-      name: topic
-      in: query
-      required: true
-      description: |
-        Plain-language topic query for semantic search. Does not need to match an
-        exact Wikipedia category title. Cross-language queries are supported.
-      schema:
-        type: string
-        minLength: 1
-
     CategoryOptional:
       name: category
       in: query
@@ -894,15 +747,6 @@ components:
       in: query
       required: true
       description: Search query string.
-      schema:
-        type: string
-        minLength: 1
-
-    CategoryQuery:
-      name: category_query
-      in: query
-      required: true
-      description: Search query used to find categories.
       schema:
         type: string
         minLength: 1
@@ -1339,23 +1183,6 @@ components:
           format: int32
           minimum: 1
           description: Number of Wikipedia editions asserting this assignment.
-
-    CategoriesTrendResponse:
-      type: object
-      required: [categories, cumulative_views, top_articles]
-      properties:
-        categories:
-          type: array
-          items:
-            $ref: "#/components/schemas/CategoryInfo"
-        cumulative_views:
-          type: array
-          items:
-            $ref: "#/components/schemas/DailyViews"
-        top_articles:
-          type: array
-          items:
-            $ref: "#/components/schemas/TopArticle"
 
     TopCategory:
       type: object

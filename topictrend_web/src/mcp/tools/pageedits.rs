@@ -4,10 +4,7 @@ use rmcp::{ErrorData, tool};
 use rmcp::handler::server::wrapper::Parameters;
 
 use crate::mcp::TopicTrendMcpServer;
-use crate::mcp::tools::{
-    ArticleTrendInput, CategoryTrendInput, TopNInput, TopicTrendInput,
-    parse_date_opt, core_err,
-};
+use crate::mcp::tools::{ArticleTrendInput, CategoryTrendInput, TopNInput, parse_date_opt, core_err};
 use crate::models::{
     ArticleEditTrendResponse, CategoryEditRankResponse, CategoryEditTrendResponse,
     DailyEdits, PageEditTopArticle, PageEditTopArticlesResponse,
@@ -74,37 +71,6 @@ impl TopicTrendMcpServer {
             title_en: en.get(&r.qid).cloned(),
             title: r.title,
             edits: r.edits.into_iter().map(|(date, edits)| DailyEdits { date, edits }).collect(),
-        }))
-    }
-
-    /// Get daily Wikipedia page edit counts for a semantic topic.
-    ///
-    /// Performs embedding-based search against the English Wikipedia category taxonomy,
-    /// then aggregates daily edit counts across all matched categories.
-    #[tool(
-        name = "topictrends_get_topic_pageedit_trend",
-        description = "Daily Wikipedia page edit counts for a semantic topic query.",
-        annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = true)
-    )]
-    pub async fn get_topic_pageedit_trend(
-        &self,
-        Parameters(p): Parameters<TopicTrendInput>,
-    ) -> Result<rmcp::handler::server::wrapper::Json<CategoryEditTrendResponse>, ErrorData> {
-        let start = parse_date_opt(p.start_date)?;
-        let end = parse_date_opt(p.end_date)?;
-        let r = PageEditsService::get_topic_edit_trend(
-            Arc::clone(&self.state), &p.wiki, &p.topic, start, end,
-        ).await.map_err(core_err)?;
-
-        let en_qids = article_edit_rank_qids(&r.top_articles);
-        let en = QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &en_qids).await;
-
-        Ok(rmcp::handler::server::wrapper::Json(CategoryEditTrendResponse {
-            qid: r.qid,
-            title_en: None,
-            title: r.title,
-            edits: r.edits.into_iter().map(|(date, edits)| DailyEdits { date, edits }).collect(),
-            top_articles: build_top_article_edits(r.top_articles, &en),
         }))
     }
 

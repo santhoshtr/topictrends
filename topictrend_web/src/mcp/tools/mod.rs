@@ -46,19 +46,6 @@ pub struct ArticleTrendInput {
     pub end_date: Option<String>,
 }
 
-/// Input for semantic topic-level trend queries.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct TopicTrendInput {
-    /// Wikipedia edition database name (e.g. "enwiki").
-    pub wiki: String,
-    /// Plain-language topic query. Does not need to match an exact category title.
-    pub topic: String,
-    /// Start date inclusive, YYYY-MM-DD. Defaults to 30 days ago.
-    pub start_date: Option<String>,
-    /// End date inclusive, YYYY-MM-DD. Defaults to today.
-    pub end_date: Option<String>,
-}
-
 /// Input for top-N category/article ranking queries.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TopNInput {
@@ -121,23 +108,6 @@ pub struct CategorySearchInput {
     pub limit: Option<u64>,
 }
 
-/// Input for pageview trend search by semantic category query.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct CategoriesSearchTrendInput {
-    /// Wikipedia edition database name (e.g. "enwiki").
-    pub wiki: String,
-    /// Embedding-based search query for finding matching categories.
-    pub category_query: String,
-    /// Start date inclusive, YYYY-MM-DD. Defaults to 30 days ago.
-    pub start_date: Option<String>,
-    /// End date inclusive, YYYY-MM-DD. Defaults to today.
-    pub end_date: Option<String>,
-    /// Minimum similarity score threshold (0.0–1.0). Defaults to 0.6.
-    pub match_threshold: Option<f32>,
-    /// Maximum number of search candidates to consider.
-    pub limit: Option<u64>,
-}
-
 /// Input for subcategory listing.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SubCategoriesInput {
@@ -162,14 +132,6 @@ pub struct ListArticlesInput {
     pub min_agreement: Option<u16>,
 }
 
-/// Input for content gap analysis by semantic topic.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct ContentGapTopicInput {
-    /// Plain-language topic query for semantic category matching.
-    pub topic: String,
-    /// Comma-separated list of Wikipedia edition database names (e.g. "enwiki,frwiki,dewiki").
-    pub wikis: String,
-}
 
 /// Input for listing categories an article belongs to.
 #[derive(Debug, Deserialize, JsonSchema)]

@@ -10,7 +10,7 @@ use crate::models::{
     AppState, ArticleTrendParams, ArticleEditTrendResponse, CategoryTrendParams,
     CategoryEditTrendResponse, DailyEdits, TopArticleEdits, TopCategoriesParams,
     CategoryEditRankResponse, TopCategoryByEdits, TopArticleByEdits, PageEditTopArticlesResponse,
-    PageEditTopArticle, TopArticleCategory, TopicTrendParams,
+    PageEditTopArticle, TopArticleCategory,
 };
 
 use super::ApiError;
@@ -96,59 +96,6 @@ pub async fn get_article_edit_trend_handler(
         title_en: en.get(&result.qid).cloned(),
         title: result.title,
         edits: daily_edits,
-    }))
-}
-
-pub async fn get_topic_edit_trend_handler(
-    Query(params): Query<TopicTrendParams>,
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<CategoryEditTrendResponse>, ApiError> {
-    let result = PageEditsService::get_topic_edit_trend(
-        Arc::clone(&state),
-        &params.wiki,
-        &params.topic,
-        params.start_date,
-        params.end_date,
-    )
-    .await?;
-
-    let mut en_qids: Vec<u32> = Vec::new();
-    for art in &result.top_articles {
-        en_qids.push(art.qid);
-        en_qids.extend(art.source_categories.iter().map(|(qid, _)| *qid));
-    }
-    let en = QidService::get_english_titles(state, &params.wiki, &en_qids).await;
-
-    let daily_edits: Vec<DailyEdits> = result
-        .edits
-        .into_iter()
-        .map(|(date, edits)| DailyEdits { date, edits })
-        .collect();
-
-    let top_articles: Vec<TopArticleEdits> = result
-        .top_articles
-        .into_iter()
-        .map(|art| TopArticleEdits {
-            qid: art.qid,
-            title_en: en.get(&art.qid).cloned(),
-            title: art.title,
-            edits: art.edits,
-            source_categories: art.source_categories.into_iter()
-                .map(|(qid, title)| TopArticleCategory {
-                    qid,
-                    title,
-                    title_en: en.get(&qid).cloned(),
-                })
-                .collect(),
-        })
-        .collect();
-
-    Ok(Json(CategoryEditTrendResponse {
-        qid: result.qid,
-        title_en: None,
-        title: result.title,
-        edits: daily_edits,
-        top_articles,
     }))
 }
 

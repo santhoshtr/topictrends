@@ -1,4 +1,7 @@
-import { autocomp } from "./autocomp.js";
+import {
+	renderCategoryChips,
+	searchCategories,
+} from "./utils/category-chips.js";
 import { initializeChart, updateChart } from "./utils/chart-utils.js";
 import { hideProgress, showProgress } from "./utils/progress-bar.js";
 import { renderPageeditsTopArticles } from "./utils/top-articles-table.js";
@@ -91,7 +94,7 @@ async function onSubmit(event) {
 			const newUrl = `${window.location.pathname}?${params.toString()}`;
 			window.history.pushState({}, "", newUrl);
 
-			await fetchTopicPageEdits(wiki, topic, startDate, endDate, 0);
+			await searchTopicCategories(wiki, topic);
 		} else if (type === "category") {
 			const category = document
 				.getElementById("category")
@@ -135,6 +138,37 @@ function updateChartWithData(data, label) {
 	updateChart(chartInstance, data, label);
 }
 
+function plotCategory(wiki, qid, title) {
+	const startDate = document.getElementById("start_date").value;
+	const endDate = document.getElementById("end_date").value;
+	fetchCategoryPageEdits(wiki, title, startDate, endDate, qid);
+}
+
+async function searchTopicCategories(wiki, topic) {
+	// No chart until the user picks one of the matched categories.
+	document.getElementById("chart").style.display = "none";
+	document.getElementById("top-articles").innerHTML = "";
+
+	showProgress();
+	try {
+		const items = await searchCategories(wiki, topic);
+		renderCategoryChips(document.getElementById("category-list"), {
+			heading: "Matched categories",
+			items,
+			wiki,
+			onPlot: (qid, title) => plotCategory(wiki, qid, title),
+		});
+		if (items.length === 0) {
+			showMessage(
+				"No matching categories found. Try a different topic.",
+				"error",
+			);
+		}
+	} finally {
+		hideProgress();
+	}
+}
+
 async function renderSubCategories(wiki, category) {
 	const categoryListContainer = document.getElementById("category-list");
 	const apiUrl = `/api/list/sub_categories?wiki=${wiki}&category=${category}`;
@@ -142,55 +176,16 @@ async function renderSubCategories(wiki, category) {
 	try {
 		showProgress();
 		const response = await fetch(apiUrl);
-		const subcategories = await response.json();
 		if (!response.ok) {
 			throw new Error("Failed to fetch data");
 		}
-
-		categoryListContainer.innerHTML = "";
-
-		const subheading = document.createElement("h3");
-		subheading.textContent = "Subcategories";
-		categoryListContainer.appendChild(subheading);
-
-		const ul = document.createElement("ul");
-		subcategories.forEach((cat) => {
-			const { qid, title, title_en } = cat;
-			const li = document.createElement("li");
-			li.id = qid;
-
-			const wikiCategory = document.createElement("wiki-category");
-			wikiCategory.setAttribute("title", title);
-			if (title_en && title_en !== title) {
-				wikiCategory.setAttribute("title-en", title_en);
-			}
-			wikiCategory.setAttribute("qid", qid);
-			wikiCategory.setAttribute("views", "0");
-
-			const plotButton = document.createElement("button");
-			plotButton.title = "Plot page edits for this category";
-			plotButton.className = "plot-button";
-			plotButton.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" 
-        height="16px" viewBox="0 -960 960 960"
-        width="16px" fill="currentColor">
-      <path d="m140-220-60-60 300-300 160 160 284-320 56 56-340 384-160-160-240 240Z"/>
-      </svg>
-      `;
-			plotButton.addEventListener("click", (event) => {
-				event.preventDefault();
-				const startDate = document.getElementById("start_date").value;
-				const endDate = document.getElementById("end_date").value;
-
-				fetchCategoryPageEdits(wiki, title, startDate, endDate);
-			});
-
-			li.appendChild(wikiCategory);
-			li.appendChild(plotButton);
-			ul.appendChild(li);
+		const subcategories = await response.json();
+		renderCategoryChips(categoryListContainer, {
+			heading: "Subcategories",
+			items: subcategories,
+			wiki,
+			onPlot: (qid, title) => plotCategory(wiki, qid, title),
 		});
-
-		categoryListContainer.appendChild(ul);
 	} finally {
 		hideProgress();
 	}
@@ -226,45 +221,21 @@ document.addEventListener("DOMContentLoaded", () => {
 	startDatePicker.value = `${year}-${month}-${day}`;
 });
 
-async function fetchTopicPageEdits(wiki, topic, startDate, endDate) {
+async function fetchCategoryPageEdits(
+	wiki,
+	category,
+	startDate,
+	endDate,
+	categoryQid,
+) {
 	showSection("chart-with-articles");
 
-	const apiUrl = `/api/pageedits/topic?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&topic=${encodeURIComponent(
-		topic,
-	)}`;
-	const label = `Topic: ${wiki} - ${topic.replaceAll("_", " ")}`;
-
-	try {
-		showProgress();
-		const startTime = performance.now();
-		const response = await fetch(apiUrl);
-		if (!response.ok) {
-			throw new Error("Failed to fetch data");
-		}
-
-		const data = await response.json();
-		updateChartWithData(data.edits, label);
-		const endTime = performance.now();
-		const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
-		showMessage(`Fetched ${label} in ${timeTaken} seconds.`, "success");
-
-		if (data.top_articles && data.top_articles.length > 0) {
-			renderTopArticles(wiki, data.top_articles);
-		}
-	} catch (error) {
-		console.error("Error:", error);
-		showMessage("Failed to fetch topic data. Please try again.", "error");
-	} finally {
-		hideProgress();
-	}
-}
-
-async function fetchCategoryPageEdits(wiki, category, startDate, endDate) {
-	showSection("chart-with-articles");
-
-	const apiUrl = `/api/pageedits/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&category=${encodeURIComponent(
+	let apiUrl = `/api/pageedits/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&category=${encodeURIComponent(
 		category,
 	)}`;
+	if (categoryQid) {
+		apiUrl += `&category_qid=${categoryQid}`;
+	}
 	const label = `Category: ${wiki} - ${category.replaceAll("_", " ")}`;
 
 	try {

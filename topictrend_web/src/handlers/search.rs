@@ -6,13 +6,11 @@ use std::sync::Arc;
 
 use crate::models::{
     AppState, ArticleCategoriesResponse, ArticleItem, ArticlesInCategoryResponse,
-    CategoriesTrendParams, CategoriesTrendResponse, CategorySearchItemResponse,
-    CategorySearchParams, CategorySearchResponse, ContentGapParams, ContentGapResult,
-    ContentGapTopicParams, DailyViews, ListArticleCategoriesParams, ListArticlesInCategoryParams,
-    TopArticle,
+    CategorySearchItemResponse, CategorySearchParams, CategorySearchResponse, ContentGapParams,
+    ContentGapResult, ListArticleCategoriesParams, ListArticlesInCategoryParams,
 };
 use crate::services::{
-    ContentGapService, PageViewsService,
+    ContentGapService,
     core::{ArticleService, CategoryService, CoreServiceError, CoverageService, QidService},
 };
 
@@ -86,89 +84,6 @@ pub async fn search_categories(
     }
 
     Ok(Json(CategorySearchResponse { categories }))
-}
-
-pub async fn get_categories_trend_by_search_handler(
-    Query(params): Query<CategoriesTrendParams>,
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<CategoriesTrendResponse>, ApiError> {
-    let limit: u64 = params.limit.unwrap_or(1000u64);
-    let match_threshold = params.match_threshold.unwrap_or(0.6);
-    let search_results: Vec<topictrend_taxonomy::SearchResult> = topictrend_taxonomy::search(
-        params.category_query.clone(),
-        "enwiki".to_string(),
-        limit,
-        match_threshold,
-    )
-    .await
-    .map_err(|e| {
-        ApiError::ServiceError(crate::services::ServiceError::CoreError(
-            crate::services::core::CoreServiceError::InternalError(e.to_string()),
-        ))
-    })?;
-
-    let category_qids: Vec<u32> = search_results
-        .into_iter()
-        .map(|result| result.qid)
-        .collect();
-
-    let result = PageViewsService::get_categories_trend(
-        Arc::clone(&state),
-        &params.wiki,
-        category_qids,
-        params.start_date,
-        params.end_date,
-    )
-    .await?;
-
-    let mut en_qids: Vec<u32> = result.categories.iter().map(|c| c.qid).collect();
-    for art in &result.top_articles {
-        en_qids.push(art.qid);
-        en_qids.extend(art.source_categories.iter().map(|(qid, _)| *qid));
-    }
-    let en = QidService::get_english_titles(state, &params.wiki, &en_qids).await;
-
-    let cumulative_views: Vec<DailyViews> = result
-        .cumulative_views
-        .into_iter()
-        .map(|(date, views)| DailyViews { date, views })
-        .collect();
-
-    let top_articles: Vec<TopArticle> = result
-        .top_articles
-        .into_iter()
-        .map(|art| TopArticle {
-            qid: art.qid,
-            title_en: en.get(&art.qid).cloned(),
-            title: art.title,
-            views: art.views,
-            source_categories: art
-                .source_categories
-                .into_iter()
-                .map(|(qid, title)| crate::models::TopArticleCategory {
-                    qid,
-                    title,
-                    title_en: en.get(&qid).cloned(),
-                })
-                .collect(),
-        })
-        .collect();
-
-    let categories: Vec<crate::models::CategoryInfo> = result
-        .categories
-        .into_iter()
-        .map(|cat| crate::models::CategoryInfo {
-            qid: cat.qid,
-            title_en: en.get(&cat.qid).cloned(),
-            title: cat.title,
-        })
-        .collect();
-
-    Ok(Json(CategoriesTrendResponse {
-        categories,
-        cumulative_views,
-        top_articles,
-    }))
 }
 
 pub async fn get_articles_in_category(
@@ -251,23 +166,6 @@ pub async fn get_content_gap_handler(
 
     let result =
         ContentGapService::get_content_gap(state, category_qid, &category_label, wikis).await?;
-
-    Ok(Json(result))
-}
-
-pub async fn get_content_gap_topic_handler(
-    Query(params): Query<ContentGapTopicParams>,
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<ContentGapResult>, ApiError> {
-    let wikis: Vec<String> = params
-        .wikis
-        .split(',')
-        .map(|wiki| wiki.trim())
-        .filter(|wiki| !wiki.is_empty())
-        .map(|wiki| wiki.to_string())
-        .collect();
-
-    let result = ContentGapService::get_topic_content_gap(state, &params.topic, wikis).await?;
 
     Ok(Json(result))
 }

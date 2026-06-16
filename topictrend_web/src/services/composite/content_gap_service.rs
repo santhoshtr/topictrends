@@ -1,6 +1,5 @@
 use crate::models::{AppState, ContentGapResult, ContentGapWikiResult};
-use crate::services::core::{CoreServiceError, CoverageService, EngineService};
-use crate::services::composite::taxonomy_search_category_qids;
+use crate::services::core::{CoreServiceError, CoverageService};
 use std::sync::Arc;
 
 pub struct ContentGapService;
@@ -37,33 +36,4 @@ impl ContentGapService {
         })
     }
 
-    pub async fn get_topic_content_gap(
-        state: Arc<AppState>,
-        topic: &str,
-        wikis: Vec<String>,
-    ) -> Result<ContentGapResult, CoreServiceError> {
-        let category_qids = taxonomy_search_category_qids(topic).await?;
-
-        let mut results: Vec<ContentGapWikiResult> = Vec::new();
-
-        for wiki in &wikis {
-            let graph = EngineService::get_or_build_graph_engine(Arc::clone(&state), wiki).await?;
-            // Union across the matched categories — an article filed under
-            // several of them is counted once.
-            let article_count = graph
-                .get_articles_in_categories_as_dense(&category_qids, 0)
-                .len() as usize;
-
-            results.push(ContentGapWikiResult {
-                wiki: wiki.clone(),
-                article_count,
-            });
-        }
-
-        Ok(ContentGapResult {
-            category: topic.to_string(),
-            category_qid: 0,
-            wikis: results,
-        })
-    }
 }

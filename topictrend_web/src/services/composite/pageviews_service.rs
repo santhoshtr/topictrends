@@ -1,26 +1,10 @@
 use crate::models::AppState;
-use crate::services::composite::source_attribution::resolve_source_categories;
-use crate::services::composite::taxonomy_search_category_qids;
 use crate::services::core::{
     ArticleService, CategoryService, CoreServiceError, PageViewService, QidService,
 };
 use chrono::NaiveDate;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-
-const TOPIC_SATURATION_PCT_ENV: &str = "TOPICTREND_TOPIC_SATURATION_PCT";
-const DEFAULT_TOPIC_SATURATION_PCT: f64 = 0.5;
-
-/// Max fraction of a wiki's articles a topic-matched category may contain
-/// before it is dropped as an over-broad hypernym. Configured as a percentage
-/// via `TOPICTREND_TOPIC_SATURATION_PCT` (default 0.5%).
-fn topic_saturation_fraction() -> f64 {
-    let pct = std::env::var(TOPIC_SATURATION_PCT_ENV)
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(DEFAULT_TOPIC_SATURATION_PCT);
-    pct / 100.0
-}
 
 pub struct PageViewsService;
 
@@ -151,140 +135,6 @@ impl PageViewsService {
         })
     }
 
-    pub async fn get_categories_trend(
-        state: Arc<AppState>,
-        wiki: &str,
-        category_qids: Vec<u32>,
-        start_date: Option<NaiveDate>,
-        end_date: Option<NaiveDate>,
-    ) -> Result<CategoriesTrendResult, ServiceError> {
-        let start = start_date
-            .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
-        let end = end_date.unwrap_or_else(|| chrono::Local::now().date_naive());
-
-        // Get titles for all categories
-        let category_titles =
-            QidService::get_titles_by_qids(Arc::clone(&state), wiki, &category_qids).await?;
-        let category_qid_set: HashSet<u32> = category_qids.iter().copied().collect();
-
-        // Daily totals over the union of the categories' article sets —
-        // an article in several matched categories is counted once per day.
-        let cumulative_views = PageViewService::get_categories_views(
-            Arc::clone(&state),
-            wiki,
-            category_qids.clone(),
-            start,
-            end,
-        )
-        .await?;
-
-        // Collect top articles from all categories. An article's total_views
-        // is an article-level metric (the same value from every category that
-        // surfaces it), so assignment is idempotent — never summed.
-        let mut all_articles: HashMap<u32, (u64, u64, u32)> = HashMap::new();
-
-        for category_qid in &category_qids {
-            let top_articles = PageViewService::get_top_articles(
-                Arc::clone(&state),
-                wiki,
-                *category_qid,
-                start,
-                end,
-                50, // Get more articles per category to ensure good global top
-            )
-            .await?;
-
-            for article in top_articles {
-                let entry =
-                    all_articles
-                        .entry(article.article_qid)
-                        .or_insert((0, 0, *category_qid));
-                entry.0 = article.total_views;
-                if article.total_views > entry.1 {
-                    entry.1 = article.total_views;
-                    entry.2 = *category_qid;
-                }
-            }
-        }
-
-        // Get top 10 articles overall
-        let mut article_vec: Vec<(u32, (u64, u64, u32))> = all_articles.into_iter().collect();
-        article_vec.sort_by_key(|b| std::cmp::Reverse(b.1.0));
-        article_vec.truncate(10);
-
-        let article_qids: Vec<u32> = article_vec.iter().map(|(qid, _)| *qid).collect();
-
-        let fallback_source_by_article: HashMap<u32, u32> = article_vec
-            .iter()
-            .map(|(qid, (_, _, fallback_source_category_qid))| {
-                (*qid, *fallback_source_category_qid)
-            })
-            .collect();
-
-        let article_titles =
-            QidService::get_titles_by_qids(Arc::clone(&state), wiki, &article_qids).await?;
-
-        let source_categories_by_article = resolve_source_categories(
-            Arc::clone(&state),
-            wiki,
-            &article_qids,
-            &category_qid_set,
-            &fallback_source_by_article,
-        )
-        .await?;
-
-        let top_articles: Vec<ArticleRank> = article_vec
-            .into_iter()
-            .map(|(qid, (total_views, _, _))| {
-                let source_category_qids = source_categories_by_article
-                    .get(&qid)
-                    .cloned()
-                    .unwrap_or_default();
-
-                let source_categories: Vec<(u32, String)> = source_category_qids
-                    .into_iter()
-                    .map(|cat_qid| {
-                        let title = category_titles
-                            .get(&cat_qid)
-                            .cloned()
-                            .unwrap_or_else(|| format!("Q{}", cat_qid));
-                        (cat_qid, title)
-                    })
-                    .collect();
-
-                let title = article_titles
-                    .get(&qid)
-                    .cloned()
-                    .unwrap_or_else(|| format!("Q{}", qid));
-
-                ArticleRank {
-                    qid,
-                    title,
-                    views: total_views as u32,
-                    source_categories,
-                }
-            })
-            .collect();
-
-        let categories: Vec<CategoryInfoResult> = category_qids
-            .into_iter()
-            .map(|qid| {
-                let title = category_titles
-                    .get(&qid)
-                    .cloned()
-                    .unwrap_or_else(|| format!("Q{}", qid));
-
-                CategoryInfoResult { qid, title }
-            })
-            .collect();
-
-        Ok(CategoriesTrendResult {
-            categories,
-            cumulative_views,
-            top_articles,
-        })
-    }
-
     pub async fn get_article_trend(
         state: Arc<AppState>,
         wiki: &str,
@@ -309,37 +159,6 @@ impl PageViewsService {
             qid: article_qid,
             title: article.to_string(),
             views: data,
-        })
-    }
-
-    pub async fn get_topic_trend(
-        state: Arc<AppState>,
-        wiki: &str,
-        topic: &str,
-        start_date: Option<NaiveDate>,
-        end_date: Option<NaiveDate>,
-    ) -> Result<CategoryTrendResult, ServiceError> {
-        let category_qids = taxonomy_search_category_qids(topic).await?;
-        let category_qids = CategoryService::filter_saturated_categories(
-            Arc::clone(&state),
-            wiki,
-            category_qids,
-            topic_saturation_fraction(),
-        )
-        .await?;
-        let categories_result = Self::get_categories_trend(
-            Arc::clone(&state),
-            wiki,
-            category_qids,
-            start_date,
-            end_date,
-        )
-        .await?;
-        Ok(CategoryTrendResult {
-            qid: 0,
-            title: topic.to_string(),
-            views: categories_result.cumulative_views,
-            top_articles: categories_result.top_articles,
         })
     }
 
@@ -579,13 +398,3 @@ impl PageViewsService {
     }
 }
 
-pub struct CategoriesTrendResult {
-    pub categories: Vec<CategoryInfoResult>,
-    pub cumulative_views: Vec<(NaiveDate, u64)>,
-    pub top_articles: Vec<ArticleRank>,
-}
-
-pub struct CategoryInfoResult {
-    pub qid: u32,
-    pub title: String,
-}

@@ -105,28 +105,10 @@ pub struct CategoryTrendParams {
 }
 
 #[derive(Deserialize)]
-pub struct CategoriesTrendParams {
-    pub wiki: String,
-    pub category_query: String,
-    pub start_date: Option<NaiveDate>,
-    pub end_date: Option<NaiveDate>,
-    pub match_threshold: Option<f32>,
-    pub limit: Option<u64>,
-}
-
-#[derive(Deserialize)]
 pub struct ArticleTrendParams {
     pub wiki: String,
     pub article: String,
     pub article_qid: Option<u32>,
-    pub start_date: Option<NaiveDate>,
-    pub end_date: Option<NaiveDate>,
-}
-
-#[derive(Deserialize)]
-pub struct TopicTrendParams {
-    pub wiki: String,
-    pub topic: String,
     pub start_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
 }
@@ -247,13 +229,6 @@ pub struct CategoryTrendResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title_en: Option<String>,
     pub views: Vec<DailyViews>,
-    pub top_articles: Vec<TopArticle>,
-}
-
-#[derive(Serialize, JsonSchema)]
-pub struct CategoriesTrendResponse {
-    pub categories: Vec<CategoryInfo>,
-    pub cumulative_views: Vec<DailyViews>,
     pub top_articles: Vec<TopArticle>,
 }
 
@@ -670,12 +645,6 @@ pub struct ListArticlesInCategoryParams {
 pub struct ContentGapParams {
     pub category: Option<String>,
     pub category_qid: Option<u32>,
-    pub wikis: String,
-}
-
-#[derive(Deserialize)]
-pub struct ContentGapTopicParams {
-    pub topic: String,
     pub wikis: String,
 }
 

@@ -10,7 +10,7 @@ use crate::models::{
     AppState, ArticleTrendParams, ArticleTrendResponse, CategoryTrendParams,
     CategoryTrendResponse, DailyViews, SubCategoryParams, TopArticle, TopCategoriesParams,
     CategoryRankResponse, TopCategory, PageViewTopArticlesResponse, PageViewTopArticle,
-    TopArticleCategory, TopicTrendParams,
+    TopArticleCategory,
 };
 
 use super::ApiError;
@@ -96,59 +96,6 @@ pub async fn get_article_trend_handler(
         title_en: en.get(&result.qid).cloned(),
         title: result.title,
         views: daily_views,
-    }))
-}
-
-pub async fn get_topic_pageview_trend_handler(
-    Query(params): Query<TopicTrendParams>,
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<CategoryTrendResponse>, ApiError> {
-    let result = PageViewsService::get_topic_trend(
-        Arc::clone(&state),
-        &params.wiki,
-        &params.topic,
-        params.start_date,
-        params.end_date,
-    )
-    .await?;
-
-    let mut en_qids: Vec<u32> = Vec::new();
-    for art in &result.top_articles {
-        en_qids.push(art.qid);
-        en_qids.extend(art.source_categories.iter().map(|(qid, _)| *qid));
-    }
-    let en = QidService::get_english_titles(state, &params.wiki, &en_qids).await;
-
-    let daily_views: Vec<DailyViews> = result
-        .views
-        .into_iter()
-        .map(|(date, views)| DailyViews { date, views })
-        .collect();
-
-    let top_articles: Vec<TopArticle> = result
-        .top_articles
-        .into_iter()
-        .map(|art| TopArticle {
-            qid: art.qid,
-            title_en: en.get(&art.qid).cloned(),
-            title: art.title,
-            views: art.views,
-            source_categories: art.source_categories.into_iter()
-                .map(|(qid, title)| TopArticleCategory {
-                    qid,
-                    title,
-                    title_en: en.get(&qid).cloned(),
-                })
-                .collect(),
-        })
-        .collect();
-
-    Ok(Json(CategoryTrendResponse {
-        qid: result.qid,
-        title_en: None,
-        title: result.title,
-        views: daily_views,
-        top_articles,
     }))
 }
 

@@ -1,3 +1,7 @@
+import {
+	renderCategoryChips,
+	searchCategories,
+} from "./utils/category-chips.js";
 import { initializeChart } from "./utils/chart-utils.js";
 import { hideProgress, showProgress } from "./utils/progress-bar.js";
 import { renderGoogleSearchTopArticles } from "./utils/top-articles-table.js";
@@ -161,7 +165,7 @@ async function onSubmit(event) {
 				"",
 				`${window.location.pathname}?${params.toString()}`,
 			);
-			await fetchTopicSearchData(wiki, topic, startDate, endDate, 0);
+			await searchTopicCategories(wiki, topic);
 		} else if (type === "category") {
 			const category = document
 				.getElementById("category")
@@ -191,32 +195,49 @@ async function onSubmit(event) {
 	}
 }
 
-async function fetchTopicSearchData(wiki, topic, startDate, endDate) {
-	const url = `/api/googlesearch/topic?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&topic=${encodeURIComponent(topic)}`;
-	const label = `Topic: ${wiki} - ${topic.replaceAll("_", " ")}`;
+function plotCategory(wiki, qid, title) {
+	const startDate = document.getElementById("start_date").value;
+	const endDate = document.getElementById("end_date").value;
+	fetchCategorySearchData(wiki, title, startDate, endDate, qid);
+}
 
+async function searchTopicCategories(wiki, topic) {
+	// No chart until the user picks one of the matched categories.
+	document.getElementById("chart").style.display = "none";
+	document.getElementById("ctr-summary").innerHTML = "";
+	document.getElementById("top-articles").innerHTML = "";
+
+	showProgress();
 	try {
-		showProgress();
-		const startTime = performance.now();
-		const response = await fetch(url);
-		if (!response.ok) {
-			throw new Error("Failed to fetch topic search data");
+		const items = await searchCategories(wiki, topic);
+		renderCategoryChips(document.getElementById("category-list"), {
+			heading: "Matched categories",
+			items,
+			wiki,
+			onPlot: (qid, title) => plotCategory(wiki, qid, title),
+		});
+		if (items.length === 0) {
+			showMessage(
+				"No matching categories found. Try a different topic.",
+				"error",
+			);
 		}
-
-		const data = await response.json();
-		updateChartWithSearchData(data.search, label);
-		renderCtrSummary(data.title, data.search);
-		renderTopArticles(wiki, data.top_articles);
-
-		const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
-		showMessage(`Fetched ${label} in ${elapsed} seconds.`, "success");
 	} finally {
 		hideProgress();
 	}
 }
 
-async function fetchCategorySearchData(wiki, category, startDate, endDate) {
-	const url = `/api/googlesearch/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&category=${encodeURIComponent(category)}`;
+async function fetchCategorySearchData(
+	wiki,
+	category,
+	startDate,
+	endDate,
+	categoryQid,
+) {
+	let url = `/api/googlesearch/category?wiki=${wiki}&start_date=${startDate}&end_date=${endDate}&category=${encodeURIComponent(category)}`;
+	if (categoryQid) {
+		url += `&category_qid=${categoryQid}`;
+	}
 	const label = `Category: ${wiki} - ${category.replaceAll("_", " ")}`;
 
 	try {

@@ -176,18 +176,6 @@ pub fn app_router(state: Arc<AppState>) -> Router {
             get(handlers::get_article_google_search_trend_handler),
         )
         .route(
-            "/api/pageviews/topic",
-            get(handlers::get_topic_pageview_trend_handler),
-        )
-        .route(
-            "/api/pageedits/topic",
-            get(handlers::get_topic_edit_trend_handler),
-        )
-        .route(
-            "/api/googlesearch/topic",
-            get(handlers::get_topic_google_search_trend_handler),
-        )
-        .route(
             "/api/pageviews/top_categories",
             get(handlers::get_pageviews_top_categories_handler),
         )
@@ -253,16 +241,8 @@ pub fn app_router(state: Arc<AppState>) -> Router {
             get(handlers::get_related_articles_handler),
         )
         .route(
-            "/api/pageviews/categories",
-            get(handlers::get_categories_trend_by_search_handler),
-        )
-        .route(
             "/api/content_gap/categories",
             get(handlers::get_content_gap_handler),
-        )
-        .route(
-            "/api/content_gap/topic",
-            get(handlers::get_content_gap_topic_handler),
         )
         .route(
             "/api/gap_discovery/categories",
