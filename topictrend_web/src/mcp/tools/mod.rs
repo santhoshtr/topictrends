@@ -6,6 +6,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 pub mod delta;
+pub mod gap_discovery;
 pub mod googlesearch;
 pub mod lists;
 pub mod pageedits;
@@ -142,6 +143,30 @@ pub struct ListArticleCategoriesInput {
     pub article: Option<String>,
     /// Wikidata QID as a plain integer. At least one of article or article_qid required.
     pub article_qid: Option<u32>,
+}
+
+/// Input for cross-wiki content-gap discovery (ranked categories).
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GapDiscoveryInput {
+    /// Reference (baseline) wiki whose coverage sets the bar, e.g. "enwiki". Acts
+    /// as the editorial lens — a sister-language wiki surfaces region-relevant gaps.
+    pub reference: String,
+    /// Target wiki to improve. Gap = reference overlap − target overlap, e.g. "hiwiki".
+    pub target: String,
+    /// Drop categories with fewer than this many reference-side overlap articles
+    /// (a noise floor). Optional.
+    pub min_ref: Option<u32>,
+    /// Structure filter: false = category absent in target, true = present but
+    /// under-populated, omit = all gaps.
+    pub has_category: Option<bool>,
+    /// Rank by estimated missing readership (pageview-weighted) instead of raw
+    /// missing-article count. Defaults to false. Ignored with a warning flag in the
+    /// response if the reference snapshot predates pageview data.
+    pub weight: Option<bool>,
+    /// Skip the top N ranked rows (pagination). Defaults to 0.
+    pub offset: Option<u32>,
+    /// Maximum rows to return (default 50, capped at 200).
+    pub limit: Option<u32>,
 }
 
 // ---------------------------------------------------------------------------

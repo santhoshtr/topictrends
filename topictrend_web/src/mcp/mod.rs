@@ -52,6 +52,8 @@ impl TopicTrendMcpServer {
             .with_route((clean(Self::list_subcategories_tool_attr()), Self::list_subcategories))
             .with_route((clean(Self::list_articles_in_category_tool_attr()), Self::list_articles_in_category))
             .with_route((clean(Self::list_article_categories_tool_attr()), Self::list_article_categories))
+            // gap discovery (1)
+            .with_route((clean(Self::discover_content_gaps_tool_attr()), Self::discover_content_gaps))
     }
 }
 
