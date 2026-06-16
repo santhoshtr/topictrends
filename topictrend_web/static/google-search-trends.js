@@ -142,9 +142,8 @@ function renderTopArticles(wiki, topArticles) {
 
 async function onSubmit(event) {
 	event.preventDefault();
-	document.querySelector(".examples").hidden = true;
-
 	const params = new URLSearchParams();
+
 	const type = document.querySelector('input[name="type"]:checked').value;
 	const wiki = document.getElementById("wiki").value;
 	const startDate = document.getElementById("start_date").value;

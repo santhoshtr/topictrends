@@ -30,7 +30,6 @@ document.addEventListener("DOMContentLoaded", () => {
 async function onSubmit(event) {
 	event.preventDefault();
 
-	document.querySelector(".examples").hidden = true;
 
 	const params = new URLSearchParams();
 	const wiki = document.getElementById("wiki").value;
