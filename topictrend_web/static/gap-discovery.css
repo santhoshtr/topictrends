@@ -1,13 +1,22 @@
 @import url("common.css");
 
+/* This page wants the wide gap table to use the whole window, so its scrollbar
+   sits at the right edge instead of inset at the shared 1600px content cap. */
+.app-container {
+	max-width: none;
+}
+
 .main {
-	padding: 1.5rem;
+	/* No top padding: it lives on the section below so the sticky table header
+	   pins flush to the top of the scroll area rather than 1.5rem down. */
+	padding: 0 1.5rem 1.5rem;
 	overflow-y: auto;
 	align-items: start;
 }
 
 #gap-results-section {
 	width: 100%;
+	padding-top: 1.5rem;
 }
 
 /* Reference selector is the primary "editorial lens" control. */
@@ -95,9 +104,16 @@
 		text-align: left;
 		padding: 0.5rem 0.6rem;
 		font-weight: 600;
-		border-bottom: 2px solid var(--border-color-base);
 		color: var(--color-subtle);
 		white-space: nowrap;
+		/* Pin the header to the top of the .main scroll container while the
+		   rows scroll under it. Opaque background + z-index so rows don't bleed
+		   through; the box-shadow stands in for the border, which sticky drops. */
+		position: sticky;
+		top: 0;
+		z-index: 1;
+		background: var(--background-color-base);
+		box-shadow: inset 0 -2px 0 var(--border-color-base);
 	}
 	& tbody tr {
 		border-bottom: 1px solid var(--border-color-base);
