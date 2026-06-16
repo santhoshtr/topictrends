@@ -4,16 +4,16 @@ use axum::{
 };
 use std::sync::Arc;
 
+use crate::models::{
+    AppState, ArticleCategoriesResponse, ArticleItem, ArticlesInCategoryResponse,
+    CategoriesTrendParams, CategoriesTrendResponse, CategorySearchItemResponse,
+    CategorySearchParams, CategorySearchResponse, ContentGapParams, ContentGapResult,
+    ContentGapTopicParams, DailyViews, ListArticleCategoriesParams, ListArticlesInCategoryParams,
+    TopArticle,
+};
 use crate::services::{
     ContentGapService, PageViewsService,
-    core::{QidService, CategoryService, CoreServiceError, CoverageService, ArticleService},
-};
-use crate::models::{
-    AppState, CategorySearchParams, CategorySearchResponse, CategorySearchItemResponse,
-    CategoriesTrendParams, CategoriesTrendResponse, ListArticlesInCategoryParams,
-    ArticlesInCategoryResponse, ArticleItem, ContentGapParams, ContentGapResult,
-    ContentGapTopicParams, DailyViews, TopArticle, ListArticleCategoriesParams,
-    ArticleCategoriesResponse,
+    core::{ArticleService, CategoryService, CoreServiceError, CoverageService, QidService},
 };
 
 use super::ApiError;
@@ -22,7 +22,7 @@ pub async fn search_categories(
     Query(params): Query<CategorySearchParams>,
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<CategorySearchResponse>, ApiError> {
-    let limit: u64 = params.limit.unwrap_or(1000u64);
+    let limit: u64 = params.limit.unwrap_or(100u64);
     let match_threshold = params.match_threshold.unwrap_or(0.6);
 
     let search_results: Vec<topictrend_taxonomy::SearchResult> = topictrend_taxonomy::search(
@@ -142,7 +142,9 @@ pub async fn get_categories_trend_by_search_handler(
             title_en: en.get(&art.qid).cloned(),
             title: art.title,
             views: art.views,
-            source_categories: art.source_categories.into_iter()
+            source_categories: art
+                .source_categories
+                .into_iter()
                 .map(|(qid, title)| crate::models::TopArticleCategory {
                     qid,
                     title,
@@ -223,7 +225,6 @@ pub async fn get_content_gap_handler(
     Query(params): Query<ContentGapParams>,
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ContentGapResult>, ApiError> {
-
     let wikis: Vec<String> = params
         .wikis
         .split(',')
@@ -249,8 +250,7 @@ pub async fn get_content_gap_handler(
         .unwrap_or_else(|| format!("Q{}", category_qid));
 
     let result =
-        ContentGapService::get_content_gap(state, category_qid, &category_label, wikis)
-            .await?;
+        ContentGapService::get_content_gap(state, category_qid, &category_label, wikis).await?;
 
     Ok(Json(result))
 }
@@ -267,9 +267,7 @@ pub async fn get_content_gap_topic_handler(
         .map(|wiki| wiki.to_string())
         .collect();
 
-    let result =
-        ContentGapService::get_topic_content_gap(state, &params.topic, wikis)
-            .await?;
+    let result = ContentGapService::get_topic_content_gap(state, &params.topic, wikis).await?;
 
     Ok(Json(result))
 }
@@ -286,8 +284,7 @@ pub async fn get_article_categories(
                 "Either article or article_qid must be provided".to_string(),
             )
         })?;
-        QidService::get_qid_by_title(Arc::clone(&state), params.wiki.as_str(), &article, 0)
-            .await?
+        QidService::get_qid_by_title(Arc::clone(&state), params.wiki.as_str(), &article, 0).await?
     };
 
     let ranked = ArticleService::get_article_categories(

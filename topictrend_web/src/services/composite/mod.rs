@@ -23,8 +23,8 @@ use crate::services::core::CoreServiceError;
 /// Search the taxonomy for categories matching `category` and return all QIDs
 /// with a score at or above `MATCH_THRESHOLD`. Returns `NotFound` if none match.
 pub async fn taxonomy_search_category_qids(category: &str) -> Result<Vec<u32>, CoreServiceError> {
-    const LIMIT: u64 = 100;
-    const MATCH_THRESHOLD: f32 = 0.75;
+    const LIMIT: u64 = 20;
+    const MATCH_THRESHOLD: f32 = 0.56;
 
     let results = topictrend_taxonomy::search(
         category.to_string(),
