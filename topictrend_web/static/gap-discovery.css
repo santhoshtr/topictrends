@@ -66,6 +66,18 @@
 		font-size: var(--font-size-sm);
 		color: var(--color-subtle);
 	}
+	& .results-explainer {
+		margin-top: 0.6rem;
+		max-width: 60ch;
+		font-size: var(--font-size-sm);
+		line-height: 1.5;
+		color: var(--color-subtle);
+
+		& em {
+			font-style: normal;
+			color: var(--color-progressive);
+		}
+	}
 	& .weight-notice {
 		margin-top: 0.5rem;
 		font-size: var(--font-size-sm);

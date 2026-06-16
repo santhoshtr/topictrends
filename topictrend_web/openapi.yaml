@@ -641,20 +641,23 @@ paths:
       tags: [ContentGap]
       summary: Rank categories where a target wiki lags a reference wiki
       description: |
-        From the precomputed coverage matrix, ranks categories by
-        `gap = qid_overlap(reference) - qid_overlap(target)` (descending) — the
-        canonical articles of a topic that the reference edition has and the
-        target lacks. Maintenance / content-organization categories are excluded
-        server-side. Supports skip/limit pagination, a `min_ref` floor (to drop
-        tiny noise), and a structure filter (`has_category`: `false` = category
-        absent in target, `true` = present but under-populated).
+        From the precomputed coverage matrix, finds the categories whose
+        canonical articles the reference edition has and the target lacks
+        (`gap = qid_overlap(reference) - qid_overlap(target)`). By default rows are
+        ranked by estimated missing readership
+        `overlap_pageviews × gap / overlap_reference` — average monthly views per
+        reference article times the missing-article count — which demotes bot stub
+        farms. These are the *reference* wiki's pageviews (a global-importance
+        proxy), not traffic the target would inherit. Set `weight=false` for a raw
+        missing-article-count ranking. Maintenance / content-organization
+        categories are excluded server-side. Supports skip/limit pagination, a
+        `min_ref` floor (to drop tiny noise), and a structure filter
+        (`has_category`: `false` = category absent in target, `true` = present but
+        under-populated).
 
-        When `weight=true`, rows are instead ranked by estimated missing
-        readership `overlap_pageviews × gap / overlap_reference` — average views
-        per reference article times the missing-article count — which demotes bot
-        stub farms. If the reference snapshot predates the pageview column the
-        request silently falls back to the raw gap ranking and
-        `weighted_applied` is `false`.
+        If the reference snapshot predates the pageview column the request
+        silently falls back to the raw gap ranking and `weighted_applied` is
+        `false`.
       parameters:
         - name: reference
           in: query
@@ -686,8 +689,8 @@ paths:
         - name: weight
           in: query
           required: false
-          schema: { type: boolean, default: false }
-          description: Rank by estimated missing readership instead of raw gap.
+          schema: { type: boolean, default: true }
+          description: Rank by estimated missing readership (default); set false for a raw missing-article-count ranking.
       responses:
         "200":
           description: OK

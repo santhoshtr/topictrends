@@ -21,7 +21,8 @@ pub async fn get_gap_discovery_handler(
 ) -> Result<Json<GapDiscoveryResponse>, ApiError> {
     let offset = params.offset.unwrap_or(0);
     let limit = params.limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
-    let weighted = params.weight.unwrap_or(false);
+    // Pageview weighting is the product default; callers opt out with weight=false.
+    let weighted = params.weight.unwrap_or(true);
 
     let outcome = GapDiscoveryService::discover(
         Arc::clone(&state),

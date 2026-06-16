@@ -159,9 +159,10 @@ pub struct GapDiscoveryInput {
     /// Structure filter: false = category absent in target, true = present but
     /// under-populated, omit = all gaps.
     pub has_category: Option<bool>,
-    /// Rank by estimated missing readership (pageview-weighted) instead of raw
-    /// missing-article count. Defaults to false. Ignored with a warning flag in the
-    /// response if the reference snapshot predates pageview data.
+    /// Rank by estimated missing readership (pageview-weighted) — the default.
+    /// Set false for a raw missing-article-count ranking. Falls back to raw count
+    /// (weighted_applied=false in the response) if the reference snapshot predates
+    /// pageview data.
     pub weight: Option<bool>,
     /// Skip the top N ranked rows (pagination). Defaults to 0.
     pub offset: Option<u32>,

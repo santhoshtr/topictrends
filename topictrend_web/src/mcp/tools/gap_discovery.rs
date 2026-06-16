@@ -28,7 +28,7 @@ impl TopicTrendMcpServer {
     ) -> Result<rmcp::handler::server::wrapper::Json<GapDiscoveryResponse>, ErrorData> {
         let offset = p.offset.unwrap_or(0) as usize;
         let limit = (p.limit.unwrap_or(DEFAULT_LIMIT as u32) as usize).min(MAX_LIMIT);
-        let weighted = p.weight.unwrap_or(false);
+        let weighted = p.weight.unwrap_or(true);
 
         let outcome = GapDiscoveryService::discover(
             Arc::clone(&self.state),

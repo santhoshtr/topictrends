@@ -12,14 +12,14 @@ const prevBtn = document.getElementById("prev-page");
 const nextBtn = document.getElementById("next-page");
 const pageRange = document.getElementById("page-range");
 const statusEl = document.getElementById("status");
-const weightToggle = document.getElementById("weight-pageviews");
 
 // Query state. `offset` is the current page start; Prev/Next move it by `limit`.
+// Ranking is always pageview-weighted (estimated missing readership); the server
+// defaults to it, so no `weight` param is sent.
 const state = {
 	reference: "enwiki",
 	target: "hiwiki",
 	hasCategory: null, // null = all, true = under-populated, false = missing
-	weighted: false, // rank by estimated missing readership instead of raw gap
 	limit: 100, // fixed page size (no UI control)
 	offset: 0,
 	total: 0,
@@ -71,7 +71,6 @@ function readForm() {
 	const struct =
 		form.querySelector('input[name="structure"]:checked')?.value ?? "all";
 	state.hasCategory = structureToHasCategory(struct);
-	state.weighted = weightToggle.checked;
 }
 
 function syncUrl() {
@@ -82,7 +81,6 @@ function syncUrl() {
 	if (state.offset > 0) p.set("skip", String(state.offset));
 	if (state.hasCategory === true) p.set("structure", "under");
 	if (state.hasCategory === false) p.set("structure", "missing");
-	if (state.weighted) p.set("weight", "true");
 	window.history.replaceState({}, "", `${window.location.pathname}?${p}`);
 }
 
@@ -97,10 +95,6 @@ function applyUrlParams() {
 		document.getElementById("struct-missing").checked = true;
 	else if (struct === "under")
 		document.getElementById("struct-under").checked = true;
-	if (p.get("weight") === "true") {
-		state.weighted = true;
-		weightToggle.checked = true;
-	}
 	return p.has("reference") && p.has("target");
 }
 
@@ -117,7 +111,6 @@ async function fetchAndRender() {
 	});
 	if (state.hasCategory != null)
 		params.set("has_category", String(state.hasCategory));
-	if (state.weighted) params.set("weight", "true");
 
 	showProgress();
 	statusEl.textContent = "";
@@ -149,7 +142,7 @@ function renderResults(data) {
 	const meta = document.createElement("p");
 	meta.className = "results-meta";
 	const sortNote = weighted
-		? " · ranked by estimated missing readership"
+		? " · ranked by estimated monthly readership the target is missing"
 		: " · ranked by missing-article count";
 	meta.textContent =
 		`snapshot ${data.target_date} · ${data.total.toLocaleString()} gaps ` +
@@ -157,8 +150,22 @@ function renderResults(data) {
 		`${data.with_category.toLocaleString()} under-populated)${sortNote}`;
 	resultsHeader.append(h2, meta);
 
-	// Requested weighting but the reference snapshot predates the pageview column.
-	if (data.weighted && !data.weighted_applied) {
+	if (weighted) {
+		const explain = document.createElement("p");
+		explain.className = "results-explainer";
+		explain.innerHTML =
+			`<strong>Est. monthly views</strong> is <em>${data.reference}</em>'s pageviews ` +
+			"over the last 30 days for the articles <em>" +
+			`${data.target}</em> is missing (the category's measured monthly total, ` +
+			"apportioned by the share of articles absent). Read it as a relative " +
+			`importance signal, not a forecast: these are <em>${data.reference}</em>'s ` +
+			`readers, so <em>${data.target}</em> would not automatically inherit that ` +
+			"traffic by creating the articles.";
+		resultsHeader.append(explain);
+	}
+
+	// The reference snapshot predates the pageview column (legacy snapshot).
+	if (!data.weighted_applied) {
 		const notice = document.createElement("p");
 		notice.className = "weight-notice";
 		notice.textContent =
@@ -174,7 +181,7 @@ function renderResults(data) {
 	}
 
 	const viewsHead = weighted
-		? '<th scope="col" class="num">Missing views (est.)</th>'
+		? '<th scope="col" class="num">Est. monthly views</th>'
 		: "";
 	const table = document.createElement("table");
 	table.className = "gap-table";
@@ -204,7 +211,7 @@ function renderResults(data) {
 			? `<span class="structure-badge exists">Present<span class="badge-sub" title="${articlesNote}">${c.direct_coverage_target.toLocaleString()} articles</span></span>`
 			: `<span class="structure-badge absent" title="${data.target} has no such category">Absent</span>`;
 		const viewsCell = weighted
-			? `<td class="num" title="${c.overlap_pageviews.toLocaleString()} views across this category's reference articles">${c.weighted_score.toLocaleString()}</td>`
+			? `<td class="num" title="category total: ${c.overlap_pageviews.toLocaleString()} monthly views across ${data.reference}'s articles">${c.weighted_score.toLocaleString()}</td>`
 			: "";
 
 		tr.innerHTML = `
