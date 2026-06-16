@@ -3,66 +3,116 @@
 {% block title %}Topic Trends - Wikipedia Analytics{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/styles.css">
+<link rel="stylesheet" href="/static/landing.css">
 {% endblock %}
 
 {% block content %}
-<div class="app-container">
-  <main class="about-content">
+<main class="landing">
+  <section class="hero">
     <h1>Topic Trends</h1>
+    <p class="hero-lede">
+      What the world reads, edits, and searches on Wikipedia &mdash;
+      across 345+ language editions, in sub-second queries.
+    </p>
+    <div class="hero-actions">
+      <a href="/pageviews/trends" class="cdx-button cdx-button--fake-button cdx-button--fake-button--enabled cdx-button--action-progressive cdx-button--weight-primary">Explore pageviews</a>
+      <a href="/gap-discovery" class="cdx-button cdx-button--fake-button cdx-button--fake-button--enabled">Find content gaps</a>
+    </div>
+    <ul class="stat-strip">
+      <li><strong>345+</strong> language editions</li>
+      <li>Pageviews &middot; Edits &middot; Search</li>
+      <li>Rust engine, sub-second</li>
+    </ul>
+  </section>
 
-    <section>
-      <p>
-        Topic Trends is a high-performance Wikipedia analytics engine that provides insights into
-        pageview patterns and editing activity across Wikipedia categories and articles.
-      </p>
-    </section>
+  <section class="features" aria-labelledby="features-heading">
+    <h2 id="features-heading">What you can do</h2>
+    <div class="feature-grid">
+      <article class="feature-card">
+        <h3>Page views</h3>
+        <p>See what readers are looking at, and how attention moves between topics.</p>
+        <ul>
+          <li><a href="/pageviews/trends">Topic-wise trends</a></li>
+          <li><a href="/pageviews/top_articles">Most viewed</a></li>
+          <li><a href="/pageviews/delta">Biggest shifts</a></li>
+        </ul>
+      </article>
 
-    <section>
-      <h2>Features</h2>
-      <ul>
-        <li><strong><a href="/pageviews/trends">Pageview Trends</a>:</strong> Track and visualize pageview trends for categories and articles over time</li>
-        <li><strong><a href="/pageedits/trends">Page Edit Trends</a>:</strong> Monitor editing activity patterns across Wikipedia content</li>
-        <li><strong><a href="/pageviews/delta">Pageview Delta</a> & <a href="/pageedits/delta">Page Edit Delta</a>:</strong> Compare pageview and edit metrics between different time periods</li>
-        <li><strong><a href="/googlesearch/trends">Google Search Trends</a> & <a href="/googlesearch/delta">Google Search Delta</a>:</strong> Analyze clicks, impressions, CTR, and topic-level search shifts over time</li>
-        <li><strong><a href="/search">Category Search</a>:</strong> Navigate Wikipedia's category hierarchy and analyze topic trends</li>
-        <li><strong>Multi-Wiki Support:</strong> Analyze data across multiple Wikipedia language editions</li>
-      </ul>
-    </section>
+      <article class="feature-card">
+        <h3>Page edits</h3>
+        <p>Track where editing activity concentrates and where it surges.</p>
+        <ul>
+          <li><a href="/pageedits/trends">Topic-wise trends</a></li>
+          <li><a href="/pageedits/top_articles">Most edited</a></li>
+          <li><a href="/pageedits/delta">Biggest shifts</a></li>
+        </ul>
+      </article>
 
-    <section>
-      <h2>Technology</h2>
-      <p>
-        Built with Rust for high-performance data processing, Topic Trends uses efficient algorithms
-        and data structures to handle large-scale Wikipedia analytics. The web interface follows
-        the Wikimedia Codex design system for a consistent user experience.
-      </p>
-    </section>
+      <article class="feature-card">
+        <h3>Google Search</h3>
+        <p>Clicks, impressions, CTR and position &mdash; how topics surface in search.</p>
+        <ul>
+          <li><a href="/googlesearch/trends">Topic-wise trends</a></li>
+          <li><a href="/googlesearch/top_articles">Most searched</a></li>
+          <li><a href="/googlesearch/delta">Biggest shifts</a></li>
+        </ul>
+      </article>
 
-    <section>
-      <h2>Data Sources</h2>
-      <p>
-        All data is sourced from publicly available Wikipedia dumps and pageview statistics,
-        processed and aggregated to provide meaningful insights into Wikipedia usage patterns.
-      </p>
-    </section>
+      <article class="feature-card">
+        <h3>Content gap</h3>
+        <p>Find topics one Wikipedia covers that another is missing.</p>
+        <ul>
+          <li><a href="/gap-discovery">Discover gaps</a></li>
+          <li><a href="/content-gap">Compare wikis</a></li>
+          <li><a href="/search">Search categories</a></li>
+        </ul>
+      </article>
+    </div>
+  </section>
 
-    <footer class="about-footer">
-      <p>
-        <a href="mailto:sthottingal@wikimedia.org">   Santhosh Thottingal</a>
-|
-        <a href="https://gitlab.wikimedia.org/santhosh/topictrends" target="_blank" rel="noopener noreferrer">Source Code
-        </a>
-        |
-        <a href="/docs" target="_blank" rel="noopener noreferrer">
-          API Documentation
-        </a>
-|
-        <a href="/mcp" target="_blank" rel="noopener noreferrer">
-          MCP Server
-        </a>
-      </p>
-    </footer>
-  </main>
-</div>
+  <section class="mcp" aria-labelledby="mcp-heading">
+    <p class="mcp-eyebrow">Model Context Protocol</p>
+    <h2 id="mcp-heading">Use it from your AI assistant</h2>
+    <p class="mcp-lede">
+      Every analysis here is also a tool your LLM can call &mdash; 23 of them, over MCP.
+      No scraping, no API keys.
+    </p>
+
+    <div class="mcp-endpoint">
+      <code id="mcp-url">https://topictrends.wmcloud.org/mcp</code>
+      <button type="button" class="cdx-button mcp-copy" data-copy-target="mcp-url">Copy</button>
+    </div>
+
+    <p class="mcp-example">
+      Ask: <em>&ldquo;Which Physics topics on enwiki spiked in views last month?&rdquo;</em><br>
+      &rarr; calls <code>topictrends_get_category_pageview_delta</code>
+    </p>
+
+    <details class="mcp-config">
+      <summary>Add to your MCP client</summary>
+      <div class="mcp-config-body">
+        <pre id="mcp-config-snippet"><code>{
+  "mcpServers": {
+    "topictrends": {
+      "url": "https://topictrends.wmcloud.org/mcp"
+    }
+  }
+}</code></pre>
+        <button type="button" class="cdx-button mcp-copy" data-copy-target="mcp-config-snippet">Copy</button>
+      </div>
+    </details>
+  </section>
+
+  <footer class="landing-footer">
+    <a href="mailto:sthottingal@wikimedia.org">Santhosh Thottingal</a>
+    <span aria-hidden="true">&middot;</span>
+    <a href="https://gitlab.wikimedia.org/santhosh/topictrends" target="_blank" rel="noopener noreferrer">Source code</a>
+    <span aria-hidden="true">&middot;</span>
+    <a href="/docs" target="_blank" rel="noopener noreferrer">API docs</a>
+  </footer>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module" src="/static/landing.js"></script>
 {% endblock %}
