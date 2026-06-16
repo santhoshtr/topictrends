@@ -79,9 +79,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 			}
 		});
 
-	if (!window.location.search) {
-		document.querySelector(".examples").hidden = false;
-	}
 });
 
 async function loadWikiList() {

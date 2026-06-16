@@ -25,9 +25,6 @@ document.addEventListener("DOMContentLoaded", () => {
 			onSubmit(new Event("submit"));
 		});
 
-	if (!window.location.search) {
-		document.querySelector(".examples").hidden = false;
-	}
 });
 
 async function onSubmit(event) {

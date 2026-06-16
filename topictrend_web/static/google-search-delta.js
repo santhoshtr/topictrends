@@ -12,7 +12,6 @@ document.addEventListener("DOMContentLoaded", () => {
 		});
 
 	if (!window.location.search) {
-		document.querySelector(".examples").hidden = false;
 		const now = new Date();
 		const oneMonthAgo = new Date(
 			now.getFullYear(),
@@ -41,7 +40,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function onSubmit(event) {
 	event.preventDefault();
-	document.querySelector(".examples").hidden = true;
 
 	const wiki = document.getElementById("wiki").value;
 	const baselineStartDate = document.getElementById(

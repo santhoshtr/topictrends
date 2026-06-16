@@ -34,9 +34,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 			onSubmit(new Event("submit"));
 		});
 
-	if (!window.location.search) {
-		document.querySelector(".examples").hidden = false;
-	}
 });
 function showSection(section) {
 	const chart = document.getElementById("chart");

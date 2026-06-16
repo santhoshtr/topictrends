@@ -28,7 +28,6 @@ document.addEventListener("DOMContentLoaded", () => {
 		});
 
 	if (!window.location.search) {
-		document.querySelector(".examples").hidden = false;
 		const now = new Date();
 		const monthAgo = new Date(
 			now.getFullYear(),
