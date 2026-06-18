@@ -18,6 +18,10 @@ DATA_DIR ?= data
 GSC_DIR ?= $(DATA_DIR)/gsc_page_date
 QUERIES_DIR := queries
 
+# Raw pageview dumps. Read from the clouddumps NFS mount on the VPS; override
+# for local runs. Layout mirrors dumps.wikimedia.org: <dir>/$Y/$Y-$M/pageviews-$Y$M$D-user.bz2
+PAGEVIEW_DIR ?= /mnt/nfs/dumps-clouddumps1001.wikimedia.org/other/pageview_complete
+
 # Vector store (zvec) configuration. Embeddings and search run in-process via
 # topictrend_taxonomy (fastembed + zvec-rust).
 ZVEC_DIR ?= $(DATA_DIR)/embedding_store/zvec
@@ -161,21 +165,21 @@ $(DATA_DIR)/%/pageviews/$(YEAR)/$(MONTH)/$(DAY).parquet: $(DATA_DIR)/pageviews/$
 	@echo "Processing pageviews for $* on $(DATE) -> $@"
 	$(CARGO_RELEASE)/get-per_day_wiki_stats --wiki $* --year $(YEAR) --month $(MONTH) --day $(DAY) -o $@
 
-# Raw pageview data from Wikimedia
+# Raw pageview data from the clouddumps NFS mount ($(PAGEVIEW_DIR)).
 # Expands to data/pageviews/2025/12/30.parquet (example).
-# Uses a HEAD request to detect 404 (e.g. date not yet published) and skip
-# without erroring; any other failure during the actual download is a hard error.
+# A missing file (e.g. date not yet published) is skipped with a warning;
+# any failure decoding/processing an existing file is a hard error.
 $(DATA_DIR)/pageviews/%.parquet:
 	@YEAR=$$(echo $* | cut -d'/' -f1); \
 	MONTH=$$(echo $* | cut -d'/' -f2); \
 	DAY=$$(basename $@ .parquet); \
 	mkdir -p $$(dirname $@); \
-	URL="https://dumps.wikimedia.org/other/pageview_complete/$$YEAR/$$YEAR-$$MONTH/pageviews-$$YEAR$$MONTH$$DAY-user.bz2"; \
-	if ! curl -fsSI -o /dev/null "$$URL"; then \
-		echo "WARNING: pageviews not found (404) for $$YEAR-$$MONTH-$$DAY: $$URL" >&2; exit 0; \
+	SRC="$(PAGEVIEW_DIR)/$$YEAR/$$YEAR-$$MONTH/pageviews-$$YEAR$$MONTH$$DAY-user.bz2"; \
+	if [ ! -f "$$SRC" ]; then \
+		echo "WARNING: pageviews not found for $$YEAR-$$MONTH-$$DAY: $$SRC" >&2; exit 0; \
 	fi; \
-	curl -fsSL "$$URL" | bzip2 -dc \
-		| $(CARGO_RELEASE)/get-pageviews $@ || { echo "Error processing pageviews from $$URL"; exit 1; }
+	bzip2 -dc "$$SRC" \
+		| $(CARGO_RELEASE)/get-pageviews $@ || { echo "Error processing pageviews from $$SRC"; exit 1; }
 
 # Daily pageedits for a specific wiki/date, filled from the MediaWiki replica.
 # Expands to data/enwiki/pageedits/2026/05/26.parquet (example).
