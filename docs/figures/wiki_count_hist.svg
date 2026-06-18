@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="470" viewBox="0 0 720 470" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <rect width="720" height="470" fill="#ffffff"/>
+
+  <!-- title -->
+  <text x="360" y="28" text-anchor="middle" font-size="17" font-weight="600" fill="#202122">Canonical edges by cross-wiki agreement (wiki_count)</text>
+  <text x="360" y="48" text-anchor="middle" font-size="12.5" fill="#54595d">146.76M distinct (article, category) edges across 337 Wikipedia editions, 2026-06-11</text>
+
+  <!-- y gridlines + ticks (millions) -->
+  <g font-size="11" fill="#72777d" text-anchor="end">
+    <line x1="70" y1="400" x2="690" y2="400" stroke="#c8ccd1" stroke-width="1"/>
+    <line x1="70" y1="331.25" x2="690" y2="331.25" stroke="#eaecf0" stroke-width="1"/>
+    <line x1="70" y1="262.5" x2="690" y2="262.5" stroke="#eaecf0" stroke-width="1"/>
+    <line x1="70" y1="193.75" x2="690" y2="193.75" stroke="#eaecf0" stroke-width="1"/>
+    <line x1="70" y1="125" x2="690" y2="125" stroke="#eaecf0" stroke-width="1"/>
+    <text x="62" y="404">0</text>
+    <text x="62" y="335.25">25</text>
+    <text x="62" y="266.5">50</text>
+    <text x="62" y="197.75">75</text>
+    <text x="62" y="129">100</text>
+  </g>
+  <text x="22" y="240" text-anchor="middle" font-size="12" fill="#54595d" transform="rotate(-90 22 240)">edges (millions)</text>
+
+  <!-- bars -->
+  <!-- bar 1: 111.60M / 76.05% (accent) -->
+  <rect x="92" y="93.1" width="80" height="306.9" fill="#b32424"/>
+  <text x="132" y="79" text-anchor="middle" font-size="13" font-weight="600" fill="#202122">111.6M</text>
+  <text x="132" y="62" text-anchor="middle" font-size="13" font-weight="700" fill="#b32424">76.05%</text>
+
+  <!-- bar 2: 18.80M / 12.81% -->
+  <rect x="216" y="348.3" width="80" height="51.7" fill="#2a4b8d"/>
+  <text x="256" y="335" text-anchor="middle" font-size="12.5" fill="#202122">18.8M</text>
+  <text x="256" y="320" text-anchor="middle" font-size="12.5" font-weight="600" fill="#2a4b8d">12.81%</text>
+
+  <!-- bar 3: 6.78M / 4.62% -->
+  <rect x="340" y="381.35" width="80" height="18.65" fill="#2a4b8d"/>
+  <text x="380" y="368" text-anchor="middle" font-size="12.5" fill="#202122">6.78M</text>
+  <text x="380" y="353" text-anchor="middle" font-size="12.5" font-weight="600" fill="#2a4b8d">4.62%</text>
+
+  <!-- bar 4: 3.26M / 2.22% -->
+  <rect x="464" y="391.04" width="80" height="8.96" fill="#2a4b8d"/>
+  <text x="504" y="378" text-anchor="middle" font-size="12.5" fill="#202122">3.26M</text>
+  <text x="504" y="363" text-anchor="middle" font-size="12.5" font-weight="600" fill="#2a4b8d">2.22%</text>
+
+  <!-- bar 5: 6.33M / 4.31% (5+) -->
+  <rect x="588" y="382.59" width="80" height="17.41" fill="#447dba"/>
+  <text x="628" y="369" text-anchor="middle" font-size="12.5" fill="#202122">6.33M</text>
+  <text x="628" y="354" text-anchor="middle" font-size="12.5" font-weight="600" fill="#447dba">4.31%</text>
+
+  <!-- x axis labels -->
+  <g font-size="13" fill="#202122" text-anchor="middle">
+    <text x="132" y="420">1</text>
+    <text x="256" y="420">2</text>
+    <text x="380" y="420">3</text>
+    <text x="504" y="420">4</text>
+    <text x="628" y="420">5+</text>
+  </g>
+  <text x="380" y="448" text-anchor="middle" font-size="12.5" fill="#54595d">wiki_count — number of editions independently asserting the edge</text>
+</svg>

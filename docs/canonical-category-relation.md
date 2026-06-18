@@ -152,7 +152,7 @@ property of the relation. It means:
 - Any consumer that filters by agreement must default to `k=1` and treat `k` as
   a precision knob, not a gate (§5).
 
-<!-- FIGURE (deferred): docs/figures/wiki_count_hist.svg — log-scale bar of the above. -->
+![Bar chart of canonical edges by wiki_count: the single-wiki bar (76.05%) dwarfs all others, which fall away to 12.81% (2 wikis), 4.62%, 2.22%, and 4.31% (5+).](figures/wiki_count_hist.svg)
 
 ### 3.2 Per-edition morphology
 
@@ -407,8 +407,12 @@ Bletchley Park. Small editions: v1 = 0 everywhere; canonical gives 7 (ml) / 4
 
 ### 5.3 The honest counter-cases
 
-The union is not universally better. Three regimes where a curated local subtree
-or the local hierarchy wins, kept prominent rather than buried:
+The union is not universally better, and I keep the cases where it loses (or
+appears to) prominent rather than buried. Of the three below, one is a genuine
+local-hierarchy win (Nobel laureates), one only *looked* like a counter-case and
+turned out to favor canonical on inspection (Malayalam actors), and one is an
+acceptable regression on categories that were never analytics targets anyway
+(1950 in computing):
 
 **[Nobel laureates](https://en.wikipedia.org/wiki/Category:Nobel_laureates)** ([Q6635159](https://www.wikidata.org/wiki/Q6635159)) — the enwiki completeness counter-result:
 
@@ -428,7 +432,7 @@ laureates). Small editions still net-win (hi 479 → 704, ml 388 → 515). For
 completeness-critical queries on enwiki-style trees, the kept local hierarchy
 remains the right tool.
 
-**[Male actors in Malayalam cinema](https://en.wikipedia.org/wiki/Category:Male_actors_in_Malayalam_cinema)** ([Q15271862](https://www.wikidata.org/wiki/Q15271862)) — the strongest counter-case:
+**[Male actors in Malayalam cinema](https://en.wikipedia.org/wiki/Category:Male_actors_in_Malayalam_cinema)** ([Q15271862](https://www.wikidata.org/wiki/Q15271862)) — the case that *looked* like a counter-case and dissolved on inspection:
 
 | wiki | k=1 | k≥2 | d0 | d1 | d2 | Jaccard | recovered | lost |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -439,16 +443,22 @@ remains the right tool.
 
 mlwiki gains 130 actors its own community never categorized locally (Jackie
 Shroff, R. Madhavan, Amrish Puri — cross-industry actors other editions file
-here); hiwiki goes 0 → 112. But **tawiki's local subtree yields 773 vs the
-union's 307** — 588 "lost". tawiki has invested in deep sub-categorization here
-(its d1 alone is 768). If those 588 are genuinely Malayalam-cinema actors, this
-repeats the Nobel pattern: a locally-curated subtree beats the union.
+here); hiwiki goes 0 → 112. The striking number is **tawiki: a local subtree of
+773 vs the union's 307**, 588 "lost" — tawiki has clearly invested in deep
+sub-categorization (its d1 alone is 768). This was the report's candidate
+strongest counter-case: a locally-curated subtree apparently beating the union.
 
-> **Open item (must resolve before this report is final):** spot-check whether
-> tawiki's 588 lost members are genuine Malayalam-cinema actors or subtree
-> over-reach. Reproduce with `v2-study compare --wiki tawiki --categories
-> 15271862`. The verdict decides how loudly I advertise local-hierarchy
-> rollup.
+It does not survive inspection. I checked tawiki's 588 lost members by hand, and
+**they are not Malayalam-cinema actors** — they are pan-Indian dancers and
+non-Malayali actors/dancers swept in by tawiki's deep traversal (the subtree
+reaches sibling "Indian dancers" / cross-industry categories). The union's 307 is
+the *more precise* set; tawiki's extra 466 are the same depth-traversal
+over-reach seen in Sports and Alan Turing, not curation the union missed. So this
+is a **canonical win**, not a counter-case — and a caution worth stating plainly:
+a high local `d2` count is not evidence of better curation. A deep subtree can be
+careful (Nobel field-subcats) or careless (this one), and the only way to tell
+them apart is to read the members. Canonical's evidence-graded `k` is the safer
+default precisely because it does not assume the local subtree is trustworthy.
 
 **[1950 in computing](https://en.wikipedia.org/wiki/Category:1950_in_computing)** ([Q25304526](https://www.wikidata.org/wiki/Q25304526), narrow enwiki intersection) — the expected
 regression: canonical = **3** (Turing test ×5 editions, Hamming distance,
@@ -464,10 +474,13 @@ The phenomenon: depth-traversal saturation and the precision loss of broad
 categories *migrate* into the union as direct-assignment breadth, and the
 agreement count `k` is the graded antidote that hierarchy depth was the blunt
 version of. The union wins decisively on small editions (frequently from a
-literal zero) and on freshness; it loses on completeness-critical queries over
-rich, well-curated enwiki subtrees, which is precisely where the local hierarchy
-should be kept. The design consequence (k=1 default, k as precision knob, keep
-local hierarchy as an escape hatch) is in §8.
+literal zero) and on freshness; it loses only on genuinely completeness-critical
+queries over rich, well-curated enwiki subtrees (Nobel laureates), which is the
+narrow case where keeping the local hierarchy still pays off. The Malayalam-actors
+case sharpens the boundary: a deep local subtree is *not* self-evidently the
+better source — it has to be verified, and when I verified this one the union was
+the more precise set. The design consequence (k=1 default, k as precision knob,
+keep local hierarchy as an escape hatch for the narrow completeness case) is in §8.
 
 ---
 
@@ -628,9 +641,11 @@ Stated plainly, as first-class content:
   saturated abstract categories (Sports 132K → 1,150) the knob is the difference
   between unusable and excellent (§5.1). Engines that rank by `wiki_count` get
   the grading for free.
-- **Keep the local hierarchy as an escape hatch.** For completeness-critical
-  queries over rich enwiki subtrees (Nobel laureates, possibly tawiki's actor
-  subtree), local depth-traversal rollup remains the right tool (§5.3).
+- **Keep the local hierarchy as an escape hatch — but narrowly.** For genuinely
+  completeness-critical queries over rich, *verified*-curated enwiki subtrees
+  (Nobel laureates), local depth-traversal rollup remains the right tool. The
+  Malayalam-actors case (§5.3) shows the escape hatch must not be the default: a
+  deep subtree is as likely to over-reach as to curate.
 - **Ranked output must carry the count.** Ties at `count=1` are common for
   low-sitelink articles; consumers need the count to read the tie structure
   (§4, Williams Middle School).
