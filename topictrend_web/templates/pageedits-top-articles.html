@@ -10,6 +10,7 @@
 <div class="app-container">
   <div class="form-container">
     <h2>Most Edited Articles</h2>
+    <form-filler>
     <form id="top-form">
       <div class="header-wiki-selector">
         {% include "wiki-selector.html" %}
@@ -23,6 +24,7 @@
           class="cdx-button cdx-button--action-progressive cdx-button--weight-primary">Show</button>
       </div>
     </form>
+    </form-filler>
     <p id="stats-display" class="status"></p>
   </div>
   <div class="main" data-metric="pageedits"></div>
@@ -32,5 +34,6 @@
 {% block extra_js %}
 <script src="/static/components/date-range-picker.js" type="module"></script>
 <script src="/static/components/wiki-article-info.js" type="module"></script>
+<script src="/static/components/form-filler.js" type="module"></script>
 <script src="/static/top-articles-page.js" type="module"></script>
 {% endblock %}

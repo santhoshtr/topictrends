@@ -50,7 +50,19 @@ document.addEventListener("DOMContentLoaded", () => {
 		loadTopCategories();
 	});
 
-	loadTopCategories();
+	// Permalink support: <form-filler> reads the URL params and fills the form
+	// once the async components have settled, then fires this event.
+	form.addEventListener("form-fill-complete", () => loadTopCategories());
+
+	// If the URL already carries prefill params, defer to form-filler so we load
+	// once with the shared values instead of fetching defaults first.
+	const urlParams = new URLSearchParams(window.location.search);
+	const hasPrefill = ["wiki", "start_date", "end_date", "top_n"].some((key) =>
+		urlParams.has(key),
+	);
+	if (!hasPrefill) {
+		loadTopCategories();
+	}
 
 	function formatTitle(title) {
 		return (title || "").replaceAll("_", " ");
@@ -195,6 +207,13 @@ document.addEventListener("DOMContentLoaded", () => {
 		const params = new URLSearchParams({ wiki, top_n: topN });
 		if (startDate) params.set("start_date", startDate);
 		if (endDate) params.set("end_date", endDate);
+
+		// Keep the URL shareable: it always reflects the current selection.
+		window.history.replaceState(
+			{},
+			"",
+			`${window.location.pathname}?${params.toString()}`,
+		);
 
 		try {
 			showProgress();
