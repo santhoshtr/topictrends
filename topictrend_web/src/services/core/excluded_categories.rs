@@ -72,6 +72,12 @@ pub static EXCLUDED_CATEGORY_QIDS: LazyLock<HashSet<u32>> = LazyLock::new(|| {
         9989549,   // ചിത്രം ആവശ്യമുള്ള ലേഖനങ്ങൾ
         104844397, // Commons link is on Wikidata (Q104844397)
         62273066,  // Pages with empty portal template
+        99593300,  // Pages with non-numeric formatnum arguments
+        14768888,  // Wikipedia articles with ISNI identifiers
+        10862576, 21515029, 21684313, 18913694, 11679498, 72844866, 72899059, 10862669, 72837064,
+        16794092, 19369547, 18707556, 8709092, 8709091, 29605259, 72836974, 100319655, 72837310,
+        16794084, 21714667, // All are CS1 errors
+        8544371,  // India stubs
     ]
     .into_iter()
     .collect()
