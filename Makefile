@@ -121,13 +121,12 @@ $(DATA_DIR)/%/articles.parquet: $(QUERIES_DIR)/articles.sql
 	@echo "Fetching articles for $*..."
 	@cat $< | $(call dbquery) | $(CARGO_RELEASE)/get-articles $@
 
-# Category data. The trailing denylist path filters out maintenance/assessment/
-# stub categories at build time; get-categories tolerates its absence (warns).
-# Regenerate the denylist with `make excluded-categories`, then refresh topology.
+# Category data (raw, unfiltered — categories.parquet is the title dictionary
+# and the denylist's own source; exclusion happens later, in canonical-projection).
 $(DATA_DIR)/%/categories.parquet: $(QUERIES_DIR)/categories.sql
 	@mkdir -p $(dir $@)
 	@echo "Fetching categories for $*..."
-	@cat $< | $(call dbquery) | $(CARGO_RELEASE)/get-categories $@ $(DATA_DIR)/excluded_categories.parquet
+	@cat $< | $(call dbquery) | $(CARGO_RELEASE)/get-categories $@
 
 # Category graph
 $(DATA_DIR)/%/category_graph.parquet: $(QUERIES_DIR)/category-graph.sql $(DATA_DIR)/%/categories.parquet

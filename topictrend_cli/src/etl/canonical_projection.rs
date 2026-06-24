@@ -23,6 +23,7 @@ use parquet::record::RecordWriter as _;
 use parquet_derive::ParquetRecordWriter;
 use polars::prelude::*;
 use roaring::RoaringBitmap;
+use std::collections::HashSet;
 use std::fs::File;
 use std::path::Path;
 use std::sync::Arc;
@@ -53,6 +54,21 @@ fn read_parquet(path: &str) -> Result<DataFrame, Box<dyn std::error::Error>> {
 
 fn u32_col(df: &DataFrame, name: &str) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
     Ok(df.column(name)?.u32()?.iter().flatten().collect())
+}
+
+/// Category-exclusion denylist (data/excluded_categories.parquet, column `qid`).
+/// Excluded categories are dropped here — from both the projected relation and
+/// the node universe — so the graph builder never sees their article or
+/// hierarchy edges. A missing file means no exclusion (bootstrap, before
+/// `make excluded-categories` has run). categories.parquet / category_labels
+/// stay raw, so the denylist's own source is never filtered.
+fn load_excluded(data: &str) -> Result<HashSet<u32>, Box<dyn std::error::Error>> {
+    let path = format!("{}/excluded_categories.parquet", data);
+    if !Path::new(&path).exists() {
+        eprintln!("WARNING: denylist {path} not found; categories not excluded");
+        return Ok(HashSet::new());
+    }
+    Ok(u32_col(&read_parquet(&path)?, "qid")?.into_iter().collect())
 }
 
 fn writer_props() -> Arc<WriterProperties> {
@@ -118,6 +134,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     drop(df);
     eprintln!("  {} canonical edges", arts.len());
 
+    let excluded = load_excluded(&data)?;
+    eprintln!("  {} excluded categories", excluded.len());
+
     for wiki in &wikis {
         let articles_path = format!("{}/{}/articles.parquet", data, wiki);
         let categories_path = format!("{}/{}/categories.parquet", data, wiki);
@@ -140,6 +159,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if arts[i] != a {
                     break;
                 }
+                if excluded.contains(&cats[i]) {
+                    continue;
+                }
                 edges.push(CanonicalEdge {
                     article_qid: a,
                     category_qid: cats[i],
@@ -149,9 +171,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        // Category node universe: local categories ∪ categories projected in.
-        let mut universe: RoaringBitmap =
-            u32_col(&read_parquet(&categories_path)?, "qid")?.into_iter().collect();
+        // Category node universe: local categories ∪ categories projected in,
+        // minus the exclusion denylist.
+        let mut universe: RoaringBitmap = u32_col(&read_parquet(&categories_path)?, "qid")?
+            .into_iter()
+            .filter(|qid| !excluded.contains(qid))
+            .collect();
         let local = universe.len();
         universe |= &projected_cats;
         let nodes: Vec<CategoryNode> = universe.iter().map(|qid| CategoryNode { qid }).collect();
