@@ -1,4 +1,4 @@
-use super::{CoreServiceError, EngineService, excluded_categories};
+use super::{CoreServiceError, EngineService};
 use crate::models::AppState;
 use chrono::NaiveDate;
 use std::sync::Arc;
@@ -134,14 +134,15 @@ impl PageViewService {
     ) -> Result<Vec<CategoryViews>, CoreServiceError> {
         let engine = EngineService::get_or_build_pageview_engine(state, wiki).await?;
 
-        // Oversample so dropping denylisted categories cannot shrink the page.
+        // Excluded categories are filtered out of topology at ETL, so the engine
+        // already returns only rankable categories.
         let categories = {
             let engine_lock = engine.read().map_err(|e| {
                 CoreServiceError::InternalError(format!("Failed to acquire read lock: {}", e))
             })?;
 
             engine_lock
-                .get_top_categories(start_date, end_date, excluded_categories::oversampled(limit))
+                .get_top_categories(start_date, end_date, limit)
                 .map_err(|e| {
                     CoreServiceError::EngineError(format!("Failed to get top categories: {}", e))
                 })?
@@ -149,8 +150,6 @@ impl PageViewService {
 
         let raw_categories: Vec<CategoryViews> = categories
             .into_iter()
-            .filter(|cat| !excluded_categories::EXCLUDED_CATEGORY_QIDS.contains(&cat.category_qid))
-            .take(limit)
             .map(|cat| {
                 let top_articles: Vec<ArticleViews> = cat
                     .top_articles

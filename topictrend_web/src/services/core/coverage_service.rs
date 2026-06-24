@@ -11,7 +11,6 @@
 //! triggers a rebuild.
 
 use super::CoreServiceError;
-use super::excluded_categories::EXCLUDED_CATEGORY_QIDS;
 use crate::models::AppState;
 use chrono::NaiveDate;
 use std::collections::VecDeque;
@@ -221,9 +220,7 @@ impl CoverageService {
         for (category_qid, _direct_ref, overlap_reference, overlap_pageviews) in
             ref_snap.matrix.iter()
         {
-            if EXCLUDED_CATEGORY_QIDS.contains(&category_qid) {
-                continue;
-            }
+            // Excluded categories are filtered out of topology at ETL.
             let (direct_target, overlap_target, _pv_target) = tgt_snap.matrix.get(category_qid);
             let gap = overlap_reference as i64 - overlap_target as i64;
             if gap > 0 {

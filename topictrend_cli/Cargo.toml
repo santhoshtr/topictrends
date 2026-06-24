@@ -81,3 +81,7 @@ path = "src/etl/canonical_projection.rs"
 [[bin]]
 name = "canonical-labels"
 path = "src/etl/canonical_labels.rs"
+
+[[bin]]
+name = "gen-excluded-categories"
+path = "src/etl/gen_excluded_categories.rs"

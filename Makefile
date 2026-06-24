@@ -37,7 +37,7 @@ WIKIS = $(shell cat $(DATA_DIR)/wikipedia.list 2>/dev/null)
 
 .DEFAULT_GOAL := run
 
-.PHONY: run init clean help monthly index-wiki index-clean web gsc coverage canonical _run-wikis topology-refresh
+.PHONY: run init clean help monthly index-wiki index-clean web gsc coverage canonical excluded-categories _run-wikis topology-refresh
 
 # Help target
 help:
@@ -54,6 +54,8 @@ help:
 	@echo "  canonical        - Union all wikis' article_category into the canonical relation"
 	@echo "                     with per-edge wiki counts (data/canonical/<DATE>/), then project"
 	@echo "                     it per wiki (article_category_canonical + categories_canonical)"
+	@echo "  excluded-categories - Regenerate data/excluded_categories.parquet (denylist) from"
+	@echo "                     the latest canonical labels; then topology-refresh to apply it"
 	@echo "  topology-refresh - Re-fetch topology (articles/categories/graph) from the replica"
 	@echo "                     for all wikis; scope with WIKIS=enwiki. Restart the server after."
 	@echo "  web              - Start the web server (no rebuild)"
@@ -119,11 +121,13 @@ $(DATA_DIR)/%/articles.parquet: $(QUERIES_DIR)/articles.sql
 	@echo "Fetching articles for $*..."
 	@cat $< | $(call dbquery) | $(CARGO_RELEASE)/get-articles $@
 
-# Category data
+# Category data. The trailing denylist path filters out maintenance/assessment/
+# stub categories at build time; get-categories tolerates its absence (warns).
+# Regenerate the denylist with `make excluded-categories`, then refresh topology.
 $(DATA_DIR)/%/categories.parquet: $(QUERIES_DIR)/categories.sql
 	@mkdir -p $(dir $@)
 	@echo "Fetching categories for $*..."
-	@cat $< | $(call dbquery) | $(CARGO_RELEASE)/get-categories $@
+	@cat $< | $(call dbquery) | $(CARGO_RELEASE)/get-categories $@ $(DATA_DIR)/excluded_categories.parquet
 
 # Category graph
 $(DATA_DIR)/%/category_graph.parquet: $(QUERIES_DIR)/category-graph.sql $(DATA_DIR)/%/categories.parquet
@@ -263,6 +267,12 @@ canonical: init
 	DATA_DIR=$(DATA_DIR) $(CARGO_RELEASE)/canonical-membership --date $(DATE)
 	DATA_DIR=$(DATA_DIR) $(CARGO_RELEASE)/canonical-projection --date $(DATE)
 	DATA_DIR=$(DATA_DIR) $(CARGO_RELEASE)/canonical-labels --date $(DATE)
+
+# Regenerate the category-exclusion denylist (data/excluded_categories.parquet)
+# from the latest canonical category labels. Slowly-changing input; run after
+# `make canonical`, then `make topology-refresh` to apply it to the parquets.
+excluded-categories: init
+	DATA_DIR=$(DATA_DIR) $(CARGO_RELEASE)/gen-excluded-categories
 
 # Clean target
 clean:
