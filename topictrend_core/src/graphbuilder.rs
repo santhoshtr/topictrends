@@ -168,6 +168,26 @@ impl GraphBuilder {
         };
 
         println!("\r  Loaded Article-Category definitions");
+
+        // Categories that exist as a local page in this wiki. In canonical mode
+        // the node universe is local ∪ projected, so we read the local
+        // categories.parquet to mark the local subset; in local mode every node
+        // is already local.
+        let local_categories: RoaringBitmap = if canonical {
+            let path: PlRefPath = PlRefPath::try_from_path(Path::new(
+                format!("{}/{}/categories.parquet", data_dir, self.wiki).as_str(),
+            ))?;
+            let df = LazyFrame::scan_parquet(path, Default::default())?.collect()?;
+            df.column("qid")?
+                .u32()?
+                .iter()
+                .flatten()
+                .filter_map(|qid| cat_original_to_dense.get(qid))
+                .collect()
+        } else {
+            (0..num_cats as u32).collect()
+        };
+
         println!(
             "Graph build completed for {} in {:.2?}s",
             self.wiki,
@@ -184,6 +204,7 @@ impl GraphBuilder {
             cat_original_to_dense,
             art_dense_to_original,
             art_original_to_dense,
+            local_categories,
         })
     }
 

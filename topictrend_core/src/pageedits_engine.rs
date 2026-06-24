@@ -595,15 +595,19 @@ impl PageEditsEngine {
             }
         }
 
-        // Phase 3: Sort & Top N
-        let mut ranked: Vec<usize> = (0..num_cats).collect();
+        // Phase 3: Sort & Top N. Only categories with a local page are eligible
+        // (see pageview_engine::get_top_categories) — never list a category
+        // that exists only in another edition.
+        let local = &self.wikigraph.local_categories;
+        let mut ranked: Vec<usize> = (0..num_cats)
+            .filter(|&i| cat_scores[i] > 0 && local.contains(i as u32))
+            .collect();
         ranked.sort_by(|&a, &b| cat_scores[b].cmp(&cat_scores[a]));
 
         // Transform to output
         let results: Vec<CategoryRank> = ranked
             .into_iter()
             .take(top_n)
-            .filter(|&idx| cat_scores[idx] > 0)
             .map(|cat_dense_id| {
                 // Sort articles for this category by edits
                 let mut articles = cat_articles[cat_dense_id].clone();

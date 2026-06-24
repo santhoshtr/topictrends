@@ -18,6 +18,12 @@ pub struct WikiGraph {
     pub cat_original_to_dense: DirectMap, // QID -> Dense
     pub art_dense_to_original: Vec<u32>,
     pub art_original_to_dense: DirectMap,
+    /// Category dense IDs that exist as a local page in this wiki (i.e. have a
+    /// local label). Ranking surfaces restrict their candidate set to these so
+    /// "top categories in <wiki>" never lists a category that only exists in
+    /// another edition. Under the local topology the node universe already is
+    /// the local categories, so every node is set.
+    pub local_categories: RoaringBitmap,
 }
 
 impl WikiGraph {
@@ -455,6 +461,7 @@ mod tests {
             cat_original_to_dense: [(100, 0), (101, 1)].into_iter().collect(),
             art_dense_to_original: vec![10, 11, 12],
             art_original_to_dense: [(10, 0), (11, 1), (12, 2)].into_iter().collect(),
+            local_categories: [0u32, 1].into_iter().collect(),
         }
     }
 

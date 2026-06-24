@@ -17,6 +17,17 @@ use std::{collections::HashMap, error::Error};
 const PAGEVIEW_CACHE_DAYS_ENV: &str = "TOPICTREND_PAGEVIEW_CACHE_DAYS";
 const DEFAULT_PAGEVIEW_CACHE_DAYS: usize = 120;
 
+/// Re-ranking pool sizing for `get_top_categories`: greedy coverage runs over
+/// the top `max(top_n * POOL_MULTIPLIER, POOL_MIN)` categories by raw score,
+/// capped at the number with non-zero score. Categories below the pool cannot
+/// win a slot, so the other ~2.5M are never touched.
+const POOL_MULTIPLIER: usize = 5;
+const POOL_MIN: usize = 500;
+/// Two categories whose marginal coverage is within this percent of each other
+/// are treated as explaining the same trend; the one with higher mean
+/// cross-wiki agreement wins. Integer percent to avoid floats.
+const COVERAGE_TIE_PERCENT: u64 = 95;
+
 #[derive(Debug, Clone)]
 pub struct ArticleRank {
     pub article_qid: u32,
@@ -649,6 +660,13 @@ impl PageViewEngine {
         // because it avoids synchronization overhead.
         let mut cat_scores = vec![0u64; num_cats];
         let mut cat_articles: Vec<Vec<(u32, u32)>> = vec![Vec::new(); num_cats];
+        // Sum of cross-wiki agreement weights over each category's contributing
+        // edges (parallel to cat_scores). Mean agreement is
+        // cat_weight_sum / |cat_articles|; used only to disambiguate
+        // near-duplicate categories during re-ranking. Local-relation graphs
+        // carry no weights — every edge counts as 1, making the tie-break inert.
+        let mut cat_weight_sum = vec![0u64; num_cats];
+        let has_weights = !self.wikigraph.article_cat_weights.is_empty();
 
         for (art_dense_id, &views) in article_views.iter().enumerate() {
             if views == 0 {
@@ -657,29 +675,53 @@ impl PageViewEngine {
 
             // Use the Article->Category CSR
             let article_categories = self.wikigraph.article_cats.get(art_dense_id as u32);
+            let edge_start = self
+                .wikigraph
+                .article_cats
+                .edge_range(art_dense_id as u32)
+                .start;
 
-            for &cat_dense_id in article_categories {
+            for (i, &cat_dense_id) in article_categories.iter().enumerate() {
                 // Safety: cat_dense_id is guaranteed valid by graph construction
                 unsafe {
                     *cat_scores.get_unchecked_mut(cat_dense_id as usize) += views as u64;
                 }
                 cat_articles[cat_dense_id as usize].push((art_dense_id as u32, views));
+                let weight = if has_weights {
+                    self.wikigraph.article_cat_weights[edge_start + i] as u64
+                } else {
+                    1
+                };
+                cat_weight_sum[cat_dense_id as usize] += weight;
             }
         }
 
-        // Phase 3: Sort & Top N
-        // Create a list of indices to sort
-        let mut ranked: Vec<usize> = (0..num_cats).collect();
+        // Phase 3: Build a candidate pool by raw score, then re-rank it by
+        // greedy marginal coverage so near-duplicate categories (e.g. "Actors",
+        // "American actors", "Film actors" all explaining the same trending
+        // articles) collapse to a single representative. See
+        // .plans/issue_duplicated_trending_categories.md.
+        // Only categories that exist as a local page in this wiki are eligible:
+        // "top categories in <wiki>" must not list a category that exists only
+        // in another edition (and would render with a non-local label).
+        let local = &self.wikigraph.local_categories;
+        let mut ranked: Vec<usize> = (0..num_cats)
+            .filter(|&i| cat_scores[i] > 0 && local.contains(i as u32))
+            .collect();
 
         // Parallel sort is overkill for 2.5M integers, standard sort is fine.
         // We sort by score descending.
         ranked.sort_by(|&a, &b| cat_scores[b].cmp(&cat_scores[a]));
 
+        // Only the highest-scoring categories can win a slot; cap the working
+        // set so coverage runs on a few hundred candidates, not all ~2.5M.
+        let pool_size = (top_n * POOL_MULTIPLIER).max(POOL_MIN).min(ranked.len());
+        let selected =
+            Self::select_by_coverage(&ranked[..pool_size], &cat_weight_sum, &cat_articles, top_n);
+
         //  Transform to Output
-        let results: Vec<CategoryRank> = ranked
+        let results: Vec<CategoryRank> = selected
             .into_iter()
-            .take(top_n)
-            .filter(|&idx| cat_scores[idx] > 0) // Filter out zero view categories
             .map(|cat_dense_id| {
                 // Sort articles for this category by views
                 let mut articles = cat_articles[cat_dense_id].clone();
@@ -709,6 +751,77 @@ impl PageViewEngine {
             .insert(cache_key, results.clone());
 
         Ok(results)
+    }
+
+    /// Greedy maximum-coverage selection over a candidate pool of category
+    /// dense IDs (`pool`, pre-sorted by raw score descending). Repeatedly picks
+    /// the category explaining the most not-yet-covered trending views, then
+    /// marks its articles covered, so redundant categories sharing the same
+    /// articles drop out of the ranking. Among candidates whose marginal
+    /// coverage is within `COVERAGE_TIE_PERCENT` of the best (true duplicates),
+    /// the one with the highest mean cross-wiki agreement wins, preferring a
+    /// canonical category over a wiki-local maintenance bucket; remaining ties
+    /// fall to pool order (broadest by raw score first). Returns up to `top_n`
+    /// category dense IDs in pick order.
+    fn select_by_coverage(
+        pool: &[usize],
+        cat_weight_sum: &[u64],
+        cat_articles: &[Vec<(u32, u32)>],
+        top_n: usize,
+    ) -> Vec<usize> {
+        let mut covered = RoaringBitmap::new();
+        let mut taken = vec![false; pool.len()];
+        let mut marginals = vec![0u64; pool.len()];
+        let mut selected = Vec::with_capacity(top_n.min(pool.len()));
+
+        for _ in 0..top_n {
+            // Marginal score: uncovered trending views each candidate still explains.
+            let mut best_marginal = 0u64;
+            for (pi, &cat) in pool.iter().enumerate() {
+                if taken[pi] {
+                    continue;
+                }
+                let mut m = 0u64;
+                for &(art, views) in &cat_articles[cat] {
+                    if !covered.contains(art) {
+                        m += views as u64;
+                    }
+                }
+                marginals[pi] = m;
+                best_marginal = best_marginal.max(m);
+            }
+            if best_marginal == 0 {
+                break;
+            }
+
+            // Among candidates within COVERAGE_TIE_PERCENT of the best marginal,
+            // prefer higher mean agreement, then higher marginal. Strict `>`
+            // keeps the first such candidate, so pool order (raw score) breaks
+            // remaining ties — the broadest category wins.
+            let threshold = best_marginal * COVERAGE_TIE_PERCENT / 100;
+            let mut best_pi = usize::MAX;
+            let mut best_key = (0u64, 0u64);
+            for (pi, &cat) in pool.iter().enumerate() {
+                if taken[pi] || marginals[pi] < threshold {
+                    continue;
+                }
+                let count = cat_articles[cat].len().max(1) as u64;
+                let key = (cat_weight_sum[cat] / count, marginals[pi]);
+                if best_pi == usize::MAX || key > best_key {
+                    best_key = key;
+                    best_pi = pi;
+                }
+            }
+
+            let cat = pool[best_pi];
+            taken[best_pi] = true;
+            selected.push(cat);
+            for &(art, _) in &cat_articles[cat] {
+                covered.insert(art);
+            }
+        }
+
+        selected
     }
 
     pub fn get_top_articles(
@@ -816,6 +929,64 @@ impl PageViewEngine {
             total_views,
             top_articles,
         })
+    }
+}
+
+#[cfg(test)]
+mod coverage_selection_tests {
+    use super::*;
+
+    // Cat dense IDs 0..4 modelling the "actors" duplication:
+    //   0 "Actors"          : articles 10,11,12 (broadest), agreement 5 each
+    //   1 "American actors"  : articles 10,11    (subset),   agreement 5 each
+    //   2 "Film actors"      : articles 10,12    (subset),   agreement 5 each
+    //   3 "Actors by alpha"   : articles 10,11,12 (same as 0), agreement 1 (junk)
+    //   4 "Cricket"           : articles 20,21    (unrelated), agreement 5 each
+    // All view counts are 100 so coverage, not raw weight, drives ranking.
+    fn fixture() -> (Vec<Vec<(u32, u32)>>, Vec<u64>) {
+        let cat_articles = vec![
+            vec![(10, 100), (11, 100), (12, 100)],
+            vec![(10, 100), (11, 100)],
+            vec![(10, 100), (12, 100)],
+            vec![(10, 100), (11, 100), (12, 100)],
+            vec![(20, 100), (21, 100)],
+        ];
+        // cat_weight_sum = mean_agreement * member_count
+        let cat_weight_sum = vec![15, 10, 10, 3, 10];
+        (cat_articles, cat_weight_sum)
+    }
+
+    #[test]
+    fn collapses_overlapping_categories_to_one() {
+        let (cat_articles, cat_weight_sum) = fixture();
+        // Pool order is raw-score descending; cats 0 and 3 both score 300.
+        let pool = [0usize, 3, 1, 2, 4];
+        let selected =
+            PageViewEngine::select_by_coverage(&pool, &cat_weight_sum, &cat_articles, 10);
+        // "Actors" (0) absorbs all three actors; the three redundant actor
+        // categories (1,2,3) contribute zero marginal coverage and drop out.
+        // Only the unrelated "Cricket" (4) survives alongside it.
+        assert_eq!(selected, vec![0, 4]);
+    }
+
+    #[test]
+    fn agreement_breaks_ties_between_identical_categories() {
+        let (cat_articles, cat_weight_sum) = fixture();
+        // Junk duplicate (3) listed first in the pool but ties "Actors" (0) on
+        // coverage; higher mean agreement must promote 0 over 3.
+        let pool = [3usize, 0, 1, 2, 4];
+        let selected =
+            PageViewEngine::select_by_coverage(&pool, &cat_weight_sum, &cat_articles, 10);
+        assert_eq!(selected, vec![0, 4]);
+    }
+
+    #[test]
+    fn respects_top_n_limit() {
+        let (cat_articles, cat_weight_sum) = fixture();
+        let pool = [0usize, 3, 1, 2, 4];
+        let selected =
+            PageViewEngine::select_by_coverage(&pool, &cat_weight_sum, &cat_articles, 1);
+        assert_eq!(selected, vec![0]);
     }
 }
 

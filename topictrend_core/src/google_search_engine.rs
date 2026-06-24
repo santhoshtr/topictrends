@@ -574,13 +574,18 @@ impl GoogleSearchEngine {
             }
         }
 
-        let mut ranked: Vec<usize> = (0..num_cats).collect();
+        // Only categories with a local page are eligible (see
+        // pageview_engine::get_top_categories) — never list a category that
+        // exists only in another edition.
+        let local = &self.wikigraph.local_categories;
+        let mut ranked: Vec<usize> = (0..num_cats)
+            .filter(|&i| cat_clicks[i] > 0 && local.contains(i as u32))
+            .collect();
         ranked.sort_by(|&a, &b| cat_clicks[b].cmp(&cat_clicks[a]));
 
         let results: Vec<CategoryRank> = ranked
             .into_iter()
             .take(top_n)
-            .filter(|&idx| cat_clicks[idx] > 0)
             .map(|cat_dense_id| {
                 let mut articles = cat_articles[cat_dense_id].clone();
                 articles.sort_unstable_by_key(|b| std::cmp::Reverse(b.1));
