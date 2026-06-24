@@ -58,7 +58,10 @@ const CURATED_HEAD: &[u32] = &[
     62273066, 99593300, 14768888, // CS1 errors / maint
     10862576, 21515029, 21684313, 18913694, 11679498, 72844866, 72899059, 10862669, 72837064,
     16794092, 19369547, 18707556, 8709092, 8709091, 29605259, 72836974, 100319655, 72837310,
-    16794084, 21714667, 8544371, // India stubs
+    16794084, 21714667, 8544371,  // India stubs
+    1281,     // Contents
+    7086090,  // IUCN Red List least concern species - cat goes there
+    99638401, // Short description is different from Wikidata
 ];
 
 #[derive(Debug, ParquetRecordWriter)]
