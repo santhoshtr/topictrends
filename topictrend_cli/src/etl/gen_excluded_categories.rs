@@ -55,6 +55,10 @@ const PATTERNS: &[&str] = &[
     "recipients",
     "people from",
     "alumni",
+    r"^man$",
+    r"^woman$",
+    r"^men$",
+    r"^women$",
     r"^\d.* (births|deaths)$",
 ];
 
