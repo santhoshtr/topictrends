@@ -465,10 +465,17 @@ impl WikiGraph {
     /// equally-covering categories, preferring a broad canonical category over a
     /// wiki-local maintenance bucket. Runs entirely on the in-memory graph — no
     /// Parquet, no metric data.
+    ///
+    /// `min_agreement` drops membership edges fewer than that many wikis assert
+    /// before scattering, so clustering forms only on cross-wiki consensus
+    /// rather than single-edition idiosyncrasies. Graphs built from the local
+    /// relation carry no weights (every edge counts as 1), so `min_agreement > 1`
+    /// drops everything there; pass 1 to keep all edges.
     pub fn cluster_articles(
         &self,
         article_qids: &[u32],
         max_clusters: Option<usize>,
+        min_agreement: u16,
     ) -> ClusterOutcome {
         let has_weights = !self.article_cat_weights.is_empty();
 
@@ -502,6 +509,9 @@ impl WikiGraph {
                 } else {
                     1
                 };
+                if weight < min_agreement as u64 {
+                    continue;
+                }
                 let entry = cats.entry(cat_dense).or_insert_with(|| (0, Vec::new()));
                 entry.0 += weight;
                 entry.1.push(art_dense);
@@ -701,7 +711,7 @@ mod tests {
     fn cluster_collapses_duplicates_and_partitions() {
         let g = cluster_graph();
         // 999 is not in the graph; the rest split cleanly into actors + cricket.
-        let out = g.cluster_articles(&[10, 11, 12, 20, 21, 999], None);
+        let out = g.cluster_articles(&[10, 11, 12, 20, 21, 999], None, 1);
 
         let got: Vec<(u32, Vec<u32>)> = out
             .clusters
@@ -740,7 +750,7 @@ mod tests {
             local_categories: [0u32, 1, 2].into_iter().collect(),
         };
 
-        let out = g.cluster_articles(&[10, 11, 12], None);
+        let out = g.cluster_articles(&[10, 11, 12], None, 1);
         let got: Vec<(u32, Vec<u32>)> = out
             .clusters
             .iter()
@@ -752,9 +762,25 @@ mod tests {
     }
 
     #[test]
+    fn cluster_min_agreement_drops_weak_edges() {
+        // Only C0's edges reach agreement 5; cricket (C3) edges are weight 2.
+        // At min_agreement=5 the cricket articles lose all edges and fall to
+        // unclustered, leaving just the actors under C0.
+        let g = cluster_graph();
+        let out = g.cluster_articles(&[10, 11, 12, 20, 21], None, 5);
+        let got: Vec<(u32, Vec<u32>)> = out
+            .clusters
+            .iter()
+            .map(|c| (c.category_qid, c.article_qids.clone()))
+            .collect();
+        assert_eq!(got, vec![(100, vec![10, 11, 12])]);
+        assert_eq!(out.unclustered_qids, vec![20, 21]);
+    }
+
+    #[test]
     fn cluster_respects_max_clusters() {
         let g = cluster_graph();
-        let out = g.cluster_articles(&[10, 11, 12, 20, 21], Some(1));
+        let out = g.cluster_articles(&[10, 11, 12, 20, 21], Some(1), 1);
         assert_eq!(out.clusters.len(), 1);
         assert_eq!(out.clusters[0].category_qid, 100);
         // The capped-out cricket articles fall through to unclustered.

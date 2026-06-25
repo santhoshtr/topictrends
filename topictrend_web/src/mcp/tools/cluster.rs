@@ -29,6 +29,7 @@ impl TopicTrendMcpServer {
             &p.wiki,
             p.articles,
             p.max_clusters.map(|n| n as usize),
+            p.min_agreement.unwrap_or(3),
         )
         .await
         .map_err(core_err)?;

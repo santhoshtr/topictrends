@@ -1875,6 +1875,16 @@ components:
           type: integer
           minimum: 1
           description: Cap on the number of clusters. Omit to cover every article.
+        min_agreement:
+          type: integer
+          minimum: 1
+          default: 3
+          description: >
+            Keep only category membership edges at least this many wikis agree
+            on, before clustering (default 3). Higher values discard
+            single-edition categorizations, forming clusters only on cross-wiki
+            consensus. Meaningful on canonical topology; on local topology every
+            edge counts as 1.
 
     ArticleCluster:
       type: object

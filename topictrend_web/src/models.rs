@@ -642,6 +642,8 @@ pub struct ClusterArticlesRequest {
     pub articles: Vec<String>,
     /// Cap on the number of clusters. Omit to cover every article.
     pub max_clusters: Option<usize>,
+    /// Keep only category edges at least this many wikis agree on (default 3).
+    pub min_agreement: Option<u16>,
 }
 
 /// One topic: a category and the input articles assigned to it.

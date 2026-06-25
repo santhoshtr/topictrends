@@ -676,6 +676,7 @@ in the given wiki. Runs entirely on the in-memory category graph.
 | `wiki` | String | Yes | Wikipedia edition database name (e.g., `enwiki`) |
 | `articles` | String[] | Yes | Article titles to group into topics |
 | `max_clusters` | Integer | No | Cap on the number of clusters; omit to cover every article |
+| `min_agreement` | Integer | No | Keep only category edges at least this many wikis agree on (default 3). Higher values cluster only on cross-wiki consensus and drop single-edition categorizations; set 1 for raw, unfiltered edges |
 
 **Example Request:**
 

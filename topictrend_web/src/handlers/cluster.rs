@@ -13,7 +13,13 @@ pub async fn cluster_articles_handler(
     State(state): State<Arc<AppState>>,
     Json(body): Json<ClusterArticlesRequest>,
 ) -> Result<Json<ClusterArticlesResponse>, ApiError> {
-    let response =
-        ClusterService::cluster(state, &body.wiki, body.articles, body.max_clusters).await?;
+    let response = ClusterService::cluster(
+        state,
+        &body.wiki,
+        body.articles,
+        body.max_clusters,
+        body.min_agreement.unwrap_or(3),
+    )
+    .await?;
     Ok(Json(response))
 }

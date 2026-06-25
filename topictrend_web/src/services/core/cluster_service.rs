@@ -14,6 +14,7 @@ impl ClusterService {
         wiki: &str,
         articles: Vec<String>,
         max_clusters: Option<usize>,
+        min_agreement: u16,
     ) -> Result<ClusterArticlesResponse, CoreServiceError> {
         // Resolve article titles -> QIDs (namespace 0). Titles that resolve
         // nowhere are echoed back so callers can spot typos or stale names.
@@ -32,7 +33,7 @@ impl ClusterService {
         qids.sort_unstable();
 
         let graph = EngineService::get_or_build_graph_engine(Arc::clone(&state), wiki).await?;
-        let outcome = graph.cluster_articles(&qids, max_clusters);
+        let outcome = graph.cluster_articles(&qids, max_clusters, min_agreement);
 
         // One title lookup covering every category and article QID in the result.
         let mut all_qids: Vec<u32> = Vec::new();

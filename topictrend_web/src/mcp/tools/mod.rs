@@ -155,6 +155,8 @@ pub struct ClusterArticlesInput {
     pub articles: Vec<String>,
     /// Cap on the number of clusters. Omit to cover every article.
     pub max_clusters: Option<u32>,
+    /// Keep only category edges at least this many wikis agree on (default 3).
+    pub min_agreement: Option<u16>,
 }
 
 /// Input for cross-wiki content-gap discovery (ranked categories).
