@@ -27,12 +27,11 @@ use std::sync::Arc;
 /// "Terrorism in ...".
 ///
 /// The second group targets non-defining "set" categories — people grouped by
-/// birth/death year, award, residence or school. They carry the highest
-/// cross-wiki agreement (a person's birth year is asserted by every edition),
-/// so they crowd out topical categories in any ranking that falls back to
-/// agreement. `births`/`deaths` (plural) match the dominant "YYYY births" /
-/// "YYYY deaths" population but also sweep by-cause/by-event variants like
-/// "Deaths from cancer"; `living people` is the single largest such category.
+/// award, residence or school. They carry the highest cross-wiki agreement (a
+/// person's residence is asserted by every edition), so they crowd out topical
+/// categories in any ranking that falls back to agreement. Year-of-birth/death
+/// categories, the largest such class, are matched separately by
+/// [`is_year_birth_death`] to avoid sweeping topical by-cause/by-event variants.
 const FRAGMENTS: &[&str] = &[
     "articles",
     "pages",
@@ -44,13 +43,21 @@ const FRAGMENTS: &[&str] = &[
     "list of",
     "template",
     "magic link",
-    "births",
-    "deaths",
     "living people",
     "recipients",
     "people from",
     "alumni",
 ];
+
+/// "YYYY births"/"YYYY deaths" and their decade/century/millennium variants —
+/// "1973 deaths", "490s births", "12th-century deaths". The ` births`/` deaths`
+/// suffix plus a leading digit captures the people-by-year population while
+/// leaving topical by-cause/by-event categories ("Deaths from cancer",
+/// "Deaths in the 2010 Haiti earthquake", "Accidental deaths") in the graph.
+fn is_year_birth_death(normalized: &str) -> bool {
+    (normalized.ends_with(" births") || normalized.ends_with(" deaths"))
+        && normalized.starts_with(|c: char| c.is_ascii_digit())
+}
 
 /// The original hand-curated denylist, kept verbatim. The FRAGMENTS above add
 /// the unbounded maintenance/assessment/stub population; this preserves the
@@ -117,12 +124,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut excluded: BTreeSet<u32> = BTreeSet::new();
     let mut per_fragment = vec![0usize; FRAGMENTS.len()];
+    let mut year_birth_death = 0usize;
     for (q, l) in qids.iter().zip(labels.iter()) {
         let (Some(qid), Some(label)) = (q, l) else {
             continue;
         };
         let normalized = label.replace('_', " ").to_lowercase();
-        if let Some(i) = FRAGMENTS.iter().position(|f| normalized.contains(f)) {
+        if is_year_birth_death(&normalized) {
+            year_birth_death += 1;
+            excluded.insert(qid);
+        } else if let Some(i) = FRAGMENTS.iter().position(|f| normalized.contains(f)) {
             per_fragment[i] += 1;
             excluded.insert(qid);
         }
@@ -151,6 +162,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for (frag, n) in FRAGMENTS.iter().zip(&per_fragment) {
         eprintln!("  {frag:>16}: {n}");
     }
+    eprintln!("  {:>16}: {}", "year birth/death", year_birth_death);
     eprintln!(
         "Wrote {}: {} QIDs ({} fragment-matched + {} curated)",
         out_path,
