@@ -23,13 +23,18 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-/// Denylist label patterns, as regexes over the normalized label (underscores
-/// to spaces, lowercased — so author patterns in lowercase). Each is tested as
-/// a regex, so a bare literal like `articles` acts as an unanchored substring
-/// match (back-compatible with the old fragment list), while anchors and
-/// classes express precise rules that avoid false positives:
-///   - `^…` / `…$`         — prefix / suffix    (`^\d.* deaths$` not "deaths from cancer")
-///   - `\bword\b`           — whole word         (`\bman\b` not "sportsman")
+/// Denylist label patterns, as regexes over the normalized label. The label is
+/// normalized before matching by replacing underscores with spaces and
+/// lowercasing it, so matching is effectively case-insensitive — but via the
+/// lowercased input, NOT a regex flag. Author every pattern in lowercase: an
+/// uppercase letter in a pattern can never match (the input is always lower).
+///
+/// Each entry is a full regex, so a bare literal like `articles` acts as an
+/// unanchored substring match (back-compatible with the old fragment list),
+/// while anchors and classes express precise rules that avoid false positives:
+///   - `^…$`                — full-string match  (`^men$` not "women's tennis")
+///   - `^…` / `…$`          — prefix / suffix     (`^\d.* deaths$` not "deaths from cancer")
+///   - `\bword\b`           — whole word          (`\bman\b` matches "iron man" too — careful)
 ///   - `\d{4}`              — a four-digit year
 /// A malformed pattern fails fast at `RegexSet::new`. Literals containing regex
 /// metacharacters (`.`, `(`, `?`, …) must be escaped.
@@ -55,6 +60,7 @@ const PATTERNS: &[&str] = &[
     "recipients",
     "people from",
     "alumni",
+    r"^american people$",
     r"^man$",
     r"^woman$",
     r"^men$",
