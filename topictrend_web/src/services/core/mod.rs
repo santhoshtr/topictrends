@@ -1,5 +1,6 @@
 pub mod article_service;
 pub mod category_service;
+pub mod cluster_service;
 pub mod coverage_service;
 pub mod engine_service;
 pub mod google_search_service;
@@ -11,6 +12,7 @@ pub mod title_store;
 
 pub use article_service::ArticleService;
 pub use category_service::CategoryService;
+pub use cluster_service::ClusterService;
 pub use coverage_service::CoverageService;
 pub use engine_service::EngineService;
 pub use google_search_service::GoogleSearchService;

@@ -634,6 +634,37 @@ pub struct RelatedArticlesResponse {
     pub articles: Vec<RelatedArticleItem>,
 }
 
+/// Request to group a set of article titles into category-topics, reusing the
+/// trending clustering (reverse scatter + greedy coverage).
+#[derive(Deserialize)]
+pub struct ClusterArticlesRequest {
+    pub wiki: String,
+    pub articles: Vec<String>,
+    /// Cap on the number of clusters. Omit to cover every article.
+    pub max_clusters: Option<usize>,
+}
+
+/// One topic: a category and the input articles assigned to it.
+#[derive(Serialize, JsonSchema)]
+pub struct ArticleClusterDto {
+    pub category_qid: u32,
+    pub category: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_en: Option<String>,
+    pub size: u32,
+    pub articles: Vec<ArticleItem>,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct ClusterArticlesResponse {
+    pub wiki: String,
+    pub clusters: Vec<ArticleClusterDto>,
+    /// Resolved articles placed in no cluster (no local category).
+    pub unclustered: Vec<ArticleItem>,
+    /// Input titles that did not resolve to a QID in this wiki.
+    pub unresolved: Vec<String>,
+}
+
 #[derive(Deserialize)]
 pub struct ListArticlesInCategoryParams {
     pub wiki: String,

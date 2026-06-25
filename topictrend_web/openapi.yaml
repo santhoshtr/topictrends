@@ -701,6 +701,38 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/cluster:
+    post:
+      operationId: clusterArticles
+      tags: [Lists]
+      summary: Group a set of articles into category-topics
+      description: |
+        Clusters a caller-supplied set of article titles into Wikipedia
+        category-topics using the same reverse-scatter + greedy-coverage logic
+        as the trending top-categories ranking, but with every article weighted
+        equally. Each article is assigned to its single broadest-coverage topic,
+        so near-duplicate categories collapse to one representative.
+
+        Candidate categories are restricted to those with a local page in the
+        given wiki. Articles whose title does not resolve to a QID are returned
+        in `unresolved`; resolved articles with no local category in
+        `unclustered`. Runs entirely on the in-memory category graph.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClusterArticlesRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClusterArticlesResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
 components:
   parameters:
     Wiki:
@@ -1826,6 +1858,68 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RelatedArticleItem"
+
+    ClusterArticlesRequest:
+      type: object
+      required: [wiki, articles]
+      properties:
+        wiki:
+          type: string
+          description: Wikipedia edition database name (e.g., `enwiki`).
+        articles:
+          type: array
+          items:
+            type: string
+          description: Article titles to group into topics.
+        max_clusters:
+          type: integer
+          minimum: 1
+          description: Cap on the number of clusters. Omit to cover every article.
+
+    ArticleCluster:
+      type: object
+      required: [category_qid, category, size, articles]
+      properties:
+        category_qid:
+          type: integer
+          format: int32
+          minimum: 0
+        category:
+          type: string
+          description: Local category title.
+        category_en:
+          type: string
+          description: English label for the category. Present only when the requested wiki is not enwiki and a label exists.
+        size:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Number of input articles assigned to this topic.
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArticleItem"
+
+    ClusterArticlesResponse:
+      type: object
+      required: [wiki, clusters, unclustered, unresolved]
+      properties:
+        wiki:
+          type: string
+        clusters:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArticleCluster"
+        unclustered:
+          type: array
+          description: Resolved articles placed in no cluster (no local category).
+          items:
+            $ref: "#/components/schemas/ArticleItem"
+        unresolved:
+          type: array
+          description: Input titles that did not resolve to a QID in this wiki.
+          items:
+            type: string
 
     ContentGapWikiResult:
       type: object

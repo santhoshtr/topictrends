@@ -7,7 +7,7 @@ use axum::{
     Router,
     http::{Method, StatusCode, header::*},
     response::{Html, Redirect},
-    routing::{get, get_service},
+    routing::{get, get_service, post},
 };
 use rmcp::transport::streamable_http_server::{StreamableHttpService, StreamableHttpServerConfig};
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
@@ -240,6 +240,7 @@ pub fn app_router(state: Arc<AppState>) -> Router {
             "/api/related/articles",
             get(handlers::get_related_articles_handler),
         )
+        .route("/api/cluster", post(handlers::cluster_articles_handler))
         .route(
             "/api/content_gap/categories",
             get(handlers::get_content_gap_handler),

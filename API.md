@@ -660,6 +660,58 @@ curl "http://localhost:8765/api/content_gap/categories?category=Quantum_physics&
 
 ---
 
+### 12. POST /api/cluster
+
+Groups a caller-supplied set of article titles into category-topics, reusing
+the trending top-categories clustering (reverse scatter + greedy coverage) with
+every article weighted equally. Each article is assigned to its single
+broadest-coverage topic, so near-duplicate categories collapse to one
+representative. Candidate categories are restricted to those with a local page
+in the given wiki. Runs entirely on the in-memory category graph.
+
+**Request Body (`application/json`):**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `wiki` | String | Yes | Wikipedia edition database name (e.g., `enwiki`) |
+| `articles` | String[] | Yes | Article titles to group into topics |
+| `max_clusters` | Integer | No | Cap on the number of clusters; omit to cover every article |
+
+**Example Request:**
+
+```bash
+curl -X POST "http://localhost:8765/api/cluster" \
+  -H "Content-Type: application/json" \
+  -d '{"wiki":"enwiki","articles":["Cricket","Sachin Tendulkar","Football","Lionel Messi"]}'
+```
+
+**Response:**
+
+```json
+{
+  "wiki": "enwiki",
+  "clusters": [
+    {
+      "category_qid": 5550,
+      "category": "Cricket",
+      "size": 2,
+      "articles": [
+        { "qid": 5375, "title": "Cricket" },
+        { "qid": 9488, "title": "Sachin_Tendulkar" }
+      ]
+    }
+  ],
+  "unclustered": [],
+  "unresolved": ["Footbal"]
+}
+```
+
+`unclustered` holds resolved articles with no local category; `unresolved`
+echoes input titles that did not map to a QID in the wiki (e.g. typos). For
+non-`enwiki` wikis, category and article items also carry a `title_en` label.
+
+---
+
 ## Utility Endpoints
 
 **Note:** The following endpoints are documented for reference but are not currently implemented in the codebase. Consider implementing them in future versions if needed.

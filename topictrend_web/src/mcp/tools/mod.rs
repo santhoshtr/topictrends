@@ -5,6 +5,7 @@ use rmcp::ErrorData;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
+pub mod cluster;
 pub mod delta;
 pub mod gap_discovery;
 pub mod googlesearch;
@@ -143,6 +144,17 @@ pub struct ListArticleCategoriesInput {
     pub article: Option<String>,
     /// Wikidata QID as a plain integer. At least one of article or article_qid required.
     pub article_qid: Option<u32>,
+}
+
+/// Input for clustering a set of articles into category-topics.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ClusterArticlesInput {
+    /// Wikipedia edition database name (e.g. "enwiki").
+    pub wiki: String,
+    /// Article titles to group into topics.
+    pub articles: Vec<String>,
+    /// Cap on the number of clusters. Omit to cover every article.
+    pub max_clusters: Option<u32>,
 }
 
 /// Input for cross-wiki content-gap discovery (ranked categories).
