@@ -471,6 +471,12 @@ impl WikiGraph {
     /// rather than single-edition idiosyncrasies. Graphs built from the local
     /// relation carry no weights (every edge counts as 1), so `min_agreement > 1`
     /// drops everything there; pass 1 to keep all edges.
+    ///
+    /// Granularity note: selection maximizes input-article coverage, so a broad
+    /// category many inputs share directly (e.g. "Science" over "Physics"/
+    /// "Biology") can outrank finer sub-topics. This is a single-level cut and
+    /// has no notion of hierarchy depth — `min_agreement` is the only granularity
+    /// lever; a true taxonomy-aware cut would need precomputed subtree sizes.
     pub fn cluster_articles(
         &self,
         article_qids: &[u32],

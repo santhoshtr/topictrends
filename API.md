@@ -711,6 +711,16 @@ curl -X POST "http://localhost:8765/api/cluster" \
 echoes input titles that did not map to a QID in the wiki (e.g. typos). For
 non-`enwiki` wikis, category and article items also carry a `title_en` label.
 
+**Granularity.** Clusters form at the level of *shared direct categories*, ranked
+by how many input articles each covers. A broad category that many of the inputs
+share directly (e.g. `Science` for a mix of physics/biology/chemistry articles)
+can therefore win over the finer sub-topics, producing coarser clusters than
+expected. `min_agreement` is the lever: raising it drops weakly-attested edges
+and tends to surface more specific categories, while lowering it toward `1`
+admits single-edition categorizations (noisier, broader). There is no automatic
+"ideal level" — the right `min_agreement` depends on the input and the caller's
+intent.
+
 ---
 
 ## Utility Endpoints
