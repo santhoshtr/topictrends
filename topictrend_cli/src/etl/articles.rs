@@ -12,6 +12,15 @@ struct PageRecord {
     page_title: String,
 }
 
+/// Article QIDs dropped at ETL across every wiki. The Main Page (Q5296) is the
+/// landing page each wiki redirects to; its pageviews/edits dwarf real articles
+/// and are noise to every analytic. Excluding it here is enough — pageviews,
+/// pageedits, and GSC all translate qid→dense via this article map, so a QID
+/// absent from articles.parquet never resolves and drops from all analytics.
+const EXCLUDED_QIDS: &[u32] = &[
+    5296, // Main Page
+];
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
@@ -28,6 +37,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut parts = line.split('\t');
             let page_id = parts.next()?.parse::<u32>().ok()?;
             let qid = parts.next()?.parse::<u32>().ok()?;
+            if EXCLUDED_QIDS.contains(&qid) {
+                return None;
+            }
             let page_title = parts.next()?.to_string();
             Some(PageRecord {
                 page_id,
