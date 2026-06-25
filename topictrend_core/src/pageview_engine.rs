@@ -798,7 +798,13 @@ impl PageViewEngine {
             // prefer higher mean agreement, then higher marginal. Strict `>`
             // keeps the first such candidate, so pool order (raw score) breaks
             // remaining ties — the broadest category wins.
-            let threshold = best_marginal * COVERAGE_TIE_PERCENT / 100;
+            //
+            // Floor at 1: when best_marginal is 1 (low-traffic wiki, quiet
+            // window, or tail slots) `1 * 95 / 100` truncates to 0, which would
+            // admit zero-marginal categories into the tie-break and hand one a
+            // slot on agreement alone over a category that covers new views. A
+            // selected category must explain at least one uncovered view.
+            let threshold = (best_marginal * COVERAGE_TIE_PERCENT / 100).max(1);
             let mut best_pi = usize::MAX;
             let mut best_key = (0u64, 0u64);
             for (pi, &cat) in pool.iter().enumerate() {
@@ -987,6 +993,27 @@ mod coverage_selection_tests {
         let selected =
             PageViewEngine::select_by_coverage(&pool, &cat_weight_sum, &cat_articles, 1);
         assert_eq!(selected, vec![0]);
+    }
+
+    #[test]
+    fn zero_marginal_decoy_never_takes_a_slot() {
+        // 0 "Main": articles 10,11,12 (10 views each) — picked first.
+        // 1 "Tail": article 20 (1 view), low agreement — the real remaining work.
+        // 2 "Decoy": article 10 only (already covered after round 1), very high
+        //   agreement. After "Main", best marginal is 1, so 1*95/100 truncated
+        //   to 0 and let the zero-marginal decoy win the tie-break on agreement,
+        //   stealing the slot from "Tail". The threshold floor prevents that.
+        let cat_articles = vec![
+            vec![(10, 10), (11, 10), (12, 10)],
+            vec![(20, 1)],
+            vec![(10, 1)],
+        ];
+        let cat_weight_sum = vec![15, 1, 100];
+        let pool = [0usize, 1, 2];
+        let selected =
+            PageViewEngine::select_by_coverage(&pool, &cat_weight_sum, &cat_articles, 3);
+        assert_eq!(selected, vec![0, 1]);
+        assert!(!selected.contains(&2));
     }
 }
 
