@@ -171,7 +171,7 @@ impl PageViewsService {
     ) -> Result<Vec<CategoryRank>, ServiceError> {
         let top_n = top_n.unwrap_or(10);
         let start = start_date
-            .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
+            .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(7));
         let end = end_date.unwrap_or_else(|| chrono::Local::now().date_naive());
 
         let categories: Vec<crate::services::core::pageview_service::CategoryViews> =
@@ -242,7 +242,7 @@ impl PageViewsService {
     ) -> Result<Vec<TopArticleRank>, ServiceError> {
         let top_n = top_n.unwrap_or(50);
         let start = start_date
-            .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(30));
+            .unwrap_or_else(|| chrono::Local::now().date_naive() - chrono::Duration::days(7));
         let end = end_date.unwrap_or_else(|| chrono::Local::now().date_naive());
 
         let top_articles = PageViewService::get_top_articles_global(

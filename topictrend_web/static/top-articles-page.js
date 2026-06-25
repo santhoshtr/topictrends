@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	const metric = main?.dataset.metric || "pageviews";
 	const config = CONFIG[metric] || CONFIG.pageviews;
 
-	startDateInput.value = formatDateToISO(getDaysAgo(30));
+	startDateInput.value = formatDateToISO(getDaysAgo(7));
 	endDateInput.value = formatDateToISO(new Date());
 
 	form.addEventListener("submit", (event) => {
