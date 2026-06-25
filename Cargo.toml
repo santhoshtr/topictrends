@@ -28,6 +28,7 @@ clap = { version = "4", features = ["derive"] }
 rayon = "1.11"
 chrono = "0.4"
 byteorder = "1.5"
+regex = "1"
 
 [profile.dev]
 # Faster compile times, slightly slower runtime

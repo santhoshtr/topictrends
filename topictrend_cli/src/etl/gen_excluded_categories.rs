@@ -2,12 +2,12 @@
 //
 // Scans the latest data/canonical/<date>/category_labels.parquet (English-first
 // labels) and keeps every category QID whose normalized label (underscores to
-// spaces, lowercased) contains a maintenance FRAGMENT, then unions CURATED_HEAD
-// — QIDs with no clean label fragment (and some that are hiddencat on enwiki and
-// so never appear in the labels at all). Writes data/excluded_categories.parquet
+// spaces, lowercased) matches a denylist PATTERN, then unions CURATED_HEAD —
+// QIDs with no clean label pattern (and some that are hiddencat on enwiki and so
+// never appear in the labels at all). Writes data/excluded_categories.parquet
 // (qid: u32, sorted, distinct), which get-categories filters against.
 //
-// FRAGMENTS and CURATED_HEAD are the single source of truth for the denylist;
+// PATTERNS and CURATED_HEAD are the single source of truth for the denylist;
 // regenerate occasionally (`make excluded-categories`), it changes slowly.
 //
 // Usage: gen-excluded-categories   (honors DATA_DIR, default "data")
@@ -17,22 +17,30 @@ use parquet::file::writer::SerializedFileWriter;
 use parquet::record::RecordWriter as _;
 use parquet_derive::ParquetRecordWriter;
 use polars::prelude::*;
+use regex::RegexSet;
 use std::collections::BTreeSet;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-/// Maintenance label fragments. Matched as substrings of the normalized label.
-/// `cs1` (not bare `error`) covers CS1 errors + maint without catching
-/// "Terrorism in ...".
+/// Denylist label patterns, as regexes over the normalized label (underscores
+/// to spaces, lowercased — so author patterns in lowercase). Each is tested as
+/// a regex, so a bare literal like `articles` acts as an unanchored substring
+/// match (back-compatible with the old fragment list), while anchors and
+/// classes express precise rules that avoid false positives:
+///   - `^…` / `…$`         — prefix / suffix    (`^\d.* deaths$` not "deaths from cancer")
+///   - `\bword\b`           — whole word         (`\bman\b` not "sportsman")
+///   - `\d{4}`              — a four-digit year
+/// A malformed pattern fails fast at `RegexSet::new`. Literals containing regex
+/// metacharacters (`.`, `(`, `?`, …) must be escaped.
 ///
-/// The second group targets non-defining "set" categories — people grouped by
-/// award, residence or school. They carry the highest cross-wiki agreement (a
-/// person's residence is asserted by every edition), so they crowd out topical
-/// categories in any ranking that falls back to agreement. Year-of-birth/death
-/// categories, the largest such class, are matched separately by
-/// [`is_year_birth_death`] to avoid sweeping topical by-cause/by-event variants.
-const FRAGMENTS: &[&str] = &[
+/// The maintenance group (`articles`…`magic link`) strips assessment/stub/CS1
+/// noise. The set-category group (`living people`…`alumni`) targets non-defining
+/// people-sets, which carry the highest cross-wiki agreement and so crowd out
+/// topical categories in any agreement-tie-broken ranking. The final rule
+/// matches "YYYY births"/"YYYY deaths" (and decade/century variants) without
+/// sweeping topical by-cause categories like "Deaths from cancer".
+const PATTERNS: &[&str] = &[
     "articles",
     "pages",
     "stub",
@@ -47,17 +55,8 @@ const FRAGMENTS: &[&str] = &[
     "recipients",
     "people from",
     "alumni",
+    r"^\d.* (births|deaths)$",
 ];
-
-/// "YYYY births"/"YYYY deaths" and their decade/century/millennium variants —
-/// "1973 deaths", "490s births", "12th-century deaths". The ` births`/` deaths`
-/// suffix plus a leading digit captures the people-by-year population while
-/// leaving topical by-cause/by-event categories ("Deaths from cancer",
-/// "Deaths in the 2010 Haiti earthquake", "Accidental deaths") in the graph.
-fn is_year_birth_death(normalized: &str) -> bool {
-    (normalized.ends_with(" births") || normalized.ends_with(" deaths"))
-        && normalized.starts_with(|c: char| c.is_ascii_digit())
-}
 
 /// The original hand-curated denylist, kept verbatim. The FRAGMENTS above add
 /// the unbounded maintenance/assessment/stub population; this preserves the
@@ -122,20 +121,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let qids = df.column("qid")?.u32()?;
     let labels = df.column("label")?.str()?;
 
+    let patterns = RegexSet::new(PATTERNS)?;
+
     let mut excluded: BTreeSet<u32> = BTreeSet::new();
-    let mut per_fragment = vec![0usize; FRAGMENTS.len()];
-    let mut year_birth_death = 0usize;
+    let mut per_pattern = vec![0usize; PATTERNS.len()];
     for (q, l) in qids.iter().zip(labels.iter()) {
         let (Some(qid), Some(label)) = (q, l) else {
             continue;
         };
         let normalized = label.replace('_', " ").to_lowercase();
-        if is_year_birth_death(&normalized) {
-            year_birth_death += 1;
+        let matches = patterns.matches(&normalized);
+        if matches.matched_any() {
             excluded.insert(qid);
-        } else if let Some(i) = FRAGMENTS.iter().position(|f| normalized.contains(f)) {
-            per_fragment[i] += 1;
-            excluded.insert(qid);
+            // A label may match several patterns; count each for the per-pattern
+            // diagnostic. Totals can exceed the distinct excluded count.
+            for i in matches.iter() {
+                per_pattern[i] += 1;
+            }
         }
     }
     let matched = excluded.len();
@@ -159,12 +161,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     rg.close()?;
     writer.close()?;
 
-    for (frag, n) in FRAGMENTS.iter().zip(&per_fragment) {
-        eprintln!("  {frag:>16}: {n}");
+    for (pattern, n) in PATTERNS.iter().zip(&per_pattern) {
+        eprintln!("  {pattern:>26}: {n}");
     }
-    eprintln!("  {:>16}: {}", "year birth/death", year_birth_death);
     eprintln!(
-        "Wrote {}: {} QIDs ({} fragment-matched + {} curated)",
+        "Wrote {}: {} QIDs ({} pattern-matched + {} curated)",
         out_path,
         records.len(),
         matched,
