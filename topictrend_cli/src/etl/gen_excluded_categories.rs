@@ -25,6 +25,14 @@ use std::sync::Arc;
 /// Maintenance label fragments. Matched as substrings of the normalized label.
 /// `cs1` (not bare `error`) covers CS1 errors + maint without catching
 /// "Terrorism in ...".
+///
+/// The second group targets non-defining "set" categories — people grouped by
+/// birth/death year, award, residence or school. They carry the highest
+/// cross-wiki agreement (a person's birth year is asserted by every edition),
+/// so they crowd out topical categories in any ranking that falls back to
+/// agreement. `births`/`deaths` (plural) match the dominant "YYYY births" /
+/// "YYYY deaths" population but also sweep by-cause/by-event variants like
+/// "Deaths from cancer"; `living people` is the single largest such category.
 const FRAGMENTS: &[&str] = &[
     "articles",
     "pages",
@@ -36,6 +44,12 @@ const FRAGMENTS: &[&str] = &[
     "list of",
     "template",
     "magic link",
+    "births",
+    "deaths",
+    "living people",
+    "recipients",
+    "people from",
+    "alumni",
 ];
 
 /// The original hand-curated denylist, kept verbatim. The FRAGMENTS above add
