@@ -5211,6 +5211,7 @@ dependencies = [
  "parquet",
  "parquet_derive",
  "polars",
+ "rayon",
  "roaring",
 ]
 

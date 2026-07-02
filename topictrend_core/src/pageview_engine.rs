@@ -1,7 +1,8 @@
+use crate::parquet_columns::read_u32_column;
 use crate::{direct_map::DirectMap, graphbuilder::GraphBuilder, wikigraph::WikiGraph};
 use chrono::{Datelike, NaiveDate};
-use parquet::file::reader::{FileReader, SerializedFileReader};
-use parquet::record::RowAccessor;
+use parquet::file::reader::SerializedFileReader;
+use rayon::prelude::*;
 use roaring::RoaringBitmap;
 use std::collections::VecDeque;
 use std::fmt;
@@ -65,15 +66,16 @@ impl fmt::Display for CategoryRank {
 
 /// Sparse storage for pageview counts on a single date.
 ///
-/// A typical enwiki day contains pageviews for ~1.5 M of its ~7 M articles;
-/// the previous dense `Vec<u32>` representation indexed by dense article ID
-/// allocated 28 MB per cached day and held mostly zeros. This struct stores
-/// only the articles that actually have views as two parallel sorted arrays
-/// (`article_ids[i]`, `views[i]`), cutting the per-day footprint roughly
-/// 3-5× and skipping zeros during aggregation. Lookup is O(log n) via
-/// binary search; iteration yields `(dense_id, views)` pairs in dense-id
-/// order, which lets aggregation use two-pointer merges or `RoaringBitmap`
-/// intersections without first materializing a dense vector.
+/// Stores only the articles that actually have views as two parallel sorted
+/// arrays (`article_ids[i]`, `views[i]`), skipping zeros during aggregation.
+/// A typical enwiki day now contains views for ~5-6 M of its ~7.2 M articles
+/// (measured 2026-06), so an enwiki day costs ~42 MB — for enwiki the sparse
+/// layout no longer saves memory over a dense `Vec<u32>` (~29 MB), but it
+/// stays far smaller for every other wiki and keeps aggregation proportional
+/// to non-zero entries. Lookup is O(log n) via binary search; iteration
+/// yields `(dense_id, views)` pairs in dense-id order, which lets
+/// aggregation use two-pointer merges or `RoaringBitmap` intersections
+/// without first materializing a dense vector.
 #[derive(Debug, Clone)]
 pub struct DailyPageViewData {
     article_ids: Vec<u32>, // sorted dense article IDs
@@ -203,12 +205,12 @@ impl TopCategoriesCache {
 /// Bounded per-date pageview cache.
 ///
 /// Each entry is a `DailyPageViewData` — sparse parallel arrays of only the
-/// articles that had views on that date. For enwiki this is ~6-12 MB per
-/// cached day (vs ~28 MB for the previous dense representation). The cache
-/// still has to be bounded though: at 6-12 MB × N days × M wikis, an
-/// unbounded cache still reaches double-digit gigabytes after extended
-/// browsing. This wrapper caps the number of cached dates and evicts in
-/// FIFO insertion order.
+/// articles that had views on that date. For enwiki this is ~42 MB per
+/// cached day (~5-6 M articles with views × 8 bytes), so the default
+/// 120-day cap alone admits ~5 GB for enwiki; smaller wikis cost
+/// proportionally less. The cache therefore has to be bounded: this
+/// wrapper caps the number of cached dates and evicts in FIFO insertion
+/// order.
 ///
 /// FIFO (rather than LRU) keeps the read path lock-free of bookkeeping —
 /// reads don't need to update access order, so multiple readers can run
@@ -301,7 +303,9 @@ fn pageview_cache_capacity() -> usize {
 /// Uses the raw `parquet` crate (purely synchronous) rather than Polars so
 /// this is safe to call from inside an async runtime — handler code reaches
 /// this path without `spawn_blocking`, and Polars' lazy reader internally
-/// starts a Tokio runtime which panics when one is already active.
+/// starts a Tokio runtime which panics when one is already active. Columns
+/// are decoded in bulk (see `parquet_columns`) — 12–15x faster than the
+/// row-based `get_row_iter` API on enwiki-sized files.
 fn load_pageview_parquet(
     path: &str,
     dense_map: &DirectMap,
@@ -309,13 +313,11 @@ fn load_pageview_parquet(
 ) -> Result<DailyPageViewData, Box<dyn Error>> {
     let file = File::open(path)?;
     let reader = SerializedFileReader::new(file)?;
-    let row_iter = reader.get_row_iter(None)?;
+    let qids = read_u32_column(&reader, 0)?;
+    let views = read_u32_column(&reader, 1)?;
 
-    let mut pairs: Vec<(u32, u32)> = Vec::new();
-    for row_result in row_iter {
-        let row = row_result?;
-        let qid = row.get_uint(0)?;
-        let views = row.get_uint(1)?;
+    let mut pairs: Vec<(u32, u32)> = Vec::with_capacity(qids.len());
+    for (&qid, &views) in qids.iter().zip(views.iter()) {
         if views == 0 {
             continue;
         }
@@ -534,12 +536,20 @@ impl PageViewEngine {
             return Ok(snapshot);
         }
 
-        // Phase 2: load missing dates from disk with no lock held. Pair the
-        // loaded data with its date so we can both return it and cache it.
+        // Phase 2: load missing dates from disk with no lock held. Per-day
+        // files are independent, so decode them in parallel — a cold 30-day
+        // enwiki range would otherwise pay ~150 ms per day sequentially.
+        // Errors cross the rayon boundary as `String` because
+        // `Box<dyn Error>` is not `Send`.
+        let results: Vec<(NaiveDate, Result<Option<DailyPageViewData>, String>)> = missing
+            .into_par_iter()
+            .map(|date| (date, self.load_daily_view(date).map_err(|e| e.to_string())))
+            .collect();
+
         let mut loaded: Vec<(NaiveDate, Arc<DailyPageViewData>)> =
-            Vec::with_capacity(missing.len());
-        for date in missing {
-            if let Some(day_data) = self.load_daily_view(date)? {
+            Vec::with_capacity(results.len());
+        for (date, result) in results {
+            if let Some(day_data) = result? {
                 let arc = Arc::new(day_data);
                 snapshot.insert(date, Arc::clone(&arc));
                 loaded.push((date, arc));

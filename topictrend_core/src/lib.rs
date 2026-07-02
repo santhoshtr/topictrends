@@ -6,5 +6,6 @@ pub mod graphbuilder;
 pub mod pageedit_parquet;
 pub mod pageedits_engine;
 pub mod pageview_parquet;
+pub mod parquet_columns;
 pub mod pageview_engine;
 pub mod wikigraph;

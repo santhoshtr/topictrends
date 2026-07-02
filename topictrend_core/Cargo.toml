@@ -16,4 +16,5 @@ roaring = { workspace = true }
 anyhow = { workspace = true }
 ahash = { workspace = true }
 chrono = { workspace = true }
+rayon = { workspace = true }
 byteorder = { workspace = true }

@@ -1,8 +1,9 @@
 use crate::direct_map::DirectMap;
+use crate::parquet_columns::read_u32_column;
 use crate::{graphbuilder::GraphBuilder, wikigraph::WikiGraph};
 use chrono::{Datelike, NaiveDate};
-use parquet::file::reader::{FileReader, SerializedFileReader};
-use parquet::record::RowAccessor;
+use parquet::file::reader::SerializedFileReader;
+use rayon::prelude::*;
 use std::collections::VecDeque;
 use std::fmt;
 use std::fs::File;
@@ -258,7 +259,8 @@ fn pageedit_cache_capacity() -> usize {
 /// `dense_map` (articles deleted since the file was written) and zero-count
 /// rows are dropped. Uses the raw synchronous `parquet` reader (not Polars)
 /// so it is safe to call from inside an async runtime — handler code reaches
-/// this path without `spawn_blocking`.
+/// this path without `spawn_blocking`. Columns are decoded in bulk (see
+/// `parquet_columns`), much faster than the row-based `get_row_iter` API.
 fn load_pageedit_parquet(
     path: &str,
     dense_map: &DirectMap,
@@ -266,13 +268,11 @@ fn load_pageedit_parquet(
 ) -> Result<DailyEditData, Box<dyn Error>> {
     let file = File::open(path)?;
     let reader = SerializedFileReader::new(file)?;
-    let row_iter = reader.get_row_iter(None)?;
+    let qids = read_u32_column(&reader, 0)?;
+    let edit_counts = read_u32_column(&reader, 1)?;
 
-    let mut pairs: Vec<(u32, u32)> = Vec::new();
-    for row_result in row_iter {
-        let row = row_result?;
-        let qid = row.get_uint(0)?;
-        let edit_count = row.get_uint(1)?;
+    let mut pairs: Vec<(u32, u32)> = Vec::with_capacity(qids.len());
+    for (&qid, &edit_count) in qids.iter().zip(edit_counts.iter()) {
         if edit_count == 0 {
             continue;
         }
@@ -368,10 +368,17 @@ impl PageEditsEngine {
             return Ok(snapshot);
         }
 
-        // Phase 2: load missing dates from disk with no lock held.
-        let mut loaded: Vec<(NaiveDate, Arc<DailyEditData>)> = Vec::with_capacity(missing.len());
-        for date in missing {
-            if let Some(day_data) = self.load_daily_edit(date)? {
+        // Phase 2: load missing dates from disk with no lock held, in
+        // parallel — per-day files are independent. Errors cross the rayon
+        // boundary as `String` because `Box<dyn Error>` is not `Send`.
+        let results: Vec<(NaiveDate, Result<Option<DailyEditData>, String>)> = missing
+            .into_par_iter()
+            .map(|date| (date, self.load_daily_edit(date).map_err(|e| e.to_string())))
+            .collect();
+
+        let mut loaded: Vec<(NaiveDate, Arc<DailyEditData>)> = Vec::with_capacity(results.len());
+        for (date, result) in results {
+            if let Some(day_data) = result? {
                 let arc = Arc::new(day_data);
                 snapshot.insert(date, Arc::clone(&arc));
                 loaded.push((date, arc));

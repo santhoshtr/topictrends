@@ -15,9 +15,9 @@
 //! crate (purely synchronous) rather than Polars, so it is safe to call from
 //! inside `spawn_blocking` in the async web layer.
 
+use crate::parquet_columns::{read_u32_column, read_u64_column};
 use chrono::NaiveDate;
 use parquet::file::reader::{FileReader, SerializedFileReader};
-use parquet::record::RowAccessor;
 use std::error::Error;
 use std::fs::File;
 use std::path::Path;
@@ -110,16 +110,22 @@ pub fn load_coverage_parquet(path: &str) -> Result<CoverageMatrix, Box<dyn Error
         .iter()
         .any(|c| c.name() == "overlap_pageviews");
 
-    let row_iter = reader.get_row_iter(None)?;
-    let mut rows: Vec<(u32, u32, u32, u64)> = Vec::new();
-    for row_result in row_iter {
-        let row = row_result?;
-        let category_qid = row.get_uint(0)?;
-        let direct = row.get_uint(1)?;
-        let overlap = row.get_uint(2)?;
-        let pageviews = if has_pageviews { row.get_ulong(3)? } else { 0 };
-        rows.push((category_qid, direct, overlap, pageviews));
-    }
+    let category_qids = read_u32_column(&reader, 0)?;
+    let direct = read_u32_column(&reader, 1)?;
+    let overlap = read_u32_column(&reader, 2)?;
+    let pageviews = if has_pageviews {
+        read_u64_column(&reader, 3)?
+    } else {
+        vec![0; category_qids.len()]
+    };
+
+    let rows: Vec<(u32, u32, u32, u64)> = category_qids
+        .into_iter()
+        .zip(direct)
+        .zip(overlap)
+        .zip(pageviews)
+        .map(|(((c, d), o), p)| (c, d, o, p))
+        .collect();
 
     Ok(CoverageMatrix::from_rows(rows, has_pageviews))
 }
