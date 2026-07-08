@@ -146,6 +146,17 @@ pub struct ListArticleCategoriesInput {
     pub article_qid: Option<u32>,
 }
 
+/// Input for getting the topics of an article.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ArticleTopicsInput {
+    /// Wikipedia edition database name (e.g. "enwiki").
+    pub wiki: String,
+    /// Article title. At least one of article or article_qid required.
+    pub article: Option<String>,
+    /// Wikidata QID as a plain integer. At least one of article or article_qid required.
+    pub article_qid: Option<u32>,
+}
+
 /// Input for clustering a set of articles into category-topics.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ClusterArticlesInput {

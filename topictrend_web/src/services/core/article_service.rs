@@ -30,6 +30,22 @@ impl ArticleService {
         Ok(ranked)
     }
 
+    /// Topics of an article: the categories tied at the maximum cross-wiki
+    /// agreement count. On local topology every edge weighs 1, so this
+    /// degenerates to all categories of the article.
+    pub async fn get_article_topics(
+        state: Arc<AppState>,
+        wiki: &str,
+        article_qid: u32,
+    ) -> Result<Vec<(u32, u16)>, CoreServiceError> {
+        let ranked = Self::get_article_categories(state, wiki, article_qid).await?;
+        let max = match ranked.first() {
+            Some(&(_, w)) => w,
+            None => return Ok(ranked),
+        };
+        Ok(ranked.into_iter().take_while(|&(_, w)| w == max).collect())
+    }
+
     pub async fn validate_article_exists(
         state: Arc<AppState>,
         wiki: &str,

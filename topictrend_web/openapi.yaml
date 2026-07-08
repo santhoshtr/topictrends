@@ -577,6 +577,39 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/list/article_topics:
+    get:
+      operationId: getArticleTopics
+      tags: [Lists]
+      summary: Get the topic(s) of an article by cross-wiki agreement
+      description: |
+        Returns the article's most agreed-upon categories as its topics: the
+        categories tied at the maximum cross-wiki agreement count (the number
+        of Wikipedia editions asserting the article→category assignment).
+        High agreement favors abstract, broadly-recognized topics over
+        edition-specific categorization.
+
+        When the server runs on local topology (`TOPICTREND_TOPOLOGY=local`)
+        every assignment has agreement 1, so all of the article's categories
+        are returned.
+
+        Note: at least one of `article` or `article_qid` must be provided.
+      parameters:
+        - $ref: "#/components/parameters/Wiki"
+        - $ref: "#/components/parameters/ArticleOptional"
+        - $ref: "#/components/parameters/ArticleQidOptional"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArticleTopicsResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/related/articles:
     get:
       operationId: getRelatedArticles
@@ -1824,6 +1857,18 @@ components:
         consumers should read the count, not trust the order alone.
       properties:
         categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/RankedCategoryInfo"
+
+    ArticleTopicsResponse:
+      type: object
+      required: [topics]
+      description: >
+        The article's topics: all categories tied at the maximum cross-wiki
+        agreement count, ordered by category QID.
+      properties:
+        topics:
           type: array
           items:
             $ref: "#/components/schemas/RankedCategoryInfo"

@@ -5,8 +5,8 @@ use rmcp::{ErrorData, tool};
 use rmcp::handler::server::wrapper::Parameters;
 
 use crate::mcp::TopicTrendMcpServer;
-use crate::mcp::tools::{ListArticlesInput, SubCategoriesInput, core_err, ListArticleCategoriesInput};
-use crate::models::{ArticleItem, ArticlesInCategoryResponse, ArticleCategoriesResponse};
+use crate::mcp::tools::{ArticleTopicsInput, ListArticlesInput, SubCategoriesInput, core_err, ListArticleCategoriesInput};
+use crate::models::{ArticleItem, ArticlesInCategoryResponse, ArticleCategoriesResponse, ArticleTopicsResponse};
 use crate::services::PageViewsService;
 use crate::services::core::{CategoryService, QidService, ArticleService};
 
@@ -135,5 +135,54 @@ impl TopicTrendMcpServer {
         }).collect();
 
         Ok(rmcp::handler::server::wrapper::Json(ArticleCategoriesResponse { categories }))
+    }
+
+    /// Topics of an article: categories tied at the maximum cross-wiki agreement.
+    ///
+    /// At least one of `article` or `article_qid` must be provided.
+    #[tool(
+        name = "topictrends_get_article_topics",
+        description = "Get the topic(s) of a Wikipedia article: the categories the most language editions agree on. Returns all categories tied at the maximum cross-wiki agreement count.",
+        annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = true)
+    )]
+    pub async fn get_article_topics(
+        &self,
+        Parameters(p): Parameters<ArticleTopicsInput>,
+    ) -> Result<rmcp::handler::server::wrapper::Json<ArticleTopicsResponse>, ErrorData> {
+        let article_qid = if let Some(qid) = p.article_qid {
+            qid
+        } else {
+            let article = p.article.ok_or_else(|| {
+                ErrorData::invalid_params(
+                    "Either article or article_qid must be provided".to_string(),
+                    None,
+                )
+            })?;
+            QidService::get_qid_by_title(Arc::clone(&self.state), &p.wiki, &article, 0)
+                .await.map_err(core_err)?
+        };
+
+        let ranked = ArticleService::get_article_topics(
+            Arc::clone(&self.state), &p.wiki, article_qid,
+        ).await.map_err(core_err)?;
+
+        let topic_qids: Vec<u32> = ranked.iter().map(|(qid, _)| *qid).collect();
+        let titles = QidService::get_titles_by_qids(
+            Arc::clone(&self.state), &p.wiki, &topic_qids,
+        ).await.map_err(core_err)?;
+        let en =
+            QidService::get_english_titles(Arc::clone(&self.state), &p.wiki, &topic_qids).await;
+
+        let topics = ranked.into_iter().map(|(qid, wiki_count)| {
+            let title = titles.get(&qid).cloned().unwrap_or_else(|| format!("Q{}", qid));
+            crate::models::RankedCategoryInfo {
+                qid,
+                title,
+                title_en: en.get(&qid).cloned(),
+                wiki_count,
+            }
+        }).collect();
+
+        Ok(rmcp::handler::server::wrapper::Json(ArticleTopicsResponse { topics }))
     }
 }

@@ -5,9 +5,10 @@ use axum::{
 use std::sync::Arc;
 
 use crate::models::{
-    AppState, ArticleCategoriesResponse, ArticleItem, ArticlesInCategoryResponse,
-    CategorySearchItemResponse, CategorySearchParams, CategorySearchResponse, ContentGapParams,
-    ContentGapResult, ListArticleCategoriesParams, ListArticlesInCategoryParams,
+    AppState, ArticleCategoriesResponse, ArticleItem, ArticleTopicsParams, ArticleTopicsResponse,
+    ArticlesInCategoryResponse, CategorySearchItemResponse, CategorySearchParams,
+    CategorySearchResponse, ContentGapParams, ContentGapResult, ListArticleCategoriesParams,
+    ListArticlesInCategoryParams,
 };
 use crate::services::{
     ContentGapService,
@@ -212,4 +213,45 @@ pub async fn get_article_categories(
         .collect();
 
     Ok(Json(ArticleCategoriesResponse { categories }))
+}
+
+pub async fn get_article_topics(
+    Query(params): Query<ArticleTopicsParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<ArticleTopicsResponse>, ApiError> {
+    let article_qid = if let Some(qid) = params.article_qid {
+        qid
+    } else {
+        let article = params.article.ok_or_else(|| {
+            CoreServiceError::InternalError(
+                "Either article or article_qid must be provided".to_string(),
+            )
+        })?;
+        QidService::get_qid_by_title(Arc::clone(&state), params.wiki.as_str(), &article, 0).await?
+    };
+
+    let ranked =
+        ArticleService::get_article_topics(Arc::clone(&state), params.wiki.as_str(), article_qid)
+            .await?;
+
+    let topic_qids: Vec<u32> = ranked.iter().map(|(qid, _)| *qid).collect();
+    let titles_map =
+        QidService::get_titles_by_qids(Arc::clone(&state), params.wiki.as_str(), &topic_qids)
+            .await?;
+    let en = QidService::get_english_titles(Arc::clone(&state), &params.wiki, &topic_qids).await;
+
+    let topics: Vec<crate::models::RankedCategoryInfo> = ranked
+        .into_iter()
+        .map(|(qid, wiki_count)| crate::models::RankedCategoryInfo {
+            qid,
+            title: titles_map
+                .get(&qid)
+                .cloned()
+                .unwrap_or_else(|| format!("Q{}", qid)),
+            title_en: en.get(&qid).cloned(),
+            wiki_count,
+        })
+        .collect();
+
+    Ok(Json(ArticleTopicsResponse { topics }))
 }

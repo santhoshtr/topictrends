@@ -237,6 +237,10 @@ pub fn app_router(state: Arc<AppState>) -> Router {
             get(handlers::get_article_categories),
         )
         .route(
+            "/api/list/article_topics",
+            get(handlers::get_article_topics),
+        )
+        .route(
             "/api/related/articles",
             get(handlers::get_related_articles_handler),
         )

@@ -612,6 +612,18 @@ pub struct ArticleCategoriesResponse {
 }
 
 #[derive(Deserialize)]
+pub struct ArticleTopicsParams {
+    pub wiki: String,
+    pub article: Option<String>,
+    pub article_qid: Option<u32>,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct ArticleTopicsResponse {
+    pub topics: Vec<RankedCategoryInfo>,
+}
+
+#[derive(Deserialize)]
 pub struct RelatedArticlesParams {
     pub wiki: String,
     pub article: Option<String>,
